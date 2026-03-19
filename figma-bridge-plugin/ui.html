@@ -35,6 +35,7 @@
     }
 
     .app {
+      position: relative;
       display: flex;
       flex-direction: column;
       height: 100%;
@@ -63,6 +64,11 @@
       letter-spacing: -0.01em;
     }
     .header-chevron { color: var(--text-muted); line-height: 1; }
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
     .conn-pill {
       display: flex;
       align-items: center;
@@ -643,6 +649,11 @@
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
     }
+    .provider-icon svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
     .pc-claude { background: rgba(218,119,86,0.14); }
     .pc-openai { background: rgba(25,195,125,0.12); }
     .pc-gemini { background: rgba(66,133,244,0.12); }
@@ -816,10 +827,54 @@
       padding: 5px 10px;
       margin-top: 2px;
     }
+    .resize-handle {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 8px;
+      z-index: 12;
+      cursor: ns-resize;
+      touch-action: none;
+    }
+    .resize-handle::after {
+      content: "";
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      height: 2px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.16);
+      opacity: 0;
+      transition: opacity 0.14s ease, background 0.14s ease;
+      pointer-events: none;
+    }
+    .resize-handle:hover::after,
+    .resize-handle.is-active::after {
+      opacity: 1;
+      background: rgba(255,255,255,0.32);
+    }
+    .resize-handle--top {
+      top: 0;
+    }
+    .resize-handle--top::after {
+      top: 1px;
+    }
+    .resize-handle--bottom {
+      bottom: 0;
+    }
+    .resize-handle--bottom::after {
+      bottom: 1px;
+    }
+    body.plugin-resizing,
+    body.plugin-resizing * {
+      cursor: ns-resize !important;
+      user-select: none !important;
+    }
   </style>
 </head>
 <body>
 <div class="app">
+  <div class="resize-handle resize-handle--top" id="resize-handle-top" title="Drag to resize plugin height"></div>
 
   <!-- Login / Provider Selection Screen -->
   <div class="login-screen" id="login-screen" style="display:none">
@@ -834,11 +889,7 @@
     <div class="provider-list">
       <!-- Claude -->
       <div class="provider-card" id="pc-claude" onclick="selectLoginProvider('claude')">
-        <div class="provider-icon pc-claude">
-          <svg width="14" height="14" viewBox="0 0 28 28" fill="none">
-            <path d="M14 3V11M14 17V25M3 14H11M17 14H25M5.757 5.757L11.314 11.314M16.686 16.686L22.243 22.243M5.757 22.243L11.314 16.686M16.686 11.314L22.243 5.757" stroke="#da7756" stroke-width="2.8" stroke-linecap="round"/>
-          </svg>
-        </div>
+        <div class="provider-icon pc-claude" id="claude-logo-slot"></div>
         <div class="provider-info">
           <div class="provider-name">Claude</div>
           <div class="provider-desc" id="pd-claude">Anthropic &middot; Subscription required</div>
@@ -848,12 +899,7 @@
 
       <!-- OpenAI -->
       <div class="provider-card" id="pc-openai" onclick="selectLoginProvider('openai')">
-        <div class="provider-icon pc-openai">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="9.5" stroke="#19c37d" stroke-width="1.6"/>
-            <path d="M8.5 12h7M12 8.5v7" stroke="#19c37d" stroke-width="1.6" stroke-linecap="round"/>
-          </svg>
-        </div>
+        <div class="provider-icon pc-openai" id="codex-logo-slot"></div>
         <div class="provider-info">
           <div class="provider-name">OpenAI</div>
           <div class="provider-desc" id="pd-openai">OpenAI &middot; Subscription required</div>
@@ -863,12 +909,7 @@
 
       <!-- Gemini -->
       <div class="provider-card" id="pc-gemini" onclick="selectLoginProvider('gemini')">
-        <div class="provider-icon pc-gemini">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <path d="M12 3C12 3 9 8 3.5 12C9 16 12 21 12 21C12 21 15 16 20.5 12C15 8 12 3 12 3Z" stroke="#4285f4" stroke-width="1.5" stroke-linejoin="round"/>
-            <circle cx="12" cy="12" r="2.5" fill="#4285f4"/>
-          </svg>
-        </div>
+        <div class="provider-icon pc-gemini" id="gemini-logo-slot"></div>
         <div class="provider-info">
           <div class="provider-name">Gemini</div>
           <div class="provider-desc" id="pd-gemini">Google AI &middot; Subscription or API key</div>
@@ -936,9 +977,11 @@
       <span class="header-title" id="header-title">Figma Intelligence</span>
       <div class="provider-badge" id="provider-badge" onclick="showLoginScreen()"></div>
     </div>
-    <div class="conn-pill">
-      <div class="conn-dot" id="conn-dot"></div>
-      <span id="conn-text">Connecting…</span>
+    <div class="header-controls">
+      <div class="conn-pill">
+        <div class="conn-dot" id="conn-dot"></div>
+        <span id="conn-text">Connecting…</span>
+      </div>
     </div>
   </div>
 
@@ -1036,9 +1079,10 @@
         </div>
       </div>
     </div>
-    <div class="input-footer" id="input-footer">Connect the bridge relay to start</div>
+  <div class="input-footer" id="input-footer">copyright ramsarjal</div>
   </div>
 
+  <div class="resize-handle resize-handle--bottom" id="resize-handle-bottom" title="Drag to resize plugin height"></div>
 </div>
 
 <script>
@@ -1099,6 +1143,125 @@
     input.focus();
     autoResize();
     updateSend();
+  }
+
+  var PROVIDER_LOGOS = {
+    claude: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z" fill="#D97757" fill-rule="nonzero"></path></svg>',
+    gemini: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="#3186FF"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#gemini-fill-0)"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#gemini-fill-1)"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#gemini-fill-2)"></path><defs><linearGradient gradientUnits="userSpaceOnUse" id="gemini-fill-0" x1="7" x2="11" y1="15.5" y2="12"><stop stop-color="#08B962"></stop><stop offset="1" stop-color="#08B962" stop-opacity="0"></stop></linearGradient><linearGradient gradientUnits="userSpaceOnUse" id="gemini-fill-1" x1="8" x2="11.5" y1="5.5" y2="11"><stop stop-color="#F94543"></stop><stop offset="1" stop-color="#F94543" stop-opacity="0"></stop></linearGradient><linearGradient gradientUnits="userSpaceOnUse" id="gemini-fill-2" x1="3.5" x2="17.5" y1="13.5" y2="12"><stop stop-color="#FABC12"></stop><stop offset=".46" stop-color="#FABC12" stop-opacity="0"></stop></linearGradient></defs></svg>',
+    openai: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.503 0H4.496A4.496 4.496 0 000 4.496v15.007A4.496 4.496 0 004.496 24h15.007A4.496 4.496 0 0024 19.503V4.496A4.496 4.496 0 0019.503 0z" fill="#fff"></path><path d="M9.064 3.344a4.578 4.578 0 012.285-.312c1 .115 1.891.54 2.673 1.275.01.01.024.017.037.021a.09.09 0 00.043 0 4.55 4.55 0 013.046.275l.047.022.116.057a4.581 4.581 0 012.188 2.399c.209.51.313 1.041.315 1.595a4.24 4.24 0 01-.134 1.223.123.123 0 00.03.115c.594.607.988 1.33 1.183 2.17.289 1.425-.007 2.71-.887 3.854l-.136.166a4.548 4.548 0 01-2.201 1.388.123.123 0 00-.081.076c-.191.551-.383 1.023-.74 1.494-.9 1.187-2.222 1.846-3.711 1.838-1.187-.006-2.239-.44-3.157-1.302a.107.107 0 00-.105-.024c-.388.125-.78.143-1.204.138a4.441 4.441 0 01-1.945-.466 4.544 4.544 0 01-1.61-1.335c-.152-.202-.303-.392-.414-.617a5.81 5.81 0 01-.37-.961 4.582 4.582 0 01-.014-2.298.124.124 0 00.006-.056.085.085 0 00-.027-.048 4.467 4.467 0 01-1.034-1.651 3.896 3.896 0 01-.251-1.192 5.189 5.189 0 01.141-1.6c.337-1.112.982-1.985 1.933-2.618.212-.141.413-.251.601-.33.215-.089.43-.164.646-.227a.098.098 0 00.065-.066 4.51 4.51 0 01.829-1.615 4.535 4.535 0 011.837-1.388zm3.482 10.565a.637.637 0 000 1.272h3.636a.637.637 0 100-1.272h-3.636zM8.462 9.23a.637.637 0 00-1.106.631l1.272 2.224-1.266 2.136a.636.636 0 101.095.649l1.454-2.455a.636.636 0 00.005-.64L8.462 9.23z" fill="url(#codex-fill)"></path><defs><linearGradient gradientUnits="userSpaceOnUse" id="codex-fill" x1="12" x2="12" y1="3" y2="21"><stop stop-color="#B1A7FF"></stop><stop offset=".5" stop-color="#7A9DFF"></stop><stop offset="1" stop-color="#3941FF"></stop></linearGradient></defs></svg>'
+  };
+
+  var PLUGIN_SIZE_KEY = "figma-intelligence-plugin-height";
+  var DEFAULT_PLUGIN_WIDTH = 320;
+  var DEFAULT_PLUGIN_HEIGHT = 480;
+  var MIN_PLUGIN_HEIGHT = 480;
+  var MAX_PLUGIN_HEIGHT = 960;
+  var pluginHeight = DEFAULT_PLUGIN_HEIGHT;
+  var pluginResizeState = null;
+
+  function renderProviderLogos() {
+    var claudeSlot = document.getElementById("claude-logo-slot");
+    var codexSlot = document.getElementById("codex-logo-slot");
+    var geminiSlot = document.getElementById("gemini-logo-slot");
+    if (claudeSlot) claudeSlot.innerHTML = PROVIDER_LOGOS.claude;
+    if (codexSlot) codexSlot.innerHTML = PROVIDER_LOGOS.openai;
+    if (geminiSlot) geminiSlot.innerHTML = PROVIDER_LOGOS.gemini;
+  }
+
+  function clampPluginHeight(height) {
+    return Math.max(MIN_PLUGIN_HEIGHT, Math.min(MAX_PLUGIN_HEIGHT, height));
+  }
+
+  function persistPluginHeight() {
+    try { localStorage.setItem(PLUGIN_SIZE_KEY, String(pluginHeight)); } catch (e) {}
+  }
+
+  function requestPluginResize(height) {
+    pluginHeight = clampPluginHeight(height);
+    persistPluginHeight();
+    parent.postMessage({
+      pluginMessage: {
+        type: "resize-ui",
+        width: DEFAULT_PLUGIN_WIDTH,
+        height: pluginHeight,
+      },
+    }, "*");
+  }
+
+  function initPluginSize() {
+    var saved = null;
+    try { saved = Number(localStorage.getItem(PLUGIN_SIZE_KEY)); } catch (e) {}
+    if (saved && isFinite(saved)) {
+      pluginHeight = clampPluginHeight(saved);
+    }
+    requestPluginResize(pluginHeight);
+  }
+
+  function beginPluginResize(edge, event) {
+    if (!event) return;
+
+    pluginResizeState = {
+      edge: edge,
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      startHeight: pluginHeight,
+      handle: event.currentTarget,
+    };
+
+    if (pluginResizeState.handle && pluginResizeState.handle.setPointerCapture) {
+      pluginResizeState.handle.setPointerCapture(event.pointerId);
+    }
+
+    if (pluginResizeState.handle) {
+      pluginResizeState.handle.classList.add("is-active");
+    }
+    document.body.classList.add("plugin-resizing");
+    event.preventDefault();
+  }
+
+  function updatePluginResize(event) {
+    if (!pluginResizeState || event.pointerId !== pluginResizeState.pointerId) return;
+
+    var deltaY = event.clientY - pluginResizeState.startY;
+    var nextHeight = pluginResizeState.edge === "top"
+      ? pluginResizeState.startHeight - deltaY
+      : pluginResizeState.startHeight + deltaY;
+
+    requestPluginResize(nextHeight);
+    event.preventDefault();
+  }
+
+  function endPluginResize(event) {
+    if (!pluginResizeState) return;
+    if (event && event.pointerId !== pluginResizeState.pointerId) return;
+
+    if (pluginResizeState.handle) {
+      pluginResizeState.handle.classList.remove("is-active");
+      if (
+        event &&
+        pluginResizeState.handle.releasePointerCapture &&
+        pluginResizeState.handle.hasPointerCapture &&
+        pluginResizeState.handle.hasPointerCapture(pluginResizeState.pointerId)
+      ) {
+        pluginResizeState.handle.releasePointerCapture(pluginResizeState.pointerId);
+      }
+    }
+
+    pluginResizeState = null;
+    document.body.classList.remove("plugin-resizing");
+  }
+
+  function initPluginResizeHandles() {
+    ["top", "bottom"].forEach(function(edge) {
+      var handle = document.getElementById("resize-handle-" + edge);
+      if (!handle) return;
+      handle.addEventListener("pointerdown", function(event) {
+        beginPluginResize(edge, event);
+      });
+      handle.addEventListener("pointermove", updatePluginResize);
+      handle.addEventListener("pointerup", endPluginResize);
+      handle.addEventListener("pointercancel", endPluginResize);
+    });
   }
 
   /* ── Model switcher ───────────────────────────────────────────────────── */
@@ -1280,7 +1443,7 @@
   var PROVIDER_HINTS = {
     claude:  'Uses your Claude Code subscription. Setup prepares it up front so switching does not require restarting the relay.',
     openai:  'Uses the OpenAI account currently signed in to Codex. Setup also registers Codex for MCP so switching stays restart-free.',
-    gemini:  'If you have Google One AI Premium / Gemini Advanced, install the Gemini CLI (npm i -g @google/gemini-cli) and run \u201cgemini auth login\u201d. Otherwise enter an API key from aistudio.google.com/app/apikey.',
+    gemini:  '',
     bridge:  'Your AI tool (VS Code Copilot, Cursor, etc.) controls Figma via MCP.',
   };
 
@@ -1556,21 +1719,7 @@
 
     input.disabled = !canChat;
     updateSend();
-
-    if (bridge) return;
-    if (canChat) {
-      footer.textContent = "Enter \u21b5 to send  \u00b7  Shift+Enter for new line";
-    } else if (!isPluginConnected) {
-      footer.textContent = "Connect the bridge relay to start";
-    } else if (prov === "openai") {
-      footer.textContent = isOpenAILoggedIn ? "" : "OpenAI Codex login required \u2014 run: codex login";
-    } else if (prov === "gemini") {
-      footer.textContent = (geminiCliLoggedIn || loginApiKey) ? "" : "Gemini not configured \u2014 click provider badge to set up";
-    } else if (!isClaudeLoggedIn) {
-      footer.textContent = "Claude login required";
-    } else if (isStreaming) {
-      footer.textContent = "AI is working\u2026";
-    }
+    footer.textContent = "copyright ramsarjal";
   }
 
   function updateSend() {
@@ -2286,7 +2435,10 @@
 
   /* ── Init ─────────────────────────────────────────────────────────────── */
   initFileAttach();
+  renderProviderLogos();
   initLoginScreen();
+  initPluginSize();
+  initPluginResizeHandles();
   updateStatus();
   connect();
 </script>

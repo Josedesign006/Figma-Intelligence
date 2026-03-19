@@ -9,7 +9,12 @@
  *   result  ←   WebSocket ← ui.html ← postMessage ← this code
  */
 
-figma.showUI(__html__, { visible: true, width: 320, height: 480 });
+var UI_WIDTH = 320;
+var UI_HEIGHT = 480;
+var UI_MIN_HEIGHT = 480;
+var UI_MAX_HEIGHT = 960;
+
+figma.showUI(__html__, { visible: true, width: UI_WIDTH, height: UI_HEIGHT });
 
 function normalizeExecuteCode(code) {
   var trimmed = typeof code === "string" ? code.trim() : "";
@@ -982,6 +987,17 @@ async function normalizeVariableValue(resolvedType, value) {
 // ─── Handle messages from the UI (which receives them from the WebSocket) ────
 
 figma.ui.onmessage = async (msg) => {
+  if (msg.type === "resize-ui") {
+    var width = typeof msg.width === "number" ? Math.max(280, Math.round(msg.width)) : UI_WIDTH;
+    var height = typeof msg.height === "number"
+      ? Math.max(UI_MIN_HEIGHT, Math.min(UI_MAX_HEIGHT, Math.round(msg.height)))
+      : UI_HEIGHT;
+    UI_WIDTH = width;
+    UI_HEIGHT = height;
+    figma.ui.resize(UI_WIDTH, UI_HEIGHT);
+    return;
+  }
+
   // Handle agent cursor commands from UI
   if (msg.type === "agent-command") {
     if (msg.command === "cleanup") {
