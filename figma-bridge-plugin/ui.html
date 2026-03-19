@@ -1,0 +1,2264 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Tiempos+Text:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* Claude.ai dark theme */
+      --bg:            #2b2a27;
+      --bg-header:     #242422;
+      --bg-input:      #3a3936;
+      --bg-user-msg:   #1e1d1b;
+      --border-header: rgba(255,255,255,0.06);
+      --text-primary:  #e8e6e1;
+      --text-secondary:#9b9890;
+      --text-muted:    #6b6966;
+      --text-ghost:    #46443f;
+      --accent:        #da7756;
+      --accent-hover:  #c86644;
+      --font-serif:    'Tiempos Text', 'Georgia', 'Times New Roman', serif;
+      --font-sans:     ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      font-family: var(--font-sans);
+      color: var(--text-primary);
+      font-size: 14px;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    .header {
+      height: 38px;
+      padding: 0 12px;
+      background: var(--bg-header);
+      border-bottom: 1px solid var(--border-header);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .header-title {
+      font-size: 12.5px;
+      font-weight: 400;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+    .header-chevron { color: var(--text-muted); line-height: 1; }
+    .conn-pill {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10.5px;
+      color: var(--text-muted);
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .conn-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--text-ghost);
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .conn-dot.online  { background: #4d8f5f; }
+    .conn-dot.offline { background: #8f4d4d; }
+
+    /* ── Auth strip ──────────────────────────────────────────── */
+    .auth-strip {
+      padding: 4px 12px;
+      font-size: 10.5px;
+      color: var(--text-muted);
+      background: var(--bg-header);
+      border-bottom: 1px solid var(--border-header);
+      flex-shrink: 0;
+    }
+    .auth-strip.ok { color: #4d8f5f; }
+    .auth-email { color: #4d8f5f; }
+
+    /* ── Thread ──────────────────────────────────────────────── */
+    .thread {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 0 10px;
+      display: flex;
+      flex-direction: column;
+    }
+    .thread::-webkit-scrollbar { width: 3px; }
+    .thread::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 3px; }
+
+    /* ── Home state ──────────────────────────────────────────── */
+    .home-state {
+      padding: 8px 20px 16px;
+      animation: fadein 0.35s ease;
+    }
+    @keyframes fadein { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+    .home-heading {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 18px;
+    }
+    .home-heading-text {
+      font-family: var(--font-serif);
+      font-size: 20px;
+      font-weight: 400;
+      color: var(--text-primary);
+      letter-spacing: -0.025em;
+      line-height: 1.25;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.09);
+      background: rgba(255,255,255,0.03);
+      font-size: 11px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .chip:hover {
+      background: rgba(255,255,255,0.07);
+      border-color: rgba(255,255,255,0.14);
+      color: var(--text-primary);
+    }
+    .chip svg { flex-shrink: 0; opacity: 0.6; }
+
+    /* ── Message rows ────────────────────────────────────────── */
+    .msg-row {
+      padding: 0 20px;
+      animation: fadein 0.2s ease;
+    }
+
+    /* User — right-aligned dark pill */
+    .user-wrap {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 22px;
+    }
+    .user-bubble {
+      background: var(--bg-user-msg);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 18px;
+      border-bottom-right-radius: 6px;
+      padding: 9px 14px;
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--text-primary);
+      max-width: 88%;
+      word-break: break-word;
+    }
+
+    /* Claude — plain flowing text, serif, no bubble */
+    .claude-wrap {
+      margin-bottom: 6px;
+    }
+    .claude-text {
+      font-family: var(--font-serif);
+      font-size: 13.5px;
+      line-height: 1.72;
+      color: var(--text-primary);
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+    .claude-text.rendered {
+      white-space: normal;
+    }
+    .claude-text.rendered p {
+      margin: 0 0 8px 0;
+    }
+    .claude-text.rendered p:last-child {
+      margin-bottom: 0;
+    }
+    .claude-text.rendered strong {
+      font-weight: 600;
+      color: #fff;
+    }
+    .claude-text.rendered em {
+      font-style: italic;
+      color: rgba(255,255,255,0.85);
+    }
+    .claude-text.rendered code {
+      font-family: var(--font-mono, 'SF Mono', 'Fira Code', monospace);
+      font-size: 12px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 4px;
+      padding: 1px 5px;
+      color: rgba(218,119,86,0.9);
+    }
+    .claude-text.rendered pre {
+      background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 10px 12px;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+    .claude-text.rendered pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: 11.5px;
+      color: var(--text-primary);
+    }
+    .claude-text.rendered ul, .claude-text.rendered ol {
+      margin: 6px 0;
+      padding-left: 20px;
+    }
+    .claude-text.rendered li {
+      margin-bottom: 4px;
+    }
+    .claude-text.rendered h1, .claude-text.rendered h2, .claude-text.rendered h3 {
+      font-weight: 600;
+      color: #fff;
+      margin: 12px 0 6px 0;
+    }
+    .claude-text.rendered h1 { font-size: 16px; }
+    .claude-text.rendered h2 { font-size: 14.5px; }
+    .claude-text.rendered h3 { font-size: 13.5px; }
+    .claude-text.rendered blockquote {
+      border-left: 3px solid rgba(218,119,86,0.4);
+      margin: 8px 0;
+      padding: 4px 12px;
+      color: rgba(255,255,255,0.7);
+    }
+    .claude-text.rendered hr {
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      margin: 10px 0;
+    }
+
+    /* Tool pills */
+    .tool-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin: 6px 0 4px;
+    }
+    .activity-stream {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin: 0 0 8px;
+    }
+    .activity-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 10.5px;
+      line-height: 1.35;
+      color: var(--text-muted);
+      font-family: var(--font-sans);
+    }
+    .activity-line .activity-time {
+      flex: 0 0 48px;
+      color: rgba(255,255,255,0.32);
+      font-variant-numeric: tabular-nums;
+    }
+    .activity-line .activity-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: rgba(218,119,86,0.72);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .activity-line .activity-body {
+      color: rgba(255,255,255,0.72);
+      word-break: break-word;
+    }
+    .activity-line.tool .activity-body strong {
+      color: rgba(218,119,86,0.95);
+      font-weight: 600;
+    }
+    .activity-line.phase .activity-body strong {
+      color: rgba(160,132,232,0.95);
+      font-weight: 600;
+    }
+    .tool-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10.5px;
+      padding: 3px 9px;
+      border-radius: 5px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      color: var(--text-muted);
+      width: fit-content;
+      font-family: var(--font-sans);
+    }
+    .tool-pill.running { border-color:rgba(218,119,86,.3); color:rgba(218,119,86,.9); background:rgba(218,119,86,.05); }
+    .tool-pill.done    { border-color:rgba(77,143,95,.3);  color:rgba(77,143,95,.9);  background:rgba(77,143,95,.05); }
+    .tool-pill.error   { border-color:rgba(143,77,77,.3);  color:rgba(220,120,120,.9);background:rgba(143,77,77,.05); }
+    .tool-spinner {
+      width: 8px; height: 8px;
+      border: 1.5px solid rgba(218,119,86,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Error */
+    .error-msg {
+      padding: 9px 13px;
+      background: rgba(160,60,60,0.1);
+      border: 1px solid rgba(160,60,60,0.18);
+      border-radius: 10px;
+      color: #c87878;
+      font-size: 12.5px;
+      line-height: 1.55;
+      max-width: 90%;
+      margin-bottom: 16px;
+    }
+
+    /* ── Thinking — Claude-style rotating words ─────────────── */
+    .thinking-row {
+      padding: 4px 0 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .thinking-sparkle {
+      flex-shrink: 0;
+      animation: sparkle-pulse 2s ease-in-out infinite;
+    }
+    @keyframes sparkle-pulse {
+      0%, 100% { opacity: 0.6; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.15); }
+    }
+    .thinking-words {
+      font-family: var(--font-sans);
+      font-size: 13px;
+      color: rgba(218,119,86,0.85);
+      position: relative;
+      height: 18px;
+      min-width: 120px;
+      overflow: hidden;
+    }
+    .thinking-word {
+      display: block;
+      position: absolute;
+      left: 0; top: 0;
+      width: 100%;
+      line-height: 18px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      white-space: nowrap;
+    }
+    .thinking-word.active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .thinking-word.exit {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+
+    /* ── Input ───────────────────────────────────────────────── */
+    .input-area {
+      flex-shrink: 0;
+      padding: 6px 12px 10px;
+    }
+    .input-box {
+      background: var(--bg-input);
+      border-radius: 16px;
+    }
+    .input-main {
+      padding: 11px 14px 5px;
+    }
+    textarea {
+      width: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.55;
+      resize: none;
+      min-height: 22px;
+      max-height: 120px;
+      overflow-y: auto;
+      display: block;
+    }
+    textarea::placeholder { color: var(--text-muted); }
+    textarea::-webkit-scrollbar { width: 3px; }
+    textarea::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); }
+
+    .input-toolbar {
+      padding: 5px 8px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .toolbar-left { display: flex; align-items: center; }
+    .toolbar-right { display: flex; align-items: center; gap: 5px; }
+
+    .tb-btn {
+      width: 26px; height: 26px;
+      border-radius: 6px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted);
+      transition: background 0.13s, color 0.13s;
+    }
+    .tb-btn:hover:not(:disabled) { background: rgba(255,255,255,0.07); color: var(--text-secondary); }
+    .tb-btn:disabled { opacity: 0.25; cursor: default; }
+
+    .model-badge {
+      display: flex; align-items: center; gap: 3px;
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 3px 7px;
+      border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+      transition: background 0.13s, color 0.13s;
+    }
+    .model-badge:hover { background: rgba(255,255,255,0.07); color: var(--text-secondary); }
+
+    /* Model dropdown */
+    .model-dropdown {
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #353432;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 4px;
+      min-width: 160px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      z-index: 100;
+      animation: dropIn 0.12s ease;
+    }
+    @keyframes dropIn { from { opacity:0; transform:translateX(-50%) translateY(4px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+    .model-dropdown-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 10px;
+      border-radius: 7px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: background 0.1s, color 0.1s;
+    }
+    .model-dropdown-item:hover { background: rgba(255,255,255,0.07); color: var(--text-primary); }
+    .model-dropdown-item.active { color: var(--text-primary); }
+    .model-dropdown-item .check { color: var(--accent); font-size: 13px; opacity: 0; }
+    .model-dropdown-item.active .check { opacity: 1; }
+    .model-dropdown-item .model-desc {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-left: 6px;
+    }
+
+    /* Attached files strip */
+    .attached-files {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 0 14px 6px;
+    }
+    .file-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 10.5px;
+      color: var(--text-secondary);
+      max-width: 180px;
+      animation: fadein 0.15s ease;
+    }
+    .file-chip span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .file-chip-x {
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1;
+      padding: 0 1px;
+      border-radius: 3px;
+      transition: color 0.1s, background 0.1s;
+      flex-shrink: 0;
+    }
+    .file-chip-x:hover { color: var(--text-primary); background: rgba(255,255,255,0.08); }
+
+    /* Send button — orange arrow-up */
+    .send-btn {
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      background: var(--accent);
+      border: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff;
+      transition: background 0.13s, transform 0.08s, opacity 0.15s;
+      flex-shrink: 0;
+    }
+    .send-btn:hover:not(:disabled) { background: var(--accent-hover); }
+    .send-btn:active:not(:disabled) { transform: scale(0.93); }
+    .send-btn:disabled {
+      background: rgba(255,255,255,0.06);
+      color: var(--text-ghost);
+      cursor: default;
+    }
+    .stop-btn {
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.09);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-secondary);
+      transition: background 0.13s;
+    }
+    .stop-btn:hover { background: rgba(255,255,255,0.1); }
+
+    .input-footer {
+      font-size: 9.5px;
+      color: var(--text-ghost);
+      text-align: center;
+      margin-top: 5px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .asterisk-spin, .tool-spinner { animation: none !important; }
+    }
+
+    /* ── Login / Provider Screen ─────────────────────────────── */
+    .login-screen {
+      position: absolute;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 28px 20px 20px;
+      z-index: 200;
+      overflow-y: auto;
+      animation: fadein 0.3s ease;
+    }
+    .login-screen.hiding {
+      animation: fadeout 0.25s ease forwards;
+      pointer-events: none;
+    }
+    @keyframes fadeout {
+      from { opacity: 1; transform: translateY(0); }
+      to   { opacity: 0; transform: translateY(-8px); }
+    }
+    .login-logo { margin-bottom: 10px; }
+    .login-title {
+      font-family: var(--font-serif);
+      font-size: 20px;
+      font-weight: 400;
+      color: var(--text-primary);
+      letter-spacing: -0.025em;
+      margin-bottom: 3px;
+      text-align: center;
+    }
+    .login-subtitle {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .provider-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 100%;
+      max-width: 264px;
+    }
+    .provider-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 11px;
+      border: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.02);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .provider-card:hover {
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(255,255,255,0.12);
+    }
+    .provider-card.selected {
+      border-color: var(--accent);
+      background: rgba(218,119,86,0.06);
+    }
+    .provider-card.selected .provider-name { color: var(--text-primary); }
+    .provider-icon {
+      width: 28px; height: 28px;
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .pc-claude { background: rgba(218,119,86,0.14); }
+    .pc-openai { background: rgba(25,195,125,0.12); }
+    .pc-gemini { background: rgba(66,133,244,0.12); }
+    .pc-bridge { background: rgba(160,132,232,0.12); }
+    .provider-info { flex: 1; min-width: 0; }
+    .provider-name {
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 1px;
+    }
+    .provider-desc {
+      font-size: 10.5px;
+      color: var(--text-muted);
+    }
+    .provider-check {
+      font-size: 13px;
+      color: var(--accent);
+      opacity: 0;
+      transition: opacity 0.15s;
+      flex-shrink: 0;
+    }
+    .provider-card.selected .provider-check { opacity: 1; }
+
+    /* Expandable area below the provider list */
+    .login-expand {
+      width: 100%;
+      max-width: 264px;
+      margin-top: 7px;
+    }
+    .login-api-input {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 9px;
+      padding: 9px 12px;
+      color: var(--text-primary);
+      font-size: 12px;
+      font-family: var(--font-sans);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .login-api-input:focus { border-color: rgba(255,255,255,0.18); }
+    .login-api-input::placeholder { color: var(--text-ghost); }
+    .login-api-link {
+      display: block;
+      margin-top: 5px;
+      font-size: 10px;
+      color: var(--text-muted);
+      text-align: right;
+      text-decoration: none;
+    }
+    .login-bridge-info {
+      background: rgba(160,132,232,0.06);
+      border: 1px solid rgba(160,132,232,0.14);
+      border-radius: 9px;
+      padding: 10px 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+    .login-bridge-info code {
+      font-size: 10.5px;
+      color: rgba(160,132,232,0.9);
+      background: rgba(160,132,232,0.1);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+    .login-bridge-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 8px;
+    }
+    .bridge-tool-tag {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(160,132,232,0.08);
+      border: 1px solid rgba(160,132,232,0.15);
+      color: rgba(160,132,232,0.8);
+    }
+    .login-continue {
+      margin-top: 14px;
+      width: 100%;
+      max-width: 264px;
+      padding: 10px;
+      border-radius: 10px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.13s, opacity 0.15s;
+      font-family: var(--font-sans);
+    }
+    .login-continue:hover:not(:disabled) { background: var(--accent-hover); }
+    .login-continue:disabled { opacity: 0.35; cursor: default; }
+    .login-hint {
+      margin-top: 8px;
+      font-size: 10px;
+      color: var(--text-ghost);
+      text-align: center;
+      max-width: 240px;
+      min-height: 14px;
+    }
+
+    /* Provider badge in header */
+    .provider-badge {
+      display: none;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      color: var(--text-muted);
+      padding: 2px 7px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.13s, color 0.13s;
+    }
+    .provider-badge:hover {
+      background: rgba(255,255,255,0.06);
+      color: var(--text-secondary);
+    }
+    .prov-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .prov-dot.claude { background: var(--accent); }
+    .prov-dot.openai { background: #19c37d; }
+    .prov-dot.gemini { background: #4285f4; }
+    .prov-dot.bridge { background: #a084e8; }
+
+    /* Bridge mode home state */
+    .bridge-home {
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      animation: fadein 0.35s ease;
+    }
+    .bridge-home-icon {
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      background: rgba(160,132,232,0.1);
+      border: 1px solid rgba(160,132,232,0.18);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 4px;
+    }
+    .bridge-home-title {
+      font-family: var(--font-serif);
+      font-size: 15px;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+    .bridge-home-desc {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.6;
+      max-width: 220px;
+    }
+    .bridge-home-url {
+      font-size: 11px;
+      color: rgba(160,132,232,0.85);
+      background: rgba(160,132,232,0.08);
+      border: 1px solid rgba(160,132,232,0.14);
+      border-radius: 7px;
+      padding: 5px 10px;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Login / Provider Selection Screen -->
+  <div class="login-screen" id="login-screen" style="display:none">
+    <div class="login-logo">
+      <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
+        <path d="M14 3V11M14 17V25M3 14H11M17 14H25M5.757 5.757L11.314 11.314M16.686 16.686L22.243 22.243M5.757 22.243L11.314 16.686M16.686 11.314L22.243 5.757" stroke="#da7756" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="login-title">Figma Intelligence</div>
+    <div class="login-subtitle">Choose your AI assistant</div>
+
+    <div class="provider-list">
+      <!-- Claude -->
+      <div class="provider-card" id="pc-claude" onclick="selectLoginProvider('claude')">
+        <div class="provider-icon pc-claude">
+          <svg width="14" height="14" viewBox="0 0 28 28" fill="none">
+            <path d="M14 3V11M14 17V25M3 14H11M17 14H25M5.757 5.757L11.314 11.314M16.686 16.686L22.243 22.243M5.757 22.243L11.314 16.686M16.686 11.314L22.243 5.757" stroke="#da7756" stroke-width="2.8" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="provider-info">
+          <div class="provider-name">Claude</div>
+          <div class="provider-desc" id="pd-claude">Anthropic &middot; Subscription required</div>
+        </div>
+        <div class="provider-check">&#10003;</div>
+      </div>
+
+      <!-- OpenAI -->
+      <div class="provider-card" id="pc-openai" onclick="selectLoginProvider('openai')">
+        <div class="provider-icon pc-openai">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9.5" stroke="#19c37d" stroke-width="1.6"/>
+            <path d="M8.5 12h7M12 8.5v7" stroke="#19c37d" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="provider-info">
+          <div class="provider-name">OpenAI</div>
+          <div class="provider-desc" id="pd-openai">OpenAI &middot; Subscription required</div>
+        </div>
+        <div class="provider-check">&#10003;</div>
+      </div>
+
+      <!-- Gemini -->
+      <div class="provider-card" id="pc-gemini" onclick="selectLoginProvider('gemini')">
+        <div class="provider-icon pc-gemini">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M12 3C12 3 9 8 3.5 12C9 16 12 21 12 21C12 21 15 16 20.5 12C15 8 12 3 12 3Z" stroke="#4285f4" stroke-width="1.5" stroke-linejoin="round"/>
+            <circle cx="12" cy="12" r="2.5" fill="#4285f4"/>
+          </svg>
+        </div>
+        <div class="provider-info">
+          <div class="provider-name">Gemini</div>
+          <div class="provider-desc">Google AI &middot; API key required</div>
+        </div>
+        <div class="provider-check">&#10003;</div>
+      </div>
+
+      <!-- External Tool / Bridge -->
+      <div class="provider-card" id="pc-bridge" onclick="selectLoginProvider('bridge')">
+        <div class="provider-icon pc-bridge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M4 12h4M16 12h4M8 12a4 4 0 008 0M8 12a4 4 0 018 0" stroke="#a084e8" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="4" cy="12" r="1.5" fill="#a084e8"/>
+            <circle cx="20" cy="12" r="1.5" fill="#a084e8"/>
+          </svg>
+        </div>
+        <div class="provider-info">
+          <div class="provider-name">External Tool</div>
+          <div class="provider-desc">VS Code &middot; Cursor &middot; Antigravity &middot; More</div>
+        </div>
+        <div class="provider-check">&#10003;</div>
+      </div>
+    </div>
+
+    <!-- API key input (OpenAI / Gemini) -->
+    <div class="login-expand" id="login-api-expand" style="display:none">
+      <input
+        class="login-api-input"
+        type="password"
+        id="login-api-key"
+        placeholder="Paste your API key&hellip;"
+        oninput="updateLoginContinue()"
+      />
+      <span class="login-api-link" id="login-api-link"></span>
+    </div>
+
+    <!-- Bridge mode info -->
+    <div class="login-expand" id="login-bridge-expand" style="display:none">
+      <div class="login-bridge-info">
+        Your AI tool connects to Figma via MCP at<br>
+        <code>ws://localhost:9001</code><br><br>
+        Point any MCP-compatible tool here and it can read &amp; modify your Figma designs directly.
+        <div class="login-bridge-tools">
+          <span class="bridge-tool-tag">VS Code Copilot</span>
+          <span class="bridge-tool-tag">Cursor</span>
+          <span class="bridge-tool-tag">Antigravity</span>
+          <span class="bridge-tool-tag">Claude Desktop</span>
+          <span class="bridge-tool-tag">Any MCP client</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="login-continue" id="login-continue-btn" disabled onclick="continueWithProvider()">
+      Continue
+    </button>
+    <div class="login-hint" id="login-hint">Select an AI provider to get started</div>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <svg width="14" height="14" viewBox="0 0 28 28" fill="none">
+        <path d="M14 3V11M14 17V25M3 14H11M17 14H25M5.757 5.757L11.314 11.314M16.686 16.686L22.243 22.243M5.757 22.243L11.314 16.686M16.686 11.314L22.243 5.757" stroke="#da7756" stroke-width="2.8" stroke-linecap="round"/>
+      </svg>
+      <span class="header-title" id="header-title">Figma Intelligence</span>
+      <div class="provider-badge" id="provider-badge" onclick="showLoginScreen()"></div>
+    </div>
+    <div class="conn-pill">
+      <div class="conn-dot" id="conn-dot"></div>
+      <span id="conn-text">Connecting…</span>
+    </div>
+  </div>
+
+  <!-- Auth strip -->
+  <div class="auth-strip" id="auth-strip">
+    <span id="auth-text">Checking provider subscriptions…</span>
+  </div>
+
+  <!-- Thread -->
+  <div class="thread" id="thread">
+    <!-- Bridge mode home (shown instead of chat home when provider = bridge) -->
+    <div class="bridge-home" id="bridge-home" style="display:none">
+      <div class="bridge-home-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M4 12h4M16 12h4M8 12a4 4 0 008 0M8 12a4 4 0 018 0" stroke="#a084e8" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="4" cy="12" r="1.5" fill="#a084e8"/>
+          <circle cx="20" cy="12" r="1.5" fill="#a084e8"/>
+        </svg>
+      </div>
+      <div class="bridge-home-title">Bridge Mode Active</div>
+      <div class="bridge-home-desc">
+        Your AI tool connects to this Figma plugin at<br>
+        <span class="bridge-home-url">ws://localhost:9001</span>
+      </div>
+      <div class="bridge-home-desc" style="margin-top:6px">
+        Use VS Code Copilot, Cursor, Antigravity, or any<br>MCP-compatible tool to control your Figma designs.
+      </div>
+    </div>
+    <div class="home-state" id="home-state">
+      <div class="home-heading">
+        <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+          <path d="M14 3V11M14 17V25M3 14H11M17 14H25M5.757 5.757L11.314 11.314M16.686 16.686L22.243 22.243M5.757 22.243L11.314 16.686M16.686 11.314L22.243 5.757" stroke="#da7756" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <div class="home-heading-text">How can I help you design?</div>
+      </div>
+      <div class="chips">
+        <div class="chip" onclick="useChip(this)">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><rect x="1" y="1" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.2"/><path d="M3 4h6M3 6.5h3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          Create a login screen
+        </div>
+        <div class="chip" onclick="useChip(this)">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><rect x="1.5" y="2.5" width="9" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M3.5 5h5M3.5 7h2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          Design a button component
+        </div>
+        <div class="chip" onclick="useChip(this)">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M1 9L4 5.5L6.5 7.5L9 4L11 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Generate a dashboard layout
+        </div>
+        <div class="chip" onclick="useChip(this)">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/><circle cx="6" cy="6" r="1.5" fill="currentColor"/></svg>
+          Set up a color system
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input area -->
+  <div class="input-area">
+    <div class="input-box">
+      <div class="attached-files" id="attached-files" style="display:none"></div>
+      <div class="input-main">
+        <textarea
+          id="input"
+          placeholder="How can I help you today?"
+          rows="1"
+          disabled
+        ></textarea>
+      </div>
+      <div class="input-toolbar">
+        <div class="toolbar-left">
+          <button class="tb-btn" id="attach-btn" title="Attach file">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path d="M13.5 7.5L7.5 13.5C5.843 15.157 3.157 15.157 1.5 13.5C-0.157 11.843 -0.157 9.157 1.5 7.5L7.5 1.5C8.605 0.395 10.395 0.395 11.5 1.5C12.605 2.605 12.605 4.395 11.5 5.5L5.5 11.5C4.948 12.052 4.052 12.052 3.5 11.5C2.948 10.948 2.948 10.052 3.5 9.5L9.5 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <input type="file" id="file-input" multiple style="display:none" accept="image/*,.pdf,.txt,.json,.csv,.svg,.md,.html,.css,.js,.ts,.jsx,.tsx,.py,.go,.rs,.java,.rb,.yml,.yaml,.xml,.sql,.sh">
+        </div>
+        <div class="toolbar-right">
+          <div class="model-badge" id="model-badge" onclick="toggleModelDropdown(event)">
+            <span id="model-label">Sonnet</span>
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <button class="tb-btn" disabled title="Voice">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path d="M1 8h2M4 5v6M7 3v10M10 5v6M13 8h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button class="send-btn" id="send-btn" disabled title="Send (Enter)">
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+              <path d="M7 12V2M7 2L3 6M7 2L11 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="input-footer" id="input-footer">Connect the bridge relay to start</div>
+  </div>
+
+</div>
+
+<script>
+  /* ── Helpers ──────────────────────────────────────────────────────────── */
+  function uuid() {
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
+      var r = Math.random() * 16 | 0, v = c === "x" ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  var TOOL_LABELS = {
+    figma_create_frame: "Create frame",
+    figma_create_child: "Create node",
+    figma_create_page: "Create page",
+    figma_set_fills: "Set fills",
+    figma_set_text: "Set text",
+    figma_set_strokes: "Set strokes",
+    figma_resize_node: "Resize node",
+    figma_move_node: "Move node",
+    figma_delete_node: "Delete node",
+    figma_rename_node: "Rename node",
+    figma_clone_node: "Clone node",
+    figma_take_screenshot: "Screenshot",
+    figma_get_node: "Read node",
+    figma_get_status: "Check status",
+    figma_get_selection: "Get selection",
+    figma_get_pages: "Get pages",
+    figma_get_styles: "Get styles",
+    figma_get_variables: "Get variables",
+    figma_navigate: "Navigate",
+    figma_execute: "Execute code",
+    figma_search_components: "Search components",
+    figma_visual_audit: "Visual audit",
+    figma_a11y_audit: "Accessibility audit",
+    figma_generate_spec: "Generate spec",
+    figma_layout_intelligence: "Layout",
+    figma_design_system_variables: "Design system",
+    figma_batch_create_variables: "Batch variables",
+    figma_theme_generator: "Generate theme",
+    figma_component_audit: "Component audit",
+    figma_health_report: "Health report",
+    figma_intent_translator: "Translate intent",
+    figma_page_architect: "Page architect",
+    figma_unsplash_search: "Image search",
+    figma_generate_image_and_insert: "Generate image",
+    figma_variant_expander: "Expand variants",
+    figma_screen_cloner: "Clone screen",
+  };
+
+  function toolLabel(name) {
+    return TOOL_LABELS[name] || name.replace(/^figma_/, "").replace(/_/g, " ");
+  }
+
+  function useChip(el) {
+    var t = el.textContent.trim();
+    input.value = t;
+    input.focus();
+    autoResize();
+    updateSend();
+  }
+
+  /* ── Model switcher ───────────────────────────────────────────────────── */
+  var PROVIDER_MODELS = {
+    claude: [
+      { id: "opus",   label: "Opus",   desc: "Most capable" },
+      { id: "sonnet", label: "Sonnet", desc: "Balanced" },
+      { id: "haiku",  label: "Haiku",  desc: "Fastest" },
+    ],
+    openai: [
+      { id: "gpt-5.4",      label: "GPT-5.4",      desc: "Best quality" },
+      { id: "gpt-5-codex",  label: "GPT-5-Codex",  desc: "Best for coding-heavy tool use" },
+      { id: "gpt-5",        label: "GPT-5",        desc: "Stable general-purpose" },
+      { id: "gpt-5.4-mini", label: "GPT-5.4 Mini", desc: "Faster" },
+    ],
+    gemini: [
+      { id: "gemini-2.0-flash",    label: "Gemini 2.0 Flash",    desc: "Balanced" },
+      { id: "gemini-1.5-flash-8b", label: "Gemini 1.5 Flash 8B", desc: "Fastest" },
+    ],
+    bridge: [],
+  };
+  var selectedModelByProvider = {
+    claude: "sonnet",
+    openai: "gpt-5.4",
+    gemini: "gemini-2.0-flash",
+    bridge: null,
+  };
+  var modelDropdownOpen = false;
+
+  function getActiveProvider() {
+    return selectedLoginProvider || "claude";
+  }
+
+  function getModelsForProvider(provider) {
+    return PROVIDER_MODELS[provider || getActiveProvider()] || PROVIDER_MODELS.claude;
+  }
+
+  function getSelectedModel(provider) {
+    var activeProvider = provider || getActiveProvider();
+    var models = getModelsForProvider(activeProvider);
+    var selected = selectedModelByProvider[activeProvider];
+    if (!models.length) return null;
+    if (models.some(function(m) { return m.id === selected; })) return selected;
+    selectedModelByProvider[activeProvider] = models[0].id;
+    return models[0].id;
+  }
+
+  function syncModelBadge() {
+    var badge = document.getElementById("model-badge");
+    var label = document.getElementById("model-label");
+    var provider = getActiveProvider();
+    var models = getModelsForProvider(provider);
+    if (!badge || !label) return;
+    if (!models.length || provider === "bridge") {
+      badge.style.display = "none";
+      closeModelDropdown();
+      return;
+    }
+    badge.style.display = "inline-flex";
+    var selected = getSelectedModel(provider);
+    var model = models.find(function(item) { return item.id === selected; });
+    label.textContent = model ? model.label : selected;
+  }
+
+  function toggleModelDropdown(e) {
+    e.stopPropagation();
+    if (!getModelsForProvider(getActiveProvider()).length) return;
+    if (modelDropdownOpen) { closeModelDropdown(); return; }
+    modelDropdownOpen = true;
+    var badge = document.getElementById("model-badge");
+    var dd = document.createElement("div");
+    dd.className = "model-dropdown";
+    dd.id = "model-dropdown";
+    dd.onclick = function(ev) { ev.stopPropagation(); };
+    var provider = getActiveProvider();
+    var models = getModelsForProvider(provider);
+    var selectedModel = getSelectedModel(provider);
+    models.forEach(function(m) {
+      var item = document.createElement("div");
+      item.className = "model-dropdown-item" + (m.id === selectedModel ? " active" : "");
+      item.innerHTML =
+        '<div>' + m.label + '<span class="model-desc">' + m.desc + '</span></div>' +
+        '<span class="check">\u2713</span>';
+      item.onclick = function() { selectModel(m.id); };
+      dd.appendChild(item);
+    });
+    badge.appendChild(dd);
+    setTimeout(function() { document.addEventListener("click", closeModelDropdown); }, 0);
+  }
+
+  function closeModelDropdown() {
+    modelDropdownOpen = false;
+    var dd = document.getElementById("model-dropdown");
+    if (dd) dd.remove();
+    document.removeEventListener("click", closeModelDropdown);
+  }
+
+  function selectModel(id) {
+    selectedModelByProvider[getActiveProvider()] = id;
+    syncModelBadge();
+    closeModelDropdown();
+  }
+
+  /* ── File attachments ────────────────────────────────────────────────── */
+  var attachedFiles = [];  // { name, data (base64 or text), type, size }
+
+  function initFileAttach() {
+    var attachBtn = document.getElementById("attach-btn");
+    var fileInput = document.getElementById("file-input");
+    attachBtn.onclick = function() { fileInput.click(); };
+    fileInput.onchange = function() {
+      var files = fileInput.files;
+      for (var i = 0; i < files.length; i++) {
+        readAttachedFile(files[i]);
+      }
+      fileInput.value = "";
+    };
+  }
+
+  function readAttachedFile(file) {
+    var isImage = file.type.startsWith("image/");
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      attachedFiles.push({
+        name: file.name,
+        data: e.target.result,
+        type: file.type,
+        size: file.size,
+        isImage: isImage,
+      });
+      renderAttachedFiles();
+    };
+    if (isImage) {
+      reader.readAsDataURL(file);
+    } else {
+      reader.readAsText(file);
+    }
+  }
+
+  function removeAttachedFile(index) {
+    attachedFiles.splice(index, 1);
+    renderAttachedFiles();
+  }
+
+  function renderAttachedFiles() {
+    var container = document.getElementById("attached-files");
+    if (attachedFiles.length === 0) {
+      container.style.display = "none";
+      container.innerHTML = "";
+      return;
+    }
+    container.style.display = "flex";
+    container.innerHTML = "";
+    attachedFiles.forEach(function(f, i) {
+      var chip = document.createElement("div");
+      chip.className = "file-chip";
+      var icon = f.isImage ? "\ud83d\uddbc" : "\ud83d\udcc4";
+      chip.innerHTML =
+        '<span>' + icon + ' ' + escapeHtml(f.name) + '</span>' +
+        '<span class="file-chip-x" onclick="removeAttachedFile(' + i + ')">\u00d7</span>';
+      container.appendChild(chip);
+    });
+  }
+
+  /* ── Provider / Login Screen ─────────────────────────────────────────── */
+  var selectedLoginProvider = null;
+  var loginApiKey = null;
+  var loginDismissed = false;
+
+  var PROVIDER_META = {
+    claude:  { label: "Claude",  dotClass: "claude",  btnText: "Continue with Claude" },
+    openai:  { label: "OpenAI",  dotClass: "openai",  btnText: "Continue with OpenAI" },
+    gemini:  { label: "Gemini",  dotClass: "gemini",  btnText: "Continue with Gemini" },
+    bridge:  { label: "Bridge",  dotClass: "bridge",  btnText: "Activate Bridge Mode" },
+  };
+
+  var PROVIDER_HINTS = {
+    claude:  'Uses your Claude Code subscription. Setup prepares it up front so switching does not require restarting the relay.',
+    openai:  'Uses the OpenAI account currently signed in to Codex. Setup also registers Codex for MCP so switching stays restart-free.',
+    gemini:  'Get your API key at aistudio.google.com/app/apikey',
+    bridge:  'Your AI tool (VS Code Copilot, Cursor, etc.) controls Figma via MCP.',
+  };
+
+  var PROVIDER_API_LINKS = {
+    openai: "Get key at platform.openai.com",
+    gemini: "Get key at aistudio.google.com",
+  };
+
+  function selectLoginProvider(id) {
+    selectedLoginProvider = id;
+    ["claude","openai","gemini","bridge"].forEach(function(p) {
+      var card = document.getElementById("pc-" + p);
+      if (card) card.className = "provider-card" + (p === id ? " selected" : "");
+    });
+
+    var apiExpand    = document.getElementById("login-api-expand");
+    var bridgeExpand = document.getElementById("login-bridge-expand");
+    var apiInput     = document.getElementById("login-api-key");
+    var apiLink      = document.getElementById("login-api-link");
+
+    if (id === "gemini") {
+      apiExpand.style.display = "block";
+      bridgeExpand.style.display = "none";
+      apiInput.placeholder = "AIza\u2026 (Google AI Studio key)";
+      if (apiLink) apiLink.textContent = PROVIDER_API_LINKS[id] || "";
+    } else if (id === "bridge") {
+      apiExpand.style.display = "none";
+      bridgeExpand.style.display = "block";
+    } else {
+      apiExpand.style.display = "none";
+      bridgeExpand.style.display = "none";
+    }
+
+    var hint = document.getElementById("login-hint");
+    if (hint) hint.textContent = PROVIDER_HINTS[id] || "";
+
+    updateLoginContinue();
+  }
+
+  function updateLoginContinue() {
+    var btn = document.getElementById("login-continue-btn");
+    if (!btn) return;
+    if (!selectedLoginProvider) { btn.disabled = true; return; }
+
+    var needsKey = selectedLoginProvider === "gemini";
+    var keyVal   = needsKey ? (document.getElementById("login-api-key").value || "").trim() : "";
+    btn.disabled = needsKey && keyVal.length < 8;
+
+    var meta = PROVIDER_META[selectedLoginProvider];
+    if (meta) btn.textContent = meta.btnText;
+  }
+
+  function continueWithProvider() {
+    if (!selectedLoginProvider) return;
+    var needsKey = selectedLoginProvider === "gemini";
+    loginApiKey = needsKey ? (document.getElementById("login-api-key").value || "").trim() : null;
+
+    try { localStorage.setItem("figma-intelligence-provider", selectedLoginProvider); } catch(e) {}
+
+    hideLoginScreen();
+    updateProviderBadge();
+    renderThreadForProvider(selectedLoginProvider);
+    updateStatus();
+
+    if (ws && ws.readyState === WebSocket.OPEN) sendProviderToRelay();
+  }
+
+  function sendProviderToRelay() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({
+      type: "set-provider",
+      provider: selectedLoginProvider,
+      apiKey: loginApiKey || null,
+    }));
+  }
+
+  function hideLoginScreen() {
+    var screen = document.getElementById("login-screen");
+    if (!screen) return;
+    loginDismissed = true;
+    screen.classList.add("hiding");
+    setTimeout(function() { screen.style.display = "none"; }, 260);
+  }
+
+  function showLoginScreen() {
+    var screen = document.getElementById("login-screen");
+    if (!screen) return;
+    loginDismissed = false;
+    screen.style.display = "flex";
+    screen.classList.remove("hiding");
+    if (selectedLoginProvider) selectLoginProvider(selectedLoginProvider);
+  }
+
+  function updateProviderBadge() {
+    var badge = document.getElementById("provider-badge");
+    if (!badge || !selectedLoginProvider) return;
+    var meta = PROVIDER_META[selectedLoginProvider];
+    badge.style.display = "flex";
+    badge.innerHTML =
+      '<div class="prov-dot ' + meta.dotClass + '"></div>' +
+      '<span>' + meta.label + '</span>';
+    syncModelBadge();
+  }
+
+  function initLoginScreen() {
+    var saved = null;
+    try { saved = localStorage.getItem("figma-intelligence-provider"); } catch(e) {}
+
+    if (saved && PROVIDER_META[saved]) {
+      selectedLoginProvider = saved;
+      selectLoginProvider(saved);
+      // Claude, OpenAI, and bridge use subscription auth — skip login screen
+      if (saved === "claude" || saved === "openai" || saved === "bridge") {
+        hideLoginScreen();
+        updateProviderBadge();
+      } else {
+        // Gemini key is not persisted, so keep chooser visible for key entry.
+        showLoginScreen();
+      }
+      // Gemini: show screen to re-enter the key (we don't store it in localStorage)
+    } else {
+      // First run — show login screen, default select Claude
+      selectLoginProvider("claude");
+      showLoginScreen();
+    }
+    syncModelBadge();
+    renderThreadForProvider(selectedLoginProvider || "claude");
+  }
+
+  function isBridgeMode() {
+    return selectedLoginProvider === "bridge";
+  }
+
+  /* ── State ────────────────────────────────────────────────────────────── */
+  var ws = null;
+  var reconnectTimer = null;
+  var isPluginConnected = false;
+  var isMcpConnected = false;
+  var isClaudeLoggedIn = false;
+  var claudeEmail = null;
+  var isOpenAILoggedIn = false;
+  var openaiEmail = null;
+  var isStreaming = false;
+  var currentRequestId = null;
+  var currentRequestProvider = null;
+  var currentAssistantRawText = "";
+  var THREAD_STORAGE_KEY = "figma-intelligence-threads-v1";
+  var MAX_CONVERSATION_MESSAGES = 12;
+  var chatThreads = loadChatThreads();
+
+  // Current assistant message being built
+  var currentMsgEl = null;
+  var currentTextEl = null;
+  var currentActivityEl = null;
+  var currentToolStepsEl = null;
+  var currentToolPills = {};
+
+  /* ── UI refs ──────────────────────────────────────────────────────────── */
+  var thread = document.getElementById("thread");
+  var homeState = document.getElementById("home-state");
+  var input = document.getElementById("input");
+  var sendBtn = document.getElementById("send-btn");
+  var connDot = document.getElementById("conn-dot");
+  var connText = document.getElementById("conn-text");
+  var authStrip = document.getElementById("auth-strip");
+  var authText = document.getElementById("auth-text");
+  var footer = document.getElementById("input-footer");
+  var homeStateTemplate = document.getElementById("home-state").outerHTML;
+  var bridgeHomeTemplate = document.getElementById("bridge-home").outerHTML;
+
+  function loadChatThreads() {
+    var defaults = { claude: [], openai: [], gemini: [], bridge: [] };
+    try {
+      var raw = localStorage.getItem(THREAD_STORAGE_KEY);
+      if (!raw) return defaults;
+      var parsed = JSON.parse(raw);
+      Object.keys(defaults).forEach(function(provider) {
+        if (!Array.isArray(parsed[provider])) parsed[provider] = [];
+      });
+      return parsed;
+    } catch (e) {
+      return defaults;
+    }
+  }
+
+  function saveChatThreads() {
+    try {
+      localStorage.setItem(THREAD_STORAGE_KEY, JSON.stringify(chatThreads));
+    } catch (e) {}
+  }
+
+  function getThreadEntries(provider) {
+    var activeProvider = provider || getActiveProvider();
+    if (!Array.isArray(chatThreads[activeProvider])) chatThreads[activeProvider] = [];
+    return chatThreads[activeProvider];
+  }
+
+  function pushThreadEntry(provider, entry) {
+    getThreadEntries(provider).push(entry);
+    saveChatThreads();
+  }
+
+  /* ── Connection status ────────────────────────────────────────────────── */
+  function updateStatus() {
+    var bridge   = isBridgeMode();
+    var prov     = selectedLoginProvider || "claude";
+    var online   = isPluginConnected && isMcpConnected;
+
+    connDot.className = "conn-dot" + (isPluginConnected ? (online ? " online" : " offline") : "");
+
+    if (bridge) {
+      connText.textContent = !isPluginConnected ? "Offline" : (isMcpConnected ? "Tool connected" : "Bridge active");
+    } else {
+      connText.textContent = !isPluginConnected ? "Offline" : (isMcpConnected ? "Connected" : "Relay only");
+    }
+
+    // Auth strip
+    if (!isPluginConnected) {
+      authStrip.className = "auth-strip";
+      authText.innerHTML = 'Bridge offline &mdash; run <code style="color:rgba(218,119,86,0.8);font-size:10px">bash setup.sh</code> to restart';
+    } else if (bridge) {
+      authStrip.className = "auth-strip ok";
+      authText.innerHTML = '&#10003; MCP bridge active &middot; <span style="color:rgba(160,132,232,0.8)">ws://localhost:9001</span>';
+    } else if (prov === "openai") {
+      authStrip.className = isOpenAILoggedIn ? "auth-strip ok" : "auth-strip";
+      authText.innerHTML = isOpenAILoggedIn
+        ? '&#10003; OpenAI Codex subscription active' +
+          (openaiEmail ? ' &middot; <span class="auth-email">' + openaiEmail + '</span>' : '')
+        : '<span style="color:rgba(218,119,86,0.75)">Run <code style="font-size:10px">codex login</code> to use your current Codex account. No relay restart needed after login.</span>';
+    } else if (prov === "gemini") {
+      authStrip.className = loginApiKey ? "auth-strip ok" : "auth-strip";
+      authText.innerHTML = loginApiKey
+        ? '&#10003; Gemini connected &middot; gemini-2.0-flash'
+        : '<span style="color:rgba(218,119,86,0.75)">Gemini API key not set &mdash; <span style="cursor:pointer;text-decoration:underline" onclick="showLoginScreen()">configure</span></span>';
+    } else if (isClaudeLoggedIn) {
+      authStrip.className = "auth-strip ok";
+      authText.innerHTML = '&#10003; Claude subscription active' +
+        (claudeEmail ? ' &middot; <span class="auth-email">' + claudeEmail + '</span>' : '');
+    } else {
+      authStrip.className = "auth-strip";
+      authText.innerHTML = '<span style="color:rgba(218,119,86,0.75)">Run <code style="font-size:10px">claude login</code> to authenticate. No relay restart needed after login.</span>';
+    }
+
+    // Show bridge home / normal home
+    var bridgeHomeEl = document.getElementById("bridge-home");
+    if (bridgeHomeEl) bridgeHomeEl.style.display = bridge ? "" : "none";
+    if (homeState) homeState.style.display = bridge ? "none" : "";
+
+    // Input area visibility
+    var inputAreaEl = document.querySelector(".input-area");
+    if (inputAreaEl) inputAreaEl.style.display = bridge ? "none" : "";
+
+    // Can we chat?
+    var canChat;
+    if (!isPluginConnected || isStreaming || bridge) {
+      canChat = false;
+    } else if (prov === "openai") {
+      canChat = isOpenAILoggedIn;
+    } else if (prov === "gemini") {
+      canChat = !!loginApiKey;
+    } else {
+      canChat = isClaudeLoggedIn;
+    }
+
+    input.disabled = !canChat;
+    updateSend();
+
+    if (bridge) return;
+    if (canChat) {
+      footer.textContent = "Enter \u21b5 to send  \u00b7  Shift+Enter for new line";
+    } else if (!isPluginConnected) {
+      footer.textContent = "Connect the bridge relay to start";
+    } else if (prov === "openai") {
+      footer.textContent = isOpenAILoggedIn ? "" : "OpenAI Codex login required \u2014 run: codex login";
+    } else if (prov === "gemini") {
+      footer.textContent = loginApiKey ? "" : "API key required \u2014 click provider badge to configure";
+    } else if (!isClaudeLoggedIn) {
+      footer.textContent = "Claude login required";
+    } else if (isStreaming) {
+      footer.textContent = "AI is working\u2026";
+    }
+  }
+
+  function updateSend() {
+    var prov = selectedLoginProvider || "claude";
+    var hasAuth;
+    if (prov === "openai") {
+      hasAuth = isOpenAILoggedIn;
+    } else if (prov === "gemini") {
+      hasAuth = !!loginApiKey;
+    } else {
+      hasAuth = isClaudeLoggedIn;
+    }
+    sendBtn.disabled = !(isPluginConnected && hasAuth && !isStreaming && !isBridgeMode() && (input.value.trim() || attachedFiles.length > 0));
+  }
+
+  /* ── Thread helpers ───────────────────────────────────────────────────── */
+  function removeHome() {
+    if (homeState && homeState.parentNode) {
+      homeState.parentNode.removeChild(homeState);
+      homeState = null;
+    }
+  }
+
+  function scrollBottom() {
+    thread.scrollTop = thread.scrollHeight;
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function createUserMessageRow(text, fileNames) {
+    var row = document.createElement("div");
+    row.className = "msg-row";
+    var html = '<div class="user-wrap"><div class="user-bubble">';
+    if (fileNames && fileNames.length > 0) {
+      html += '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:5px">';
+      fileNames.forEach(function(name) {
+        html += '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,0.06);font-size:10px;color:var(--text-secondary)">\ud83d\udcce ' + escapeHtml(name) + '</span>';
+      });
+      html += '</div>';
+    }
+    html += escapeHtml(text) + '</div></div>';
+    row.innerHTML = html;
+    return row;
+  }
+
+  function createAssistantMessageRow(text) {
+    var row = document.createElement("div");
+    row.className = "msg-row";
+    var wrap = document.createElement("div");
+    wrap.className = "claude-wrap";
+    var body = document.createElement("div");
+    body.className = "claude-text rendered";
+    body.innerHTML = simpleMarkdown(text);
+    wrap.appendChild(body);
+    row.appendChild(wrap);
+    return row;
+  }
+
+  function createErrorRow(text) {
+    var row = document.createElement("div");
+    row.className = "msg-row";
+    row.innerHTML = '<div class="error-msg">' + escapeHtml(text) + '</div>';
+    return row;
+  }
+
+  function renderThreadForProvider(provider) {
+    var activeProvider = provider || getActiveProvider();
+    var entries = getThreadEntries(activeProvider);
+    thread.innerHTML = "";
+
+    if (activeProvider === "bridge") {
+      thread.innerHTML = bridgeHomeTemplate;
+      homeState = null;
+      return;
+    }
+
+    if (!entries.length) {
+      thread.innerHTML = homeStateTemplate;
+      homeState = document.getElementById("home-state");
+      return;
+    }
+
+    homeState = null;
+    entries.forEach(function(entry) {
+      if (entry.role === "user") {
+        thread.appendChild(createUserMessageRow(entry.text || "", entry.fileNames || []));
+      } else if (entry.role === "assistant") {
+        thread.appendChild(createAssistantMessageRow(entry.text || ""));
+      } else if (entry.role === "error") {
+        thread.appendChild(createErrorRow(entry.text || "Something went wrong."));
+      }
+      var spacer = document.createElement("div");
+      spacer.style.height = "14px";
+      thread.appendChild(spacer);
+    });
+    scrollBottom();
+  }
+
+  function buildConversationContext(provider) {
+    return getThreadEntries(provider)
+      .filter(function(entry) {
+        return entry && (entry.role === "user" || entry.role === "assistant") && entry.text;
+      })
+      .slice(-MAX_CONVERSATION_MESSAGES)
+      .map(function(entry) {
+        return {
+          role: entry.role,
+          text: entry.text,
+          fileNames: entry.fileNames || [],
+        };
+      });
+  }
+
+  function appendUserMessage(text, fileNames) {
+    removeHome();
+    var row = createUserMessageRow(text, fileNames);
+    thread.appendChild(row);
+    scrollBottom();
+    pushThreadEntry(getActiveProvider(), { role: "user", text: text, fileNames: fileNames || [] });
+  }
+
+  function beginAssistantMessage() {
+    removeHome();
+    var row = document.createElement("div");
+    row.className = "msg-row";
+    currentMsgEl = document.createElement("div");
+    currentMsgEl.className = "claude-wrap";
+
+    // Claude-style thinking indicator with rotating words
+    var th = document.createElement("div");
+    th.className = "thinking-row";
+    th.id = "thinking";
+
+    var sparkleSvg = '<svg class="thinking-sparkle" width="18" height="18" viewBox="0 0 24 24" fill="none">' +
+      '<path d="M12 2L13.09 8.26L18 4L14.74 9.91L21 10L14.74 12.09L18 18L13.09 13.74L12 20L10.91 13.74L6 18L9.26 12.09L3 10L9.26 9.91L6 4L10.91 8.26L12 2Z" fill="#da7756" opacity="0.85"/>' +
+      '</svg>';
+
+    var thinkingPhrases = [
+      "Thinking\u2026",
+      "Analyzing\u2026",
+      "Considering\u2026",
+      "Processing\u2026",
+      "Pondering\u2026",
+      "Munching\u2026",
+      "Reasoning\u2026",
+      "Contemplating\u2026",
+      "Reflecting\u2026",
+      "Working\u2026",
+      "Researching\u2026",
+      "Composing\u2026",
+      "Crafting\u2026",
+      "Evaluating\u2026",
+      "Exploring\u2026",
+      "Imagining\u2026",
+      "Synthesizing\u2026",
+      "Interpreting\u2026",
+      "Figuring out\u2026",
+      "Brainstorming\u2026"
+    ];
+
+    var wordsHtml = '<div class="thinking-words">';
+    for (var i = 0; i < thinkingPhrases.length; i++) {
+      wordsHtml += '<span class="thinking-word' + (i === 0 ? ' active' : '') + '" data-idx="' + i + '">' + thinkingPhrases[i] + '</span>';
+    }
+    wordsHtml += '</div>';
+
+    th.innerHTML = sparkleSvg + wordsHtml;
+    currentMsgEl.appendChild(th);
+
+    // Rotate words every 2.5 seconds
+    var wordIdx = 0;
+    var totalWords = thinkingPhrases.length;
+    th._rotateInterval = setInterval(function() {
+      var words = th.querySelectorAll(".thinking-word");
+      if (!words.length || !document.contains(th)) {
+        clearInterval(th._rotateInterval);
+        return;
+      }
+      var current = words[wordIdx];
+      current.classList.remove("active");
+      current.classList.add("exit");
+      wordIdx = (wordIdx + 1) % totalWords;
+      var next = words[wordIdx];
+      // Reset next position
+      next.classList.remove("exit");
+      next.classList.add("active");
+      // Clean up exit class after transition
+      setTimeout(function() { current.classList.remove("exit"); }, 400);
+    }, 2500);
+
+    row.appendChild(currentMsgEl);
+    thread.appendChild(row);
+    scrollBottom();
+
+    currentTextEl = null;
+    currentActivityEl = null;
+    currentAssistantRawText = "";
+    currentToolStepsEl = null;
+    currentToolPills = {};
+  }
+
+  function ensureText() {
+    if (currentTextEl) return;
+    var th = document.getElementById("thinking");
+    if (th) {
+      if (th._rotateInterval) clearInterval(th._rotateInterval);
+      th.remove();
+    }
+    currentTextEl = document.createElement("div");
+    currentTextEl.className = "claude-text";
+    currentMsgEl.appendChild(currentTextEl);
+  }
+
+  function appendTextDelta(delta) {
+    ensureText();
+    currentAssistantRawText += delta;
+    var anchorEl = currentActivityEl || currentToolStepsEl;
+    if (anchorEl) {
+      currentTextEl.insertBefore(document.createTextNode(delta), anchorEl);
+    } else {
+      currentTextEl.appendChild(document.createTextNode(delta));
+    }
+    scrollBottom();
+  }
+
+  function ensureActivityStream() {
+    ensureText();
+    if (currentActivityEl) return;
+    currentActivityEl = document.createElement("div");
+    currentActivityEl.className = "activity-stream";
+    if (currentToolStepsEl) {
+      currentTextEl.insertBefore(currentActivityEl, currentToolStepsEl);
+    } else {
+      currentTextEl.appendChild(currentActivityEl);
+    }
+  }
+
+  function formatActivityTime(timestamp) {
+    try {
+      return new Date(timestamp || Date.now()).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function appendActivityLine(kind, html, timestamp) {
+    ensureActivityStream();
+    var line = document.createElement("div");
+    line.className = "activity-line " + kind;
+    line.innerHTML =
+      '<span class="activity-time">' + escapeHtml(formatActivityTime(timestamp)) + '</span>' +
+      '<span class="activity-dot"></span>' +
+      '<span class="activity-body">' + html + '</span>';
+    currentActivityEl.appendChild(line);
+    scrollBottom();
+  }
+
+  function appendAgentActivity(msg) {
+    if (!isStreaming || !currentMsgEl) return;
+    var agent = msg.agent || "Agent";
+    var status = msg.status || msg.method || "Working";
+    var method = msg.method || "";
+    var isToolLike = method && method !== "plan" && method !== "review" && method !== "done";
+    if (isToolLike) {
+      appendActivityLine(
+        "tool",
+        '<strong>' + escapeHtml(method) + '</strong> &middot; ' + escapeHtml(status),
+        msg.timestamp
+      );
+      return;
+    }
+    appendActivityLine(
+      "phase",
+      '<strong>' + escapeHtml(agent) + '</strong> &middot; ' + escapeHtml(status),
+      msg.timestamp
+    );
+  }
+
+  function ensureToolSteps() {
+    ensureText();
+    if (currentToolStepsEl) return;
+    currentToolStepsEl = document.createElement("div");
+    currentToolStepsEl.className = "tool-steps";
+    currentTextEl.appendChild(currentToolStepsEl);
+  }
+
+  function addToolStart(toolName) {
+    ensureToolSteps();
+    var label = toolLabel(toolName);
+    var pill = document.createElement("div");
+    pill.className = "tool-pill running";
+    pill.innerHTML =
+      '<div class="tool-spinner"></div>' +
+      '<span>' + escapeHtml(label) + '</span>';
+    currentToolStepsEl.appendChild(pill);
+    currentToolPills[toolName] = pill;
+    scrollBottom();
+  }
+
+  function resolveToolPill(toolName, isError) {
+    var pill = currentToolPills[toolName];
+    if (!pill) return;
+    pill.className = "tool-pill " + (isError ? "error" : "done");
+    pill.innerHTML =
+      '<span>' + (isError ? "\u2715 " : "\u2713 ") + '</span>' +
+      '<span>' + escapeHtml(toolLabel(toolName)) + '</span>';
+  }
+
+  function simpleMarkdown(text) {
+    // Escape HTML first
+    var s = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    // Code blocks (``` ... ```)
+    s = s.replace(/```(\w*)\n([\s\S]*?)```/g, function(m, lang, code) {
+      return '<pre><code>' + code.replace(/\n$/, '') + '</code></pre>';
+    });
+    // Inline code
+    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // Bold
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    // Italic
+    s = s.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+    // Headings
+    s = s.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    s = s.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+    s = s.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+    // Horizontal rule
+    s = s.replace(/^---$/gm, '<hr>');
+    // Blockquote
+    s = s.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+    // Unordered lists
+    s = s.replace(/^[*\-] (.+)$/gm, '<li>$1</li>');
+    s = s.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+    // Ordered lists
+    s = s.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+    // Paragraphs: split by double newline
+    s = s.split(/\n{2,}/).map(function(block) {
+      block = block.trim();
+      if (!block) return '';
+      // Don't wrap blocks that are already block-level elements
+      if (/^<(h[1-3]|pre|ul|ol|li|blockquote|hr)/.test(block)) return block;
+      return '<p>' + block.replace(/\n/g, '<br>') + '</p>';
+    }).join('\n');
+    return s;
+  }
+
+  function finalizeAssistantMessage() {
+    if (!currentMsgEl) return;
+    var th = document.getElementById("thinking");
+    if (th) {
+      if (th._rotateInterval) clearInterval(th._rotateInterval);
+      th.remove();
+    }
+
+    if (!currentTextEl) {
+      ensureText();
+    }
+
+    if (currentTextEl) {
+      var rawText = (currentAssistantRawText || "").trim();
+      var activityStream = currentTextEl.querySelector('.activity-stream');
+      var toolSteps = currentTextEl.querySelector('.tool-steps');
+      if (rawText) {
+        currentTextEl.innerHTML = simpleMarkdown(rawText);
+        currentTextEl.classList.add('rendered');
+        if (activityStream) currentTextEl.appendChild(activityStream);
+        if (toolSteps) currentTextEl.appendChild(toolSteps);
+        if (currentRequestProvider) {
+          pushThreadEntry(currentRequestProvider, { role: "assistant", text: rawText });
+        }
+      } else {
+        currentTextEl.innerHTML = '<p style="color:var(--text-muted)">Completed.</p>';
+        currentTextEl.classList.add('rendered');
+        if (activityStream) currentTextEl.appendChild(activityStream);
+        if (toolSteps) currentTextEl.appendChild(toolSteps);
+      }
+    }
+
+    // Mark any still-running pills as done
+    for (var name in currentToolPills) {
+      if (currentToolPills[name].classList.contains("running")) {
+        resolveToolPill(name, false);
+      }
+    }
+
+    // Spacer between turns
+    var sp = document.createElement("div");
+    sp.style.height = "14px";
+    if (currentMsgEl.parentNode) currentMsgEl.parentNode.appendChild(sp);
+
+    currentMsgEl = null;
+    currentTextEl = null;
+    currentActivityEl = null;
+    currentAssistantRawText = "";
+    currentToolStepsEl = null;
+    currentToolPills = {};
+    scrollBottom();
+  }
+
+  function showError(text) {
+    var th = document.getElementById("thinking");
+    if (th) th.remove();
+    removeHome();
+    if (currentMsgEl && currentMsgEl.parentNode) {
+      currentMsgEl.parentNode.remove();
+    }
+
+    var row = createErrorRow(text);
+    thread.appendChild(row);
+    scrollBottom();
+    if (currentRequestProvider) {
+      pushThreadEntry(currentRequestProvider, { role: "error", text: text });
+    }
+
+    currentMsgEl = null;
+    currentTextEl = null;
+    currentActivityEl = null;
+    currentAssistantRawText = "";
+    currentToolStepsEl = null;
+    currentToolPills = {};
+  }
+
+  /* ── Send message ─────────────────────────────────────────────────────── */
+  function sendMessage() {
+    var text = input.value.trim();
+    if ((!text && attachedFiles.length === 0) || isStreaming || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+    var activeProvider = getActiveProvider();
+    var conversation = buildConversationContext(activeProvider);
+    input.value = "";
+    autoResize();
+
+    var fileNames = attachedFiles.map(function(f) { return f.name; });
+    appendUserMessage(text, fileNames);
+
+    isStreaming = true;
+    currentRequestId = uuid();
+    currentRequestProvider = activeProvider;
+    updateStatus();
+
+    // Switch to stop button
+    sendBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><rect x="1.5" y="1.5" width="7" height="7" rx="1.5"/></svg>';
+    sendBtn.title = "Stop";
+    sendBtn.disabled = false;
+    sendBtn.onclick = stopStreaming;
+    sendBtn.className = "stop-btn";
+
+    beginAssistantMessage();
+
+    var payload = {
+      type: "chat",
+      id: currentRequestId,
+      message: text,
+      model: getSelectedModel(activeProvider),
+      conversation: conversation,
+    };
+
+    if (attachedFiles.length > 0) {
+      payload.attachments = attachedFiles.map(function(f) {
+        return { name: f.name, data: f.data, type: f.type, isImage: f.isImage };
+      });
+      attachedFiles = [];
+      renderAttachedFiles();
+    }
+
+    ws.send(JSON.stringify(payload));
+  }
+
+  function stopStreaming() {
+    if (!isStreaming || !currentRequestId) return;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "abort-chat", id: currentRequestId }));
+    }
+    finalizeAssistantMessage();
+    endStreaming();
+  }
+
+  function endStreaming() {
+    isStreaming = false;
+    currentRequestId = null;
+    currentRequestProvider = null;
+    resetSendBtn();
+    updateStatus();
+  }
+
+  function resetSendBtn() {
+    sendBtn.className = "send-btn";
+    sendBtn.title = "Send (Enter)";
+    sendBtn.onclick = sendMessage;
+    sendBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 12V2M7 2L3 6M7 2L11 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    updateSend();
+  }
+
+  /* ── Input auto-resize ────────────────────────────────────────────────── */
+  function autoResize() {
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 120) + "px";
+  }
+
+  input.addEventListener("input", function() {
+    autoResize();
+    updateSend();
+  });
+
+  input.addEventListener("keydown", function(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  sendBtn.onclick = sendMessage;
+
+  /* ── WebSocket ────────────────────────────────────────────────────────── */
+  function connect() {
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+
+    ws = new WebSocket("ws://localhost:9001/plugin");
+
+    ws.onopen = function() {
+      isPluginConnected = true;
+      updateStatus();
+      ws.send(JSON.stringify({ type: "plugin-hello", fileName: "Figma Intelligence" }));
+      // Tell the relay which provider is active
+      if (loginDismissed && selectedLoginProvider) {
+        sendProviderToRelay();
+      }
+    };
+
+    ws.onclose = function() {
+      isPluginConnected = false;
+      isMcpConnected = false;
+      isClaudeLoggedIn = false;
+      isOpenAILoggedIn = false;
+      ws = null;
+      if (isStreaming) {
+        finalizeAssistantMessage();
+        endStreaming();
+      }
+      updateStatus();
+      if (reconnectTimer) return;
+      reconnectTimer = setTimeout(function() {
+        reconnectTimer = null;
+        connect();
+      }, 1500);
+    };
+
+    ws.onerror = function() {
+      if (ws && ws.readyState !== WebSocket.OPEN) ws.close();
+    };
+
+    ws.onmessage = function(event) {
+      var msg;
+      try { msg = JSON.parse(event.data); } catch { return; }
+
+      // ── Bridge status ────────────────────────────────────────────────
+      if (msg.type === "bridge-status") {
+        isMcpConnected = !!msg.mcpConnected;
+        isClaudeLoggedIn = !!msg.claudeLoggedIn;
+        claudeEmail = msg.claudeEmail || null;
+        isOpenAILoggedIn = !!msg.openaiLoggedIn;
+        openaiEmail = msg.openaiEmail || null;
+        if (msg.provider && PROVIDER_META[msg.provider]) {
+          var providerChanged = msg.provider !== selectedLoginProvider;
+          selectedLoginProvider = msg.provider;
+          if (providerChanged) {
+            updateProviderBadge();
+            renderThreadForProvider(selectedLoginProvider);
+          }
+          // If relay already knows a subscription provider, avoid login-screen bounce.
+          if (!loginDismissed && (selectedLoginProvider === "claude" || selectedLoginProvider === "openai" || selectedLoginProvider === "bridge")) {
+            hideLoginScreen();
+            updateProviderBadge();
+          }
+        }
+        // Update Claude card description in login screen
+        var pdClaude = document.getElementById("pd-claude");
+        if (pdClaude) {
+          pdClaude.textContent = isClaudeLoggedIn
+            ? ("Logged in" + (claudeEmail ? " \u00b7 " + claudeEmail : ""))
+            : "Anthropic \u00b7 Subscription required";
+        }
+        // Update OpenAI card description in login screen
+        var pdOpenAI = document.getElementById("pd-openai");
+        if (pdOpenAI) {
+          pdOpenAI.textContent = isOpenAILoggedIn
+            ? ("Codex logged in" + (openaiEmail ? " \u00b7 " + openaiEmail : ""))
+            : "OpenAI Codex \u00b7 Uses your current codex login";
+        }
+        updateStatus();
+        return;
+      }
+
+      // ── Provider stored confirmation ─────────────────────────────────
+      if (msg.type === "provider-stored") {
+        if (msg.provider && PROVIDER_META[msg.provider] && msg.provider !== selectedLoginProvider) {
+          selectedLoginProvider = msg.provider;
+          updateProviderBadge();
+          renderThreadForProvider(selectedLoginProvider);
+        }
+        updateStatus();
+        return; // acknowledged
+      }
+
+      // ── MCP tool request (forward to plugin sandbox) ─────────────────
+      if (msg.type === "bridge-request") {
+        parent.postMessage({
+          pluginMessage: {
+            type: "bridge-request",
+            id: msg.id,
+            method: msg.method,
+            params: msg.params || {},
+          },
+        }, "*");
+        return;
+      }
+
+      // ── Chat streaming events ────────────────────────────────────────
+      if (msg.type === "text_delta") {
+        appendTextDelta(msg.delta);
+        return;
+      }
+
+      if (msg.type === "tool_start") {
+        addToolStart(msg.tool);
+        return;
+      }
+
+      if (msg.type === "tool_done") {
+        resolveToolPill(msg.tool, !!msg.isError);
+        return;
+      }
+
+      if (msg.type === "done") {
+        finalizeAssistantMessage();
+        endStreaming();
+        return;
+      }
+
+      if (msg.type === "error") {
+        showError(msg.error || "Something went wrong.");
+        endStreaming();
+        return;
+      }
+    };
+  }
+
+  /* ── Messages from Plugin Sandbox (code.js) ──────────────────────────── */
+  window.onmessage = function(event) {
+    var msg = event.data && event.data.pluginMessage;
+    if (!msg) return;
+
+    // Forward bridge events to relay
+    if (msg.type === "bridge-event") {
+      if (ws && ws.readyState === WebSocket.OPEN && isMcpConnected) {
+        ws.send(JSON.stringify({
+          type: "bridge-event",
+          eventType: msg.eventType,
+          payload: msg.payload,
+          timestamp: msg.timestamp || Date.now(),
+        }));
+      }
+      return;
+    }
+
+    if (msg.type === "agent-activity") {
+      appendAgentActivity(msg);
+      return;
+    }
+
+    // Forward MCP tool responses to relay
+    if (msg.type === "bridge-response") {
+      if (msg.resultBytes) {
+        var bytes = new Uint8Array(msg.resultBytes);
+        var binary = "";
+        for (var i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        msg.result = "data:image/png;base64," + btoa(binary);
+        delete msg.resultBytes;
+      }
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ id: msg.id, result: msg.result, error: msg.error }));
+      }
+    }
+  };
+
+  /* ── Init ─────────────────────────────────────────────────────────────── */
+  initFileAttach();
+  initLoginScreen();
+  updateStatus();
+  connect();
+</script>
+</body>
+</html>

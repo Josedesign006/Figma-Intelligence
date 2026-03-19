@@ -1,0 +1,56 @@
+rules:
+  - id: no-hardcoded-colors
+    severity: error
+    description: "All colors must reference a design token variable, not a hardcoded hex value"
+    applies-to: "all"
+    check: "fills.every(f => f.type === 'VARIABLE_ALIAS') && strokes.every(s => s.type === 'VARIABLE_ALIAS')"
+    autofix: "Map fill/stroke to nearest color token by hex distance"
+
+  - id: spacing-on-grid
+    severity: warning
+    description: "All spacing values (padding, gap) must be multiples of 4px"
+    applies-to: "frames and auto-layout nodes"
+    check: "(paddingLeft % 4 === 0) && (paddingRight % 4 === 0) && (paddingTop % 4 === 0) && (paddingBottom % 4 === 0) && (itemSpacing % 4 === 0)"
+    autofix: "Round each spacing value to nearest 4px multiple"
+
+  - id: button-min-touch-target
+    severity: error
+    description: "Interactive components (Buttons, Links, Icon buttons) must be at least 44x44px for WCAG 2.5.5 compliance"
+    applies-to: "components matching 'Button*' or 'IconButton*' or 'Link*'"
+    check: "node.width >= 44 && node.height >= 44"
+    autofix: false
+
+  - id: component-must-be-instance
+    severity: error
+    description: "Interactive UI elements must be DS component instances, not raw frames"
+    applies-to: "nodes matching interactive patterns (button, input, select, checkbox, toggle)"
+    check: "node.type === 'INSTANCE'"
+    autofix: false
+
+  - id: no-detached-text
+    severity: warning
+    description: "Text color fills must use variable aliases, not hardcoded values"
+    applies-to: "TEXT nodes"
+    check: "fills.every(f => f.type === 'VARIABLE_ALIAS')"
+    autofix: "Map text color to nearest semantic text token"
+
+  - id: image-needs-description
+    severity: warning
+    description: "Image layers should have an alt text annotation for accessibility documentation"
+    applies-to: "nodes with image fills"
+    check: "node.pluginData?.altText?.length > 0"
+    autofix: false
+
+  - id: no-mixed-radii
+    severity: warning
+    description: "Border radius values should use token references, not mixed hardcoded values"
+    applies-to: "frames and components with cornerRadius"
+    check: "node.boundVariables?.cornerRadius !== undefined || node.cornerRadius === 0"
+    autofix: "Map to nearest radius token"
+
+  - id: consistent-elevation
+    severity: warning
+    description: "Drop shadow effects should match a defined elevation token"
+    applies-to: "nodes with DROP_SHADOW effects"
+    check: "effects.every(e => e.type !== 'DROP_SHADOW' || node.boundVariables?.effects !== undefined)"
+    autofix: false

@@ -1,0 +1,41 @@
+{
+  "name": "figma-intelligence-layer",
+  "version": "1.0.0",
+  "description": "Extended AI ↔ Design collaboration layer for figma-console-mcp — 22 high-impact tools for visual intelligence, design system accuracy, generation, sync, and governance.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "setup:comfyui": "sh scripts/setup-comfyui-local.sh",
+    "start:comfyui": "sh scripts/start-comfyui.sh",
+    "lint": "eslint src/**/*.ts",
+    "test": "jest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "culori": "^4.0.0",
+    "fuse.js": "^7.0.0",
+    "js-yaml": "^4.1.0",
+    "playwright": "^1.40.0",
+    "sharp": "^0.33.5",
+    "wcag-contrast": "^3.0.0",
+    "ws": "^8.18.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.18.1",
+    "jest": "^29.0.0",
+    "ts-jest": "^29.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.3.0"
+  },
+  "bin": {
+    "figma-intelligence-layer": "dist/index.js"
+  }
+}

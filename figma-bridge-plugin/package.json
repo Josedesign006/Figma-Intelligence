@@ -1,0 +1,16 @@
+{
+  "name": "figma-bridge-plugin",
+  "version": "1.0.0",
+  "description": "WebSocket bridge that connects the **figma-intelligence-layer** MCP server to the **Figma Desktop App**.",
+  "main": "bridge-relay.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "ws": "^8.19.0"
+  }
+}

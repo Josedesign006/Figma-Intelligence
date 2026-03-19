@@ -1,0 +1,437 @@
+#!/bin/bash
+set -e
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLAUDE_SETTINGS="$HOME/.claude/settings.json"
+LOG_FILE="$HOME/.figma-bridge-relay.log"  # must have no spaces — launchd StandardOutPath fails silently with spaces
+DEFAULT_CODEX_APP_BIN="/Applications/Codex.app/Contents/Resources/codex"
+
+extract_email() {
+  printf "%s" "$1" | grep -E -o "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}" | head -n 1 || true
+}
+
+refresh_claude_status() {
+  if [ -z "$CLAUDE_BIN" ]; then
+    CLAUDE_AUTH_EMAIL=""
+    CLAUDE_LOGGED_IN=false
+    return
+  fi
+
+  CLAUDE_STATUS_OUTPUT="$("$CLAUDE_BIN" auth status 2>&1 || true)"
+  if "$CLAUDE_BIN" auth status &>/dev/null; then
+    CLAUDE_AUTH_EMAIL="$(extract_email "$CLAUDE_STATUS_OUTPUT")"
+    CLAUDE_LOGGED_IN=true
+  else
+    CLAUDE_AUTH_EMAIL=""
+    CLAUDE_LOGGED_IN=false
+  fi
+}
+
+refresh_codex_status() {
+  if [ -z "$CODEX_BIN" ]; then
+    CODEX_AUTH_EMAIL=""
+    CODEX_LOGGED_IN=false
+    return
+  fi
+
+  CODEX_STATUS_OUTPUT="$("$CODEX_BIN" login status 2>&1 || true)"
+  if "$CODEX_BIN" login status &>/dev/null; then
+    CODEX_AUTH_EMAIL="$(extract_email "$CODEX_STATUS_OUTPUT")"
+    CODEX_LOGGED_IN=true
+  else
+    CODEX_AUTH_EMAIL=""
+    CODEX_LOGGED_IN=false
+  fi
+}
+
+# ─── Banner ───────────────────────────────────────────────────────────────────
+echo ""
+echo "┌─────────────────────────────────────────────────────┐"
+echo "│        Figma Intelligence Layer — Setup             │"
+echo "└─────────────────────────────────────────────────────┘"
+echo ""
+
+# ─── Check Node.js ────────────────────────────────────────────────────────────
+if ! command -v node &> /dev/null; then
+  echo "❌ Node.js is not installed."
+  echo "   Install it from https://nodejs.org (LTS version recommended)"
+  exit 1
+fi
+echo "✔ Node.js $(node -v) found"
+
+# ─── Check AI provider CLIs + Login ───────────────────────────────────────────
+echo ""
+echo "─────────────────────────────────────────────────────"
+echo "🔐 Checking AI provider authentication..."
+echo "   Setup will prepare every installed provider so switching in the plugin does not require restarting the relay."
+
+CLAUDE_BIN="$(command -v claude 2>/dev/null || true)"
+CODEX_BIN="$(command -v codex 2>/dev/null || true)"
+if [ -z "$CODEX_BIN" ] && [ -x "$DEFAULT_CODEX_APP_BIN" ]; then
+  CODEX_BIN="$DEFAULT_CODEX_APP_BIN"
+fi
+CLAUDE_BIN_DIR=""
+CODEX_BIN_DIR=""
+CLAUDE_AUTH_EMAIL=""
+CODEX_AUTH_EMAIL=""
+CLAUDE_LOGGED_IN=false
+CODEX_LOGGED_IN=false
+
+if [ -n "$CLAUDE_BIN" ]; then
+  CLAUDE_BIN_DIR="$(dirname "$CLAUDE_BIN")"
+  echo "   ✔ Claude CLI found: $CLAUDE_BIN"
+  refresh_claude_status
+  if [ "$CLAUDE_LOGGED_IN" = true ]; then
+    echo "   ✔ Claude logged in${CLAUDE_AUTH_EMAIL:+ as $CLAUDE_AUTH_EMAIL}"
+  else
+    echo "   ⚠  Claude CLI is installed but not logged in."
+    echo "      Run 'claude login' later if you want to use Claude in the plugin."
+  fi
+else
+  echo "   ⚠  Claude CLI not found."
+  echo "      Install from: https://claude.ai/download"
+fi
+
+if [ -n "$CODEX_BIN" ]; then
+  CODEX_BIN_DIR="$(dirname "$CODEX_BIN")"
+  echo "   ✔ OpenAI Codex CLI found: $CODEX_BIN"
+  refresh_codex_status
+  if [ "$CODEX_LOGGED_IN" = true ]; then
+    echo "   ✔ Codex logged in${CODEX_AUTH_EMAIL:+ as $CODEX_AUTH_EMAIL}"
+  else
+    echo "   ⚠  Codex CLI is installed but not logged in."
+    echo "      Run 'codex login' later if you want to use OpenAI in the plugin."
+  fi
+else
+  echo "   ⚠  OpenAI Codex CLI not found."
+  echo "      Install with: npm install -g @openai/codex"
+fi
+
+if [ -z "$CLAUDE_BIN" ] && [ -z "$CODEX_BIN" ]; then
+  echo ""
+  echo "   ❌ No supported AI CLI was found."
+  echo "   Install at least one of these, then re-run setup:"
+  echo "     Claude: https://claude.ai/download"
+  echo "     OpenAI Codex: npm install -g @openai/codex"
+  exit 1
+fi
+
+if [ -n "$CODEX_BIN" ] && [ "$CODEX_LOGGED_IN" != true ]; then
+  echo ""
+  echo "   Opening Codex login so OpenAI is ready when you switch providers..."
+  "$CODEX_BIN" login || true
+  refresh_codex_status
+  if [ "$CODEX_LOGGED_IN" = true ]; then
+    echo "   ✔ Codex login successful${CODEX_AUTH_EMAIL:+ as $CODEX_AUTH_EMAIL}"
+  else
+    echo "   ⚠  Codex login was skipped or did not complete."
+  fi
+fi
+
+if [ "$CLAUDE_LOGGED_IN" != true ] && [ "$CODEX_LOGGED_IN" != true ]; then
+  echo ""
+  echo "   ⚠  No AI provider is authenticated yet."
+fi
+
+if [ -n "$CLAUDE_BIN" ] && [ "$CLAUDE_LOGGED_IN" != true ]; then
+  echo ""
+  echo "   Opening Claude login so Claude is ready when you switch providers..."
+  "$CLAUDE_BIN" login || true
+  refresh_claude_status
+  if [ "$CLAUDE_LOGGED_IN" = true ]; then
+    echo "   ✔ Claude login successful${CLAUDE_AUTH_EMAIL:+ as $CLAUDE_AUTH_EMAIL}"
+  else
+    echo "   ⚠  Claude login was skipped or did not complete."
+  fi
+fi
+
+if [ "$CLAUDE_LOGGED_IN" != true ] && [ "$CODEX_LOGGED_IN" != true ]; then
+  echo ""
+  echo "   ❌ Setup needs at least one logged-in AI provider."
+  echo "   Run one of these, then re-run setup:"
+  echo "     claude login"
+  echo "     codex login"
+  exit 1
+fi
+
+# ─── Step 1: Install bridge relay deps ────────────────────────────────────────
+echo ""
+echo "📦 Installing bridge relay dependencies..."
+cd "$REPO_DIR/figma-bridge-plugin"
+npm install
+echo "   ✔ Done"
+
+# ─── Step 2: Install MCP server deps + build ──────────────────────────────────
+echo ""
+echo "📦 Installing MCP server dependencies..."
+cd "$REPO_DIR/figma-intelligence-layer"
+npm install
+echo "   ✔ Done"
+
+# Verify sharp native binary loaded correctly (it can silently fail on fresh installs)
+echo ""
+echo "🔍 Verifying sharp image module..."
+if ! node -e "require('sharp')" 2>/dev/null; then
+  echo "   ⚠  sharp binary missing — clearing cache and reinstalling..."
+  npm cache clean --force 2>/dev/null
+  npm install sharp
+  if ! node -e "require('sharp')" 2>/dev/null; then
+    echo "   ❌ sharp still failing. Try: cd figma-intelligence-layer && npm install sharp"
+    exit 1
+  fi
+fi
+echo "   ✔ sharp OK"
+
+echo ""
+echo "🔨 Building MCP server..."
+npm run build --silent
+echo "   ✔ Built successfully"
+
+# ─── Step 3: Figma Access Token ───────────────────────────────────────────────
+echo ""
+echo "─────────────────────────────────────────────────────"
+echo "🔑 Figma Personal Access Token"
+echo "   Required to read your Figma files."
+echo "   Get one: Figma Desktop → Account Settings → Security → Personal access tokens"
+echo ""
+
+# Check if token already set in settings
+EXISTING_TOKEN=""
+if [ -f "$CLAUDE_SETTINGS" ]; then
+  EXISTING_TOKEN=$(node -e "
+    try {
+      const s = require('fs').readFileSync('$CLAUDE_SETTINGS', 'utf8');
+      const j = JSON.parse(s);
+      const t = j?.mcpServers?.['figma-intelligence-layer']?.env?.FIGMA_ACCESS_TOKEN || '';
+      if (t && t !== 'YOUR_FIGMA_TOKEN_HERE') process.stdout.write(t);
+    } catch {}
+  " 2>/dev/null || true)
+fi
+
+if [ -n "$EXISTING_TOKEN" ]; then
+  echo "   Found existing token: ${EXISTING_TOKEN:0:12}••••"
+  echo -n "   Press Enter to keep it, or paste a new token: "
+  read -r INPUT_TOKEN
+  FIGMA_TOKEN="${INPUT_TOKEN:-$EXISTING_TOKEN}"
+else
+  echo -n "   Paste your token: "
+  read -r FIGMA_TOKEN
+  if [ -z "$FIGMA_TOKEN" ]; then
+    FIGMA_TOKEN="YOUR_FIGMA_TOKEN_HERE"
+    echo ""
+    echo "   ⚠ No token provided. You can set it later:"
+    echo "     Edit FIGMA_ACCESS_TOKEN in ~/.claude/settings.json"
+  fi
+fi
+echo ""
+
+# ─── Step 4: Patch Claude Code MCP config ─────────────────────────────────────
+echo "⚙️  Registering MCP server settings..."
+
+node - "$REPO_DIR" "$FIGMA_TOKEN" "$CLAUDE_SETTINGS" << 'JSEOF'
+const fs = require('fs');
+const path = require('path');
+const [,, repoDir, figmaToken, settingsPath] = process.argv;
+
+let settings = {};
+if (fs.existsSync(settingsPath)) {
+  try { settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8')); } catch (e) {
+    console.error('   ⚠ Could not parse existing settings.json — creating fresh config');
+  }
+}
+
+if (!settings.mcpServers) settings.mcpServers = {};
+
+// Preserve any extra env vars that were already set (e.g. GEMINI_API_KEY)
+const existingEnv = settings.mcpServers['figma-intelligence-layer']?.env || {};
+
+settings.mcpServers['figma-intelligence-layer'] = {
+  command: 'node',
+  args: [path.join(repoDir, 'figma-intelligence-layer', 'dist', 'index.js')],
+  env: {
+    ...existingEnv,
+    FIGMA_ACCESS_TOKEN: figmaToken,
+    FIGMA_BRIDGE_PORT: '9001',
+    ENABLE_DECISION_LOG: 'true',
+  }
+};
+
+fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+console.log('   ✔ MCP server registered in ~/.claude/settings.json');
+JSEOF
+
+# ─── Step 5: Register Codex MCP config ───────────────────────────────────────
+echo "⚙️  Registering MCP server settings for Codex..."
+
+if [ -n "$CODEX_BIN" ]; then
+  "$CODEX_BIN" mcp remove figma-intelligence-layer >/dev/null 2>&1 || true
+  if "$CODEX_BIN" mcp add figma-intelligence-layer \
+    --env FIGMA_ACCESS_TOKEN="$FIGMA_TOKEN" \
+    --env FIGMA_BRIDGE_PORT=9001 \
+    --env ENABLE_DECISION_LOG=true \
+    -- node "$REPO_DIR/figma-intelligence-layer/dist/index.js" >/dev/null; then
+    echo "   ✔ MCP server registered in ~/.codex/config.toml"
+  else
+    echo "   ⚠ Could not register the MCP server in Codex."
+    echo "     Claude and VS Code are configured, but OpenAI provider switching may not use MCP until this is fixed."
+  fi
+else
+  echo "   ⚠ Codex CLI not found — skipping Codex MCP registration"
+fi
+
+# ─── Step 6: Patch VS Code MCP config ────────────────────────────────────────
+VSCODE_MCP="$REPO_DIR/.vscode/mcp.json"
+echo "⚙️  Updating .vscode/mcp.json for VS Code..."
+
+node - "$REPO_DIR" "$FIGMA_TOKEN" "$VSCODE_MCP" << 'JSEOF2'
+const fs = require('fs');
+const path = require('path');
+const [,, repoDir, figmaToken, mcpPath] = process.argv;
+
+const config = {
+  servers: {
+    "figma-intelligence-layer": {
+      type: "stdio",
+      command: "node",
+      args: [path.join(repoDir, "figma-intelligence-layer", "dist", "index.js")],
+      env: {
+        FIGMA_ACCESS_TOKEN: figmaToken,
+        FIGMA_BRIDGE_PORT: "9001",
+        ENABLE_DECISION_LOG: "true"
+      }
+    }
+  }
+};
+
+fs.mkdirSync(path.dirname(mcpPath), { recursive: true });
+fs.writeFileSync(mcpPath, JSON.stringify(config, null, 2));
+console.log('   ✔ .vscode/mcp.json updated');
+JSEOF2
+
+# ─── Step 7: Install bridge relay as a macOS launch service ───────────────────
+echo ""
+echo "🔧 Installing bridge relay as a background service..."
+
+PLIST_LABEL="com.figma-intelligence.bridge-relay"
+PLIST_DIR="$HOME/Library/LaunchAgents"
+PLIST_PATH="$PLIST_DIR/${PLIST_LABEL}.plist"
+NODE_PATH="$(which node)"
+LAUNCHD_PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+if [ -n "$CLAUDE_BIN_DIR" ]; then
+  LAUNCHD_PATH="$CLAUDE_BIN_DIR:$LAUNCHD_PATH"
+fi
+if [ -n "$CODEX_BIN_DIR" ] && [ "$CODEX_BIN_DIR" != "$CLAUDE_BIN_DIR" ]; then
+  LAUNCHD_PATH="$CODEX_BIN_DIR:$LAUNCHD_PATH"
+fi
+
+mkdir -p "$PLIST_DIR"
+
+# Stop any existing instance cleanly
+launchctl unload "$PLIST_PATH" 2>/dev/null || true
+pkill -f "bridge-relay.js" 2>/dev/null || true
+lsof -ti :9001 2>/dev/null | xargs kill -9 2>/dev/null || true
+sleep 0.5
+
+# Write the LaunchAgent plist
+# Store absolute CLI paths so the relay can refresh the currently logged-in
+# Claude/Codex account even under launchd's minimal PATH.
+cat > "$PLIST_PATH" << PLISTEOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${PLIST_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${NODE_PATH}</string>
+        <string>${REPO_DIR}/figma-bridge-plugin/bridge-relay.js</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>${REPO_DIR}/figma-bridge-plugin</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>${HOME}</string>
+        <key>PATH</key>
+        <string>${LAUNCHD_PATH}</string>
+        <key>CLAUDE_BIN_PATH</key>
+        <string>${CLAUDE_BIN}</string>
+        <key>CODEX_BIN_PATH</key>
+        <string>${CODEX_BIN}</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>${LOG_FILE}</string>
+    <key>StandardErrorPath</key>
+    <string>${LOG_FILE}</string>
+</dict>
+</plist>
+PLISTEOF
+
+launchctl load "$PLIST_PATH"
+sleep 2
+
+# Check if the process is actually running (PID column != "-")
+RELAY_PID=$(launchctl list | awk "/$PLIST_LABEL/ {print \$1}")
+if [ -n "$RELAY_PID" ] && [ "$RELAY_PID" != "-" ]; then
+  echo "   ✔ Bridge relay service running (PID: $RELAY_PID)"
+  echo "   ✔ Auto-starts on every login — no manual steps needed"
+  echo "   📋 Logs: $LOG_FILE"
+else
+  echo "   ⚠ launchd service registered but not running — starting directly..."
+  launchctl unload "$PLIST_PATH" 2>/dev/null || true
+  cd "$REPO_DIR/figma-bridge-plugin"
+  nohup env HOME="$HOME" PATH="$LAUNCHD_PATH" CLAUDE_BIN_PATH="$CLAUDE_BIN" CODEX_BIN_PATH="$CODEX_BIN" node bridge-relay.js > "$LOG_FILE" 2>&1 &
+  RELAY_PID=$!
+  sleep 1
+  if kill -0 "$RELAY_PID" 2>/dev/null; then
+    echo "   ✔ Relay running in background (PID: $RELAY_PID)"
+    echo "   📋 Logs: $LOG_FILE"
+    echo "   ⚠  Note: relay will not auto-start after reboot — re-run setup.sh if needed"
+  else
+    echo "   ❌ Relay failed to start. Check: $LOG_FILE"
+    exit 1
+  fi
+fi
+
+# ─── Done ─────────────────────────────────────────────────────────────────────
+echo ""
+echo "─────────────────────────────────────────────────────"
+echo "✅ Setup complete!"
+echo ""
+echo "One last step — load the plugin in Figma Desktop:"
+echo ""
+echo "  1. Open Figma Desktop"
+echo "  2. Right-click on the canvas"
+echo "     → Plugins → Development → Import plugin from manifest…"
+echo "  3. Select this file:"
+echo "     $REPO_DIR/figma-bridge-plugin/manifest.json"
+echo "  4. Run the plugin:"
+echo "     Plugins → Development → Figma Intelligence Bridge"
+echo "  5. Click  ▶ Start  — you should see  ✅ Connected"
+echo ""
+echo "  Then restart VS Code, Claude Code, or Codex if you use MCP tools there."
+echo ""
+echo "AI provider setup summary:"
+if [ "$CLAUDE_LOGGED_IN" = true ]; then
+  echo "   - Claude available${CLAUDE_AUTH_EMAIL:+ as $CLAUDE_AUTH_EMAIL}"
+else
+  echo "   - Claude not ready"
+fi
+if [ "$CODEX_LOGGED_IN" = true ]; then
+  echo "   - OpenAI Codex available${CODEX_AUTH_EMAIL:+ as $CODEX_AUTH_EMAIL}"
+  echo "     Codex is also registered for MCP, so switching the plugin to OpenAI reuses the running relay automatically."
+else
+  echo "   - OpenAI Codex not ready"
+fi
+echo "─────────────────────────────────────────────────────"
+echo ""
+echo "💡 The bridge relay runs automatically — no manual restarts needed."
+echo "   To stop it:  launchctl unload ~/Library/LaunchAgents/com.figma-intelligence.bridge-relay.plist"
+echo "   To restart:  launchctl unload ~/Library/LaunchAgents/com.figma-intelligence.bridge-relay.plist && launchctl load ~/Library/LaunchAgents/com.figma-intelligence.bridge-relay.plist"
+echo ""
