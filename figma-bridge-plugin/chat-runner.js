@@ -92,6 +92,7 @@ For Figma work:
 - never just describe what you would do when you can execute it
 - if generation is empty or weak, retry with a tighter prompt, then use a better-fit generation path, then reuse existing structure, and only then build manually
 - verify results with direct inspection or screenshot before finishing
+- **SCREEN COUNT RULE: Always create exactly ONE screen/frame unless the user explicitly asks for multiple screens, flows, or variants. Do not create multiple states, breakpoints, or iterations unless directly requested. One request = one frame.**
 
 When designing, follow this pattern:
 1. Understand what the user wants

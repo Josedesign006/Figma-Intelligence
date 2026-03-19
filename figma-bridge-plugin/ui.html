@@ -870,6 +870,137 @@
       cursor: ns-resize !important;
       user-select: none !important;
     }
+
+    /* ── Style Guide ─────────────────────────────────────────────── */
+    .sg-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 500;
+      display: flex;
+      align-items: flex-end;
+      animation: fadein 0.15s ease;
+    }
+    .sg-overlay.hiding {
+      animation: fadeout 0.2s ease forwards;
+      pointer-events: none;
+    }
+    .sg-modal {
+      width: 100%;
+      background: #2b2a27;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px 16px 0 0;
+      padding: 0 0 16px;
+      max-height: 85vh;
+      overflow-y: auto;
+      animation: slideUp 0.22s cubic-bezier(0.32,0.72,0,1);
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .sg-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px 10px;
+      position: sticky;
+      top: 0;
+      background: #2b2a27;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .sg-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+    .sg-close {
+      width: 24px; height: 24px;
+      border-radius: 6px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted);
+      transition: background 0.12s, color 0.12s;
+    }
+    .sg-close:hover { background: rgba(255,255,255,0.07); color: var(--text-secondary); }
+    .sg-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 12px 12px 0;
+    }
+    .sg-card {
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color 0.15s, transform 0.1s;
+      position: relative;
+    }
+    .sg-card:hover { transform: scale(1.02); }
+    .sg-card.active { border-color: var(--accent); }
+    .sg-card-preview {
+      height: 80px;
+      position: relative;
+      overflow: hidden;
+    }
+    .sg-card-label {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      padding: 6px 8px;
+      background: rgba(255,255,255,0.03);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sg-card.active .sg-card-label { color: var(--accent); }
+    .sg-active-check {
+      position: absolute;
+      top: 6px; right: 6px;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .sg-card.active .sg-active-check { opacity: 1; }
+
+    /* Style guide chip in input */
+    .style-guide-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px 3px 7px;
+      border-radius: 999px;
+      background: rgba(218,119,86,0.12);
+      border: 1px solid rgba(218,119,86,0.28);
+      font-size: 10.5px;
+      color: var(--accent);
+      margin: 6px 14px 0;
+      cursor: default;
+      animation: fadein 0.15s ease;
+    }
+    .style-guide-chip-x {
+      cursor: pointer;
+      color: rgba(218,119,86,0.6);
+      font-size: 12px;
+      line-height: 1;
+      padding: 0 1px;
+      border-radius: 3px;
+      transition: color 0.1s;
+    }
+    .style-guide-chip-x:hover { color: var(--accent); }
+    .sg-btn-active { color: var(--accent) !important; }
+
+    /* Mini mockup pieces */
+    .mini-sidebar { position: absolute; left: 0; top: 0; bottom: 0; width: 22px; }
+    .mini-topbar { position: absolute; left: 0; top: 0; right: 0; height: 14px; }
+    .mini-content { position: absolute; }
+    .mini-card { position: absolute; border-radius: 4px; }
+    .mini-text { position: absolute; border-radius: 2px; }
   </style>
 </head>
 <body>
@@ -1038,8 +1169,24 @@
     </div>
   </div>
 
+  <!-- Style Guide Modal -->
+  <div class="sg-overlay" id="sg-overlay" style="display:none" onclick="onSgOverlayClick(event)">
+    <div class="sg-modal" id="sg-modal">
+      <div class="sg-header">
+        <span class="sg-title">Pick a Style Guide</span>
+        <button class="sg-close" onclick="closeStyleGuideModal()">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="sg-grid" id="sg-grid"></div>
+    </div>
+  </div>
+
   <!-- Input area -->
   <div class="input-area">
+    <div id="style-guide-chip-container"></div>
     <div class="input-box">
       <div class="attached-files" id="attached-files" style="display:none"></div>
       <div class="input-main">
@@ -1055,6 +1202,14 @@
           <button class="tb-btn" id="attach-btn" title="Attach file">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
               <path d="M13.5 7.5L7.5 13.5C5.843 15.157 3.157 15.157 1.5 13.5C-0.157 11.843 -0.157 9.157 1.5 7.5L7.5 1.5C8.605 0.395 10.395 0.395 11.5 1.5C12.605 2.605 12.605 4.395 11.5 5.5L5.5 11.5C4.948 12.052 4.052 12.052 3.5 11.5C2.948 10.948 2.948 10.052 3.5 9.5L9.5 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button class="tb-btn" id="style-guide-btn" title="Pick a style guide" onclick="openStyleGuideModal()">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <circle cx="5" cy="5" r="2" stroke="currentColor" stroke-width="1.3"/>
+              <circle cx="11" cy="5" r="2" stroke="currentColor" stroke-width="1.3"/>
+              <circle cx="5" cy="11" r="2" stroke="currentColor" stroke-width="1.3"/>
+              <circle cx="11" cy="11" r="2" stroke="currentColor" stroke-width="1.3"/>
             </svg>
           </button>
           <input type="file" id="file-input" multiple style="display:none" accept="image/*,.pdf,.txt,.json,.csv,.svg,.md,.html,.css,.js,.ts,.jsx,.tsx,.py,.go,.rs,.java,.rb,.yml,.yaml,.xml,.sql,.sh">
@@ -1364,6 +1519,185 @@
     selectedModelByProvider[getActiveProvider()] = id;
     syncModelBadge();
     closeModelDropdown();
+  }
+
+  /* ── Style Guide ─────────────────────────────────────────────────────── */
+  var activeStyleGuide = null;
+
+  var STYLE_GUIDES = [
+    {
+      id: "bauhaus-light",
+      name: "Bauhaus Digital Light",
+      preview: function(el) {
+        el.style.background = "#FFFFFF";
+        el.innerHTML = '<div style="position:absolute;left:0;top:0;bottom:0;width:24px;background:#E63329;"></div>' +
+          '<div style="position:absolute;left:32px;top:10px;right:8px;height:10px;background:#1A1A1A;border-radius:2px;"></div>' +
+          '<div style="position:absolute;left:32px;top:26px;width:60px;height:8px;background:#E63329;border-radius:2px;"></div>' +
+          '<div style="position:absolute;left:32px;top:40px;width:80px;height:6px;background:#2B5CE6;border-radius:2px;"></div>' +
+          '<div style="position:absolute;right:8px;bottom:10px;width:28px;height:28px;background:#F5C400;border-radius:4px;"></div>' +
+          '<div style="position:absolute;left:32px;bottom:10px;width:32px;height:8px;background:#1A1A1A;border-radius:2px;opacity:0.3;"></div>';
+      },
+      prompt: "Apply the Bauhaus Digital Light style guide throughout all Figma work:\n- Background: Pure white (#FFFFFF)\n- Primary: Bold red (#E63329), Electric blue (#2B5CE6), Golden yellow (#F5C400), Near-black text (#1A1A1A)\n- Typography: Bold geometric sans-serif, heavy weights (700-900), tight tracking on headlines, strong visual hierarchy\n- Layout: Strict grid, geometric structure, asymmetric compositions, strong color-block sections\n- Components: Sharp corners (2-4px radius max), flat design, bold solid fills, no gradients\n- Mood: Bold modernist, Bauhaus-inspired, primary color confidence, functional clarity"
+    },
+    {
+      id: "bauhaus-dark",
+      name: "Bauhaus Digital Dark",
+      preview: function(el) {
+        el.style.background = "#0D0D0D";
+        el.innerHTML = '<div style="position:absolute;left:0;top:0;bottom:0;width:24px;background:#E63329;"></div>' +
+          '<div style="position:absolute;left:32px;top:10px;right:8px;height:10px;background:#FFFFFF;border-radius:2px;"></div>' +
+          '<div style="position:absolute;left:32px;top:26px;width:60px;height:8px;background:#E63329;border-radius:2px;"></div>' +
+          '<div style="position:absolute;left:32px;top:40px;width:80px;height:6px;background:#2B5CE6;border-radius:2px;"></div>' +
+          '<div style="position:absolute;right:8px;bottom:10px;width:28px;height:28px;background:#F5C400;border-radius:4px;"></div>' +
+          '<div style="position:absolute;left:32px;bottom:10px;width:32px;height:8px;background:#FFFFFF;border-radius:2px;opacity:0.2;"></div>';
+      },
+      prompt: "Apply the Bauhaus Digital Dark style guide throughout all Figma work:\n- Background: Near-black (#0D0D0D), dark surface (#1A1A1A)\n- Primary: Bold red (#E63329), Electric blue (#2B5CE6), Golden yellow (#F5C400), White text (#FFFFFF)\n- Typography: Bold geometric sans-serif, heavy weights (700-900), high contrast white-on-dark\n- Layout: Strict grid, geometric structure, bold color blocks that pop on dark background\n- Components: Sharp corners (2-4px max), flat design, vivid solid fills against dark\n- Mood: Bold dark modernist, high-impact, dramatic contrast, industrial strength"
+    },
+    {
+      id: "neo-brutalist",
+      name: "Neo-Brutalist",
+      preview: function(el) {
+        el.style.background = "#F0EEE4";
+        el.innerHTML = '<div style="position:absolute;left:8px;top:8px;right:8px;height:28px;background:#FFFFFF;border:2px solid #000000;border-radius:0;"></div>' +
+          '<div style="position:absolute;left:8px;top:42px;width:70px;height:20px;background:#FF3300;border:2px solid #000;"></div>' +
+          '<div style="position:absolute;right:8px;top:42px;width:40px;height:20px;background:#000;"></div>' +
+          '<div style="position:absolute;left:8px;bottom:8px;right:8px;height:14px;background:#FFEE00;border:2px solid #000;"></div>';
+      },
+      prompt: "Apply the Neo-Brutalist style guide throughout all Figma work:\n- Background: Off-white (#F0EEE4) or raw white (#FFFFFF)\n- Colors: Pure black (#000000) borders and text, electric red (#FF3300) accent, neon yellow (#FFEE00) highlight, and raw paper tones\n- Typography: Heavy black weight sans-serif (900), uppercase headlines, visible hierarchy through scale not subtlety\n- Layout: Asymmetric, exposed grid, intentional rawness, nothing hidden or polished\n- Components: Zero border radius, thick black borders (2-3px), flat fills, visible structure\n- Mood: Raw, unapologetic, graphic, anti-polish, design as statement"
+    },
+    {
+      id: "glassmorphism",
+      name: "Glassmorphism Dark",
+      preview: function(el) {
+        el.style.background = "linear-gradient(135deg, #1a0533 0%, #0d1a3a 100%)";
+        el.innerHTML = '<div style="position:absolute;left:6px;top:8px;right:6px;height:34px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:10px;backdrop-filter:blur(8px);"></div>' +
+          '<div style="position:absolute;left:10px;top:12px;width:50px;height:6px;background:rgba(255,255,255,0.6);border-radius:3px;"></div>' +
+          '<div style="position:absolute;left:10px;top:22px;width:80px;height:4px;background:rgba(255,255,255,0.25);border-radius:2px;"></div>' +
+          '<div style="position:absolute;left:6px;top:50px;width:60px;height:22px;background:rgba(120,80,255,0.25);border:1px solid rgba(120,80,255,0.4);border-radius:8px;"></div>' +
+          '<div style="position:absolute;right:6px;top:50px;width:48px;height:22px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;"></div>';
+      },
+      prompt: "Apply the Glassmorphism Dark style guide throughout all Figma work:\n- Background: Deep dark gradient (purple-to-navy: #1a0533 to #0d1a3a), or similar dark gradient\n- Surfaces: Frosted glass cards with background:rgba(255,255,255,0.08), border:rgba(255,255,255,0.18), and strong blur effect\n- Colors: White text (#FFFFFF), soft purple accent (#7850FF), teal highlight (#00E5CC), muted glass surfaces\n- Typography: Light-weight sans-serif (300-400), clean and airy, white or near-white\n- Layout: Layered depth with overlapping glass panels, ambient glow effects, generous spacing\n- Components: Large border-radius (12-20px), translucent fills, glowing borders, subtle shadows\n- Mood: Futuristic, premium, ethereal, depth through transparency"
+    },
+    {
+      id: "luxury-gold",
+      name: "Luxury Gold Dark",
+      preview: function(el) {
+        el.style.background = "#0A0A0A";
+        el.innerHTML = '<div style="position:absolute;left:0;top:0;bottom:0;width:20px;background:linear-gradient(180deg,#C9A84C,#8B6914);"></div>' +
+          '<div style="position:absolute;left:28px;top:12px;right:8px;height:8px;background:#C9A84C;border-radius:1px;"></div>' +
+          '<div style="position:absolute;left:28px;top:26px;width:70px;height:5px;background:rgba(201,168,76,0.4);border-radius:1px;"></div>' +
+          '<div style="position:absolute;left:28px;top:36px;width:50px;height:5px;background:rgba(201,168,76,0.25);border-radius:1px;"></div>' +
+          '<div style="position:absolute;left:28px;bottom:10px;right:8px;height:1px;background:rgba(201,168,76,0.3);"></div>' +
+          '<div style="position:absolute;right:8px;bottom:14px;width:36px;height:14px;background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.4);border-radius:2px;"></div>';
+      },
+      prompt: "Apply the Luxury Gold Dark style guide throughout all Figma work:\n- Background: Rich black (#0A0A0A), charcoal surface (#141414), deep dark panels (#1C1A16)\n- Colors: Antique gold primary (#C9A84C), burnished gold (#8B6914), warm cream text (#F5F0E8), subtle gold dividers\n- Typography: Elegant serif for headlines (think Playfair/Cormorant style), refined weight sans for body, generous letter-spacing on all-caps labels\n- Layout: Structured, symmetric, generous breathing room, vertical rhythm, thin gold divider lines\n- Components: Subtle gold borders, minimal fills, refined small details, no rounded corners or very subtle (4px max)\n- Mood: Premium, editorial, high-end luxury brand, timeless sophistication"
+    },
+    {
+      id: "minimal-light",
+      name: "Minimal Light",
+      preview: function(el) {
+        el.style.background = "#FAFAFA";
+        el.innerHTML = '<div style="position:absolute;left:0;top:0;right:0;height:16px;background:#FFFFFF;border-bottom:1px solid #EBEBEB;"></div>' +
+          '<div style="position:absolute;left:12px;top:24px;width:90px;height:9px;background:#111111;border-radius:2px;"></div>' +
+          '<div style="position:absolute;left:12px;top:38px;width:70px;height:5px;background:#BBBBBB;border-radius:2px;"></div>' +
+          '<div style="position:absolute;left:12px;top:50px;width:50px;height:5px;background:#BBBBBB;border-radius:2px;"></div>' +
+          '<div style="position:absolute;right:12px;top:24px;width:32px;height:18px;background:#111;border-radius:4px;"></div>';
+      },
+      prompt: "Apply the Minimal Light style guide throughout all Figma work:\n- Background: Off-white (#FAFAFA), pure white panels (#FFFFFF), light gray dividers (#EBEBEB)\n- Colors: Near-black text (#111111), medium gray secondary (#777777), light gray tertiary (#BBBBBB), one optional single accent color (use sparingly)\n- Typography: Clean neutral sans-serif (regular 400, medium 500), no decorative fonts, sizes defined by strict hierarchy\n- Layout: Generous whitespace is the primary design element, 8pt grid, clear zones, breathable margins\n- Components: Minimal borders (1px #EBEBEB), subtle shadows if any (0 1px 4px rgba(0,0,0,0.06)), generous padding\n- Mood: Calm, focused, Swiss-influenced, beauty through restraint, content-first"
+    },
+    {
+      id: "vibrant-gradient",
+      name: "Vibrant Gradient",
+      preview: function(el) {
+        el.style.background = "linear-gradient(135deg, #6B21F5 0%, #E91ECA 100%)";
+        el.innerHTML = '<div style="position:absolute;left:0;top:0;right:0;height:100%;background:linear-gradient(135deg,rgba(107,33,245,0.8),rgba(233,30,202,0.8));"></div>' +
+          '<div style="position:absolute;left:8px;top:10px;right:8px;height:30px;background:rgba(255,255,255,0.15);border-radius:8px;"></div>' +
+          '<div style="position:absolute;left:14px;top:16px;width:60px;height:8px;background:#FFFFFF;border-radius:2px;"></div>' +
+          '<div style="position:absolute;left:8px;top:48px;width:55px;height:22px;background:#FFFFFF;border-radius:8px;"></div>' +
+          '<div style="position:absolute;right:8px;bottom:8px;width:40px;height:14px;background:rgba(255,255,255,0.2);border-radius:6px;border:1px solid rgba(255,255,255,0.4);"></div>';
+      },
+      prompt: "Apply the Vibrant Gradient style guide throughout all Figma work:\n- Background: Bold gradients as backgrounds and hero sections (purple-to-pink: #6B21F5 to #E91ECA, or similar vibrant combos)\n- Colors: Rich purple (#6B21F5), electric pink (#E91ECA), bright cyan (#00D4FF) accent, white (#FFFFFF) for text on dark\n- Typography: Bold to semi-bold sans-serif, white text on gradient backgrounds, strong size contrast between heading and body\n- Layout: Energetic, modern, card-based layouts, gradient hero sections, white content cards floating above\n- Components: Rounded corners (8-16px), white cards with subtle shadows, gradient buttons and CTAs, glass-effect overlays\n- Mood: Energetic, youthful, tech-forward, startup energy, bold and optimistic"
+    },
+    {
+      id: "corporate-blue",
+      name: "Corporate Professional",
+      preview: function(el) {
+        el.style.background = "#F4F6F9";
+        el.innerHTML = '<div style="position:absolute;left:0;top:0;bottom:0;width:26px;background:#1B4FBF;"></div>' +
+          '<div style="position:absolute;left:0;top:0;right:0;height:14px;background:#1B4FBF;"></div>' +
+          '<div style="position:absolute;left:34px;top:20px;right:8px;height:8px;background:#1B3A6B;border-radius:2px;"></div>' +
+          '<div style="position:absolute;left:34px;top:34px;width:65px;height:5px;background:#8A9BB0;border-radius:2px;"></div>' +
+          '<div style="position:absolute;left:34px;top:44px;width:80px;height:5px;background:#8A9BB0;border-radius:2px;"></div>' +
+          '<div style="position:absolute;left:34px;bottom:10px;width:40px;height:14px;background:#1B4FBF;border-radius:3px;"></div>';
+      },
+      prompt: "Apply the Corporate Professional style guide throughout all Figma work:\n- Background: Light gray (#F4F6F9), white panels (#FFFFFF), subtle card borders (#E2E8F0)\n- Colors: Corporate blue primary (#1B4FBF), dark navy heading (#1B3A6B), steel blue secondary (#4A7FC1), muted gray text (#8A9BB0), near-black body (#1A2333)\n- Typography: Professional neutral sans-serif, regular and medium weights, clear hierarchy, no decorative choices\n- Layout: Structured sidebar navigation pattern, data-dense but organized, consistent spacing and alignment\n- Components: Subtle shadows (enterprise card style), blue primary buttons, thin borders, 4-6px border radius\n- Mood: Trustworthy, professional, enterprise-grade, data-focused, reliable and clear"
+    }
+  ];
+
+  function openStyleGuideModal() {
+    var overlay = document.getElementById("sg-overlay");
+    var grid = document.getElementById("sg-grid");
+    grid.innerHTML = "";
+    STYLE_GUIDES.forEach(function(sg) {
+      var card = document.createElement("div");
+      card.className = "sg-card" + (activeStyleGuide && activeStyleGuide.id === sg.id ? " active" : "");
+      card.onclick = function() { selectStyleGuide(sg); };
+      var preview = document.createElement("div");
+      preview.className = "sg-card-preview";
+      sg.preview(preview);
+      var check = document.createElement("div");
+      check.className = "sg-active-check";
+      check.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      preview.appendChild(check);
+      var label = document.createElement("div");
+      label.className = "sg-card-label";
+      label.textContent = sg.name;
+      card.appendChild(preview);
+      card.appendChild(label);
+      grid.appendChild(card);
+    });
+    overlay.style.display = "flex";
+  }
+
+  function closeStyleGuideModal() {
+    var overlay = document.getElementById("sg-overlay");
+    overlay.classList.add("hiding");
+    setTimeout(function() {
+      overlay.style.display = "none";
+      overlay.classList.remove("hiding");
+    }, 200);
+  }
+
+  function onSgOverlayClick(e) {
+    if (e.target === document.getElementById("sg-overlay")) closeStyleGuideModal();
+  }
+
+  function selectStyleGuide(sg) {
+    activeStyleGuide = sg;
+    closeStyleGuideModal();
+    renderStyleGuideChip();
+    var btn = document.getElementById("style-guide-btn");
+    if (btn) btn.classList.add("sg-btn-active");
+  }
+
+  function clearStyleGuide() {
+    activeStyleGuide = null;
+    renderStyleGuideChip();
+    var btn = document.getElementById("style-guide-btn");
+    if (btn) btn.classList.remove("sg-btn-active");
+  }
+
+  function renderStyleGuideChip() {
+    var container = document.getElementById("style-guide-chip-container");
+    if (!activeStyleGuide) {
+      container.innerHTML = "";
+      return;
+    }
+    container.innerHTML = '<div class="style-guide-chip">' +
+      '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="2.5" cy="2.5" r="1.5" fill="currentColor"/><circle cx="7.5" cy="2.5" r="1.5" fill="currentColor"/><circle cx="2.5" cy="7.5" r="1.5" fill="currentColor"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor"/></svg>' +
+      activeStyleGuide.name +
+      '<span class="style-guide-chip-x" onclick="clearStyleGuide()" title="Remove style guide">×</span>' +
+      '</div>';
   }
 
   /* ── File attachments ────────────────────────────────────────────────── */
@@ -2178,10 +2512,15 @@
 
     beginAssistantMessage();
 
+    var messageText = text;
+    if (activeStyleGuide) {
+      messageText = "[STYLE GUIDE ACTIVE: " + activeStyleGuide.name + "]\n" + activeStyleGuide.prompt + "\n\n---\n\n" + text;
+    }
+
     var payload = {
       type: "chat",
       id: currentRequestId,
-      message: text,
+      message: messageText,
       model: getSelectedModel(activeProvider),
       conversation: conversation,
     };
