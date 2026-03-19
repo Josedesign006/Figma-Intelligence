@@ -1,9 +1,9 @@
 # Figma Intelligence Layer
 
-Connect **Claude** or **OpenAI Codex** to **Figma Desktop** so you can chat directly inside Figma and have the AI actually build, edit, and modify your designs in real time.
+Connect **Claude**, **OpenAI Codex**, or **Google Gemini CLI** to **Figma Desktop** so you can chat directly inside Figma and have the AI actually build, edit, and modify your designs in real time.
 
 ```
-You (chat in Figma plugin) ◄──► Bridge Relay ◄──► Claude / OpenAI Codex
+You (chat in Figma plugin) ◄──► Bridge Relay ◄──► Claude / OpenAI Codex / Gemini CLI
 ```
 
 ---
@@ -11,6 +11,8 @@ You (chat in Figma plugin) ◄──► Bridge Relay ◄──► Claude / OpenA
 ## What does this do?
 
 Think of it as having an AI design assistant living inside Figma. You can type something like *"Make a login screen with a blue button"* and the selected provider will actually create the components and layers in your Figma file, not just describe how to do it.
+
+The bundled Figma MCP server exposes 64 tools, including high-level generation tools like `figma_page_architect`, `figma_intent_translator`, `figma_layout_intelligence`, `figma_design_from_ref`, `figma_generate_spec`, and direct editing and inspection tools.
 
 ---
 
@@ -42,9 +44,10 @@ Install at least one of these — the setup will detect whichever you have:
 | **Zed** | Download from zed.dev |
 | **Continue.dev** | Install the VS Code extension from continue.dev |
 | **OpenAI Codex CLI** | `npm install -g @openai/codex`, then `codex login` |
+| **Google Gemini CLI** | `npm install -g @google/gemini-cli`, then run `gemini` and complete Google sign-in |
 | **Kiro** (AWS) | Download from kiro.dev |
 
-If you install both Claude and Codex, `npm run setup` prepares both so provider switching does not require restarting the bridge.
+If you install Claude, Codex, and Gemini CLI, `npm run setup` prepares all of them so provider switching does not require restarting the bridge.
 
 ### 4. A Figma Personal Access Token
 
@@ -80,10 +83,11 @@ npm run setup
 
 Type exactly that and press Enter. The setup will:
 - Install everything needed (you'll see a lot of text scroll by — that's normal)
-- Detect your Claude and Codex logins
+- Detect your Claude, Codex, and Gemini logins
 - Prompt you to sign in to any installed provider that is not ready yet, so both subscriptions can be prepared in one pass
-- Register the Figma MCP server for Claude, Codex, and VS Code
+- Register the Figma MCP server for Claude, Codex, Gemini CLI, and VS Code
 - If you choose OpenAI in the plugin later, it will use the account currently logged into `codex` without restarting `npm start`
+- If you choose Gemini in the plugin later and Gemini CLI is authenticated, it will use Gemini CLI subscription mode with the same Figma MCP server
 - Ask you to **paste your Figma token** — paste it and press Enter
 - Start the background bridge that lets the plugin talk to Figma
 
@@ -145,6 +149,8 @@ If you use OpenAI provider and it reports missing Codex MCP registration, run:
 npm run register:codex-mcp
 ```
 
+If you plan to use Gemini subscription mode, verify that `gemini --version` works and that running `gemini` completes Google sign-in before you open the plugin.
+
 ---
 
 ## Using the chat
@@ -158,14 +164,54 @@ Once connected, the plugin panel has a chat box at the bottom. Just type what yo
 
 To attach an image: click the **paperclip icon** next to the chat box.
 
-Use the provider badge in the plugin header to switch between Claude and OpenAI.
+Use the provider badge in the plugin header to switch between Claude, OpenAI, and Gemini.
 
 - **Claude** uses the account logged into the Claude CLI
 - **OpenAI** uses the account logged into `codex` at the time you switch
+- **Gemini** uses the authenticated Gemini CLI account when available, otherwise it falls back to API key mode
 
-Setup registers the same Figma MCP server for both CLIs, so switching providers reuses the running bridge and MCP connection automatically.
+Setup registers the same Figma MCP server for Claude, Codex, and Gemini CLI, so switching providers reuses the running bridge and MCP connection automatically.
 
 The active provider will show its signed-in email in the auth strip when available.
+
+## Gemini CLI workflow
+
+If you want Gemini to use the real Figma MCP tools instead of API-key text mode, use Gemini CLI.
+
+### 1. Install Gemini CLI
+
+```bash
+npm install -g @google/gemini-cli
+```
+
+### 2. Sign in with your Google account
+
+Run either of these:
+
+```bash
+gemini
+```
+
+```bash
+gemini auth login
+```
+
+That opens the Google browser OAuth flow. After it completes, re-run:
+
+```bash
+npm run setup
+```
+
+Setup writes the Figma MCP registration into `~/.gemini/settings.json`, so the Gemini CLI subprocess can call the same 64 Figma tools as Claude and Codex.
+
+### 3. Use Gemini inside the plugin
+
+1. Start the bridge with `npm start`
+2. Open the Figma plugin
+3. Choose the **Gemini** provider
+4. Send a design request
+
+When Gemini CLI auth is present, the relay uses Gemini CLI subscription mode. If Gemini CLI is not authenticated, the plugin falls back to Gemini API-key mode, which is lower fidelity and does not provide the same MCP-driven tool execution.
 
 ---
 
@@ -202,7 +248,8 @@ That's it — you're connected again.
 | **Plugin shows "Disconnected"** | Run `npm start` in Terminal first, then click Start in the plugin |
 | **Not sure what is broken** | Run `npm run status` for a one-command diagnostic and follow the printed next actions |
 | **OpenAI provider can chat but cannot use Figma tools** | Run `npm run register:codex-mcp`, then `npm run status` |
-| **Chat does nothing / no response** | Open Terminal and run `claude login` for Claude or `codex login` for OpenAI. Then switch providers once in the plugin or reconnect it — no `npm start` restart needed |
+| **Gemini appears to answer but does not build in Figma** | Install Gemini CLI with `npm install -g @google/gemini-cli`, run `gemini` to sign in, then re-run `npm run setup` |
+| **Chat does nothing / no response** | Open Terminal and run `claude login` for Claude, `codex login` for OpenAI, or `gemini` for Gemini. Then switch providers once in the plugin or reconnect it — no `npm start` restart needed |
 | **`unexpected argument '--approval-mode'` in plugin chat** | Your plugin is using an older Codex CLI invocation. Update to the latest repo version or patch `figma-bridge-plugin/codex-runner.js` to use `codex exec --json` instead of `--approval-mode` / `--quiet` |
 | **"dist/index.js not found"** | Run `cd figma-intelligence-layer && npm run build` in Terminal |
 | **Wrong Figma token / token expired** | Re-run `npm run setup` and paste your new token when asked |
@@ -220,6 +267,7 @@ figma-bridge-plugin/
   bridge-relay.js                ← background bridge (npm start runs this)
   chat-runner.js                 ← connects Claude to the plugin chat
   codex-runner.js                ← connects OpenAI Codex to the plugin chat
+  gemini-cli-runner.js           ← connects Gemini CLI to the plugin chat
   ui.html / code.js              ← the plugin's visual panel
 figma-intelligence-layer/
   src/                           ← source code for the AI tools

@@ -37,6 +37,95 @@ const MODEL_MAP = {
   "gpt-5-codex": "gpt-5-codex",
 };
 
+const FIGMA_TOOL_CATEGORIES = {
+  vision: [
+    "figma_screen_cloner",
+    "figma_visual_audit",
+    "figma_a11y_audit",
+    "figma_sketch_to_design",
+    "figma_design_from_ref",
+  ],
+  accuracy: [
+    "figma_intent_translator",
+    "figma_layout_intelligence",
+    "figma_variant_expander",
+    "figma_theme_generator",
+    "figma_lint_rules",
+    "figma_component_audit",
+    "figma_component_archaeologist",
+  ],
+  generation: [
+    "figma_page_architect",
+    "figma_generate_image_and_insert",
+    "figma_unsplash_search",
+    "figma_url_to_frame",
+    "figma_system_drift",
+    "figma_prototype_map",
+    "figma_animated_build",
+  ],
+  sync: [
+    "figma_animation_specifier",
+    "figma_sync_from_code",
+    "figma_webhook_listener",
+  ],
+  governance: [
+    "figma_design_system_scaffolder",
+    "figma_design_system_primitives",
+    "figma_design_system_variables",
+    "figma_token_naming_convention",
+    "figma_decision_log",
+    "figma_health_report",
+    "figma_generate_spec",
+    "figma_apg_doc",
+    "figma_token_migrate",
+  ],
+  bridge: [
+    "figma_execute",
+    "figma_get_status",
+    "figma_navigate",
+    "figma_get_selection",
+    "figma_take_screenshot",
+    "figma_get_node",
+    "figma_create_variable_collection",
+    "figma_create_variable",
+    "figma_update_variable",
+    "figma_delete_variable",
+    "figma_rename_variable",
+    "figma_delete_variable_collection",
+    "figma_add_mode",
+    "figma_rename_mode",
+    "figma_batch_create_variables",
+    "figma_batch_update_variables",
+    "figma_get_variables",
+    "figma_clone_node",
+    "figma_delete_node",
+    "figma_move_node",
+    "figma_resize_node",
+    "figma_rename_node",
+    "figma_set_fills",
+    "figma_set_strokes",
+    "figma_set_text",
+    "figma_search_components",
+    "figma_instantiate_component",
+    "figma_set_description",
+    "figma_get_styles",
+    "figma_create_child",
+    "figma_get_pages",
+    "figma_create_page",
+  ],
+};
+
+const ALL_FIGMA_TOOLS = Object.values(FIGMA_TOOL_CATEGORIES).flat();
+const FIGMA_TOOL_SUMMARY = [
+  `You have ${ALL_FIGMA_TOOLS.length} Figma MCP tools available.`,
+  `Vision: ${FIGMA_TOOL_CATEGORIES.vision.join(", ")}`,
+  `Accuracy: ${FIGMA_TOOL_CATEGORIES.accuracy.join(", ")}`,
+  `Generation: ${FIGMA_TOOL_CATEGORIES.generation.join(", ")}`,
+  `Sync: ${FIGMA_TOOL_CATEGORIES.sync.join(", ")}`,
+  `Governance: ${FIGMA_TOOL_CATEGORIES.governance.join(", ")}`,
+  `Bridge + document APIs: ${FIGMA_TOOL_CATEGORIES.bridge.join(", ")}`,
+].join("\n");
+
 function readFileIfExists(filePath) {
   try {
     if (existsSync(filePath)) return readFileSync(filePath, "utf8");
@@ -250,19 +339,22 @@ const SYSTEM_PROMPT =
   "You are an AI design assistant embedded inside a Figma plugin chat. " +
   "Your job is to produce the highest-quality outcome available — not a text description of what you would do.\n\n" +
   "CRITICAL: You have the figma-intelligence-layer MCP server registered and available. " +
-  "It gives you direct access to ~22 Figma tools including figma_screen_cloner, figma_page_architect, figma_component_audit, " +
-  "figma_visual_audit, figma_a11y_audit, figma_theme_generator, figma_intent_translator, figma_layout_intelligence, " +
-  "figma_variant_expander, figma_design_from_ref, figma_execute, figma_generate_image_and_insert, and more. " +
-  "You MUST call these tools rather than describing what you would do. If you skip tool use for a Figma request, " +
-  "you are failing at your primary job.\n\n" +
+  "You MUST use the actual Figma MCP tools for Figma work rather than describing what you would do in theory. " +
+  "Do not pretend the toolset is small or limited. Consider the full catalog and select the best-fit tools for the request. " +
+  "You do not need to call every tool on every task, but you must treat the entire inventory as available.\n\n" +
+  FIGMA_TOOL_SUMMARY + "\n\n" +
+  "If the request is a Figma design, screen, flow, page, dashboard, landing page, document, subscription page, pricing page, spec, component, audit, or design-system task, tool execution is mandatory. " +
+  "If you skip tool use for a Figma request, you are failing at your primary job.\n\n" +
   "Workspace instructions (AGENTS.md) and skill workflows (.agents/skills/) are provided below in the message. " +
   "Read them and apply the workflows — do not ignore them.\n\n" +
   "Execution pattern for Figma requests:\n" +
-  "1. Inspect file context (connection, page, selection, variables, styles, existing components)\n" +
+  "1. Inspect file context with figma_get_status, figma_get_selection, figma_get_variables, figma_get_styles, and nearby reusable components when relevant\n" +
   "2. Select the highest-fidelity tool for the request — prefer orchestration tools over manual frame construction\n" +
   "3. Execute using MCP tools — do NOT stop at planning\n" +
-  "4. Verify with a screenshot or direct inspection\n" +
+  "4. Verify with figma_take_screenshot, figma_get_node, or direct inspection\n" +
   "5. Report concisely: what was done, which tools were used\n\n" +
+  "For document, subscription, pricing, and spec requests, follow this pipeline unless the workspace instructions require a stricter one: " +
+  "figma_get_status -> figma_intent_translator -> figma_layout_intelligence -> figma_page_architect -> figma_generate_spec when documentation output is requested.\n\n" +
   "Recovery order when generation returns empty or weak results:\n" +
   "1. Retry with a tighter, more explicit prompt\n" +
   "2. Try a better-fit generation path (e.g. figma_design_from_ref, figma_sketch_to_design)\n" +

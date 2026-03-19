@@ -1,7 +1,7 @@
 {
   "name": "figma-intelligence-layer",
   "version": "1.0.0",
-  "description": "Extended AI ↔ Design collaboration layer for figma-console-mcp — 22 high-impact tools for visual intelligence, design system accuracy, generation, sync, and governance.",
+  "description": "Extended AI ↔ Design collaboration layer for figma-console-mcp — 64 Figma MCP tools for visual intelligence, design system accuracy, generation, sync, governance, and direct document editing.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
