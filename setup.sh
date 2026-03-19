@@ -6,6 +6,14 @@ CLAUDE_SETTINGS="$HOME/.claude/settings.json"
 LOG_FILE="$HOME/.figma-bridge-relay.log"  # must have no spaces — launchd StandardOutPath fails silently with spaces
 DEFAULT_CODEX_APP_BIN="/Applications/Codex.app/Contents/Resources/codex"
 
+# Known locations where Gemini CLI stores OAuth credentials
+GEMINI_AUTH_CANDIDATES=(
+  "$HOME/.gemini/oauth_creds.json"
+  "$HOME/.gemini/credentials.json"
+  "$HOME/.gemini/auth.json"
+  "$HOME/.config/google/application_default_credentials.json"
+)
+
 extract_email() {
   printf "%s" "$1" | grep -E -o "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}" | head -n 1 || true
 }
@@ -44,6 +52,77 @@ refresh_codex_status() {
   fi
 }
 
+# Check Gemini auth. Gemini CLI v0.34+ stores tokens in the macOS Keychain
+# under service "gemini-cli-oauth" / account "main-account". Falls back to
+# legacy credential files.
+refresh_gemini_status() {
+  GEMINI_AUTH_EMAIL=""
+  GEMINI_LOGGED_IN=false
+
+  if [ -z "$GEMINI_BIN" ]; then
+    return
+  fi
+
+  # Fast path 1: macOS Keychain (primary store for Gemini CLI v0.34+)
+  if command -v security &>/dev/null; then
+    if security find-generic-password -s "gemini-cli-oauth" -a "main-account" &>/dev/null 2>&1; then
+      GEMINI_LOGGED_IN=true
+      # Try to extract email from stored JSON payload
+      local raw_pw
+      raw_pw="$(security find-generic-password -s "gemini-cli-oauth" -a "main-account" -w 2>/dev/null || true)"
+      if [ -n "$raw_pw" ]; then
+        GEMINI_AUTH_EMAIL=$(node -e "
+          try {
+            const raw = '$raw_pw';
+            const parsed = JSON.parse(Buffer.from(raw,'base64').toString('utf8'));
+            process.stdout.write(parsed.email || parsed.client_email || '');
+          } catch {
+            try { const p=JSON.parse('$raw_pw'); process.stdout.write(p.email||p.client_email||''); } catch {}
+          }
+        " 2>/dev/null || true)
+      fi
+      return
+    fi
+  fi
+
+  # Fast path 2: oauth_creds.json (legacy Gemini CLI file storage)
+  local oauth_creds="$HOME/.gemini/oauth_creds.json"
+  if [ -f "$oauth_creds" ]; then
+    local email
+    email=$(node -e "
+      try {
+        const d = JSON.parse(require('fs').readFileSync('$oauth_creds','utf8'));
+        const e = d.email || d.client_email || (d.user && d.user.email) || '';
+        if (d.access_token || d.refresh_token || d.client_email || d.token || e) {
+          process.stdout.write(e || '');
+        }
+      } catch {}
+    " 2>/dev/null || true)
+    GEMINI_LOGGED_IN=true
+    GEMINI_AUTH_EMAIL="$email"
+    return
+  fi
+
+  # Fast path 3: other known credential file locations
+  for cred_path in "${GEMINI_AUTH_CANDIDATES[@]}"; do
+    if [ -f "$cred_path" ]; then
+      local email
+      email=$(node -e "
+        try {
+          const d = JSON.parse(require('fs').readFileSync('$cred_path','utf8'));
+          const e = d.email || d.client_email || (d.user && d.user.email) || '';
+          if (d.access_token || d.refresh_token || d.client_email || d.token || e) {
+            process.stdout.write(e || '');
+          }
+        } catch {}
+      " 2>/dev/null || true)
+      GEMINI_LOGGED_IN=true
+      GEMINI_AUTH_EMAIL="$email"
+      return
+    fi
+  done
+}
+
 # ─── Banner ───────────────────────────────────────────────────────────────────
 echo ""
 echo "┌─────────────────────────────────────────────────────┐"
@@ -67,15 +146,19 @@ echo "   Setup will prepare every installed provider so switching in the plugin 
 
 CLAUDE_BIN="$(command -v claude 2>/dev/null || true)"
 CODEX_BIN="$(command -v codex 2>/dev/null || true)"
+GEMINI_BIN="$(command -v gemini 2>/dev/null || true)"
 if [ -z "$CODEX_BIN" ] && [ -x "$DEFAULT_CODEX_APP_BIN" ]; then
   CODEX_BIN="$DEFAULT_CODEX_APP_BIN"
 fi
 CLAUDE_BIN_DIR=""
 CODEX_BIN_DIR=""
+GEMINI_BIN_DIR=""
 CLAUDE_AUTH_EMAIL=""
 CODEX_AUTH_EMAIL=""
+GEMINI_AUTH_EMAIL=""
 CLAUDE_LOGGED_IN=false
 CODEX_LOGGED_IN=false
+GEMINI_LOGGED_IN=false
 
 if [ -n "$CLAUDE_BIN" ]; then
   CLAUDE_BIN_DIR="$(dirname "$CLAUDE_BIN")"
@@ -107,12 +190,29 @@ else
   echo "      Install with: npm install -g @openai/codex"
 fi
 
-if [ -z "$CLAUDE_BIN" ] && [ -z "$CODEX_BIN" ]; then
+if [ -n "$GEMINI_BIN" ]; then
+  GEMINI_BIN_DIR="$(dirname "$GEMINI_BIN")"
+  echo "   ✔ Google Gemini CLI found: $GEMINI_BIN"
+  refresh_gemini_status
+  if [ "$GEMINI_LOGGED_IN" = true ]; then
+    echo "   ✔ Gemini logged in${GEMINI_AUTH_EMAIL:+ as $GEMINI_AUTH_EMAIL} (Google One AI Premium / Gemini Advanced)"
+  else
+    echo "   ⚠  Gemini CLI is installed but not logged in."
+    echo "      Run 'gemini' in a terminal to authenticate via Google browser OAuth."
+  fi
+else
+  echo "   ℹ  Google Gemini CLI not found."
+  echo "      Install with: npm install -g @google/gemini-cli"
+  echo "      Then run 'gemini' to authenticate with your Google account."
+fi
+
+if [ -z "$CLAUDE_BIN" ] && [ -z "$CODEX_BIN" ] && [ -z "$GEMINI_BIN" ]; then
   echo ""
   echo "   ❌ No supported AI CLI was found."
   echo "   Install at least one of these, then re-run setup:"
-  echo "     Claude: https://claude.ai/download"
+  echo "     Claude:       https://claude.ai/download"
   echo "     OpenAI Codex: npm install -g @openai/codex"
+  echo "     Gemini CLI:   npm install -g @google/gemini-cli"
   exit 1
 fi
 
@@ -128,7 +228,19 @@ if [ -n "$CODEX_BIN" ] && [ "$CODEX_LOGGED_IN" != true ]; then
   fi
 fi
 
-if [ "$CLAUDE_LOGGED_IN" != true ] && [ "$CODEX_LOGGED_IN" != true ]; then
+if [ -n "$GEMINI_BIN" ] && [ "$GEMINI_LOGGED_IN" != true ]; then
+  echo ""
+  echo "   ⚠  Gemini CLI is not authenticated yet."
+  echo "      To authenticate, run this in a new terminal and follow the prompts:"
+  echo ""
+  echo "        gemini"
+  echo ""
+  echo "      It will open a browser to sign in with your Google account."
+  echo "      Once done, re-run ./setup.sh — Gemini subscription mode will activate."
+  echo "      (The plugin will use API key mode as a fallback until then.)"
+fi
+
+if [ "$CLAUDE_LOGGED_IN" != true ] && [ "$CODEX_LOGGED_IN" != true ] && [ "$GEMINI_LOGGED_IN" != true ]; then
   echo ""
   echo "   ⚠  No AI provider is authenticated yet."
 fi
@@ -145,12 +257,13 @@ if [ -n "$CLAUDE_BIN" ] && [ "$CLAUDE_LOGGED_IN" != true ]; then
   fi
 fi
 
-if [ "$CLAUDE_LOGGED_IN" != true ] && [ "$CODEX_LOGGED_IN" != true ]; then
+if [ "$CLAUDE_LOGGED_IN" != true ] && [ "$CODEX_LOGGED_IN" != true ] && [ "$GEMINI_LOGGED_IN" != true ]; then
   echo ""
   echo "   ❌ Setup needs at least one logged-in AI provider."
   echo "   Run one of these, then re-run setup:"
   echo "     claude login"
   echo "     codex login"
+  echo "     gemini   (follow prompts to sign in with Google)"
   exit 1
 fi
 
@@ -280,6 +393,48 @@ else
   echo "   ⚠ Codex CLI not found — skipping Codex MCP registration"
 fi
 
+# ─── Step 5b: Register Gemini CLI MCP config ─────────────────────────────────
+echo "⚙️  Registering MCP server settings for Gemini CLI..."
+
+if [ -n "$GEMINI_BIN" ]; then
+  GEMINI_SETTINGS_DIR="$HOME/.gemini"
+  GEMINI_SETTINGS_PATH="$GEMINI_SETTINGS_DIR/settings.json"
+  mkdir -p "$GEMINI_SETTINGS_DIR"
+
+  node - "$REPO_DIR" "$FIGMA_TOKEN" "$GEMINI_SETTINGS_PATH" << 'GEMINIEOF'
+const fs = require('fs');
+const path = require('path');
+const [,, repoDir, figmaToken, settingsPath] = process.argv;
+const mcpBuildPath = path.join(repoDir, 'figma-intelligence-layer', 'dist', 'index.js');
+
+if (!fs.existsSync(mcpBuildPath)) {
+  console.log('   ⚠ MCP build not found — skipping Gemini settings write');
+  process.exit(0);
+}
+
+let settings = {};
+if (fs.existsSync(settingsPath)) {
+  try { settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8')); } catch {}
+}
+if (!settings.mcpServers) settings.mcpServers = {};
+
+settings.mcpServers['figma-intelligence-layer'] = {
+  command: 'node',
+  args: [mcpBuildPath],
+  env: {
+    FIGMA_ACCESS_TOKEN: figmaToken,
+    FIGMA_BRIDGE_PORT: '9001',
+    ENABLE_DECISION_LOG: 'true',
+  },
+};
+
+fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+console.log('   ✔ MCP server registered in ~/.gemini/settings.json');
+GEMINIEOF
+else
+  echo "   ⚠ Gemini CLI not found — skipping Gemini MCP registration"
+fi
+
 # ─── Step 6: Patch VS Code MCP config ────────────────────────────────────────
 VSCODE_MCP="$REPO_DIR/.vscode/mcp.json"
 echo "⚙️  Updating .vscode/mcp.json for VS Code..."
@@ -324,6 +479,9 @@ fi
 if [ -n "$CODEX_BIN_DIR" ] && [ "$CODEX_BIN_DIR" != "$CLAUDE_BIN_DIR" ]; then
   LAUNCHD_PATH="$CODEX_BIN_DIR:$LAUNCHD_PATH"
 fi
+if [ -n "$GEMINI_BIN_DIR" ] && [ "$GEMINI_BIN_DIR" != "$CLAUDE_BIN_DIR" ] && [ "$GEMINI_BIN_DIR" != "$CODEX_BIN_DIR" ]; then
+  LAUNCHD_PATH="$GEMINI_BIN_DIR:$LAUNCHD_PATH"
+fi
 
 mkdir -p "$PLIST_DIR"
 
@@ -360,6 +518,8 @@ cat > "$PLIST_PATH" << PLISTEOF
         <string>${CLAUDE_BIN}</string>
         <key>CODEX_BIN_PATH</key>
         <string>${CODEX_BIN}</string>
+        <key>GEMINI_BIN_PATH</key>
+        <string>${GEMINI_BIN}</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>
@@ -386,7 +546,7 @@ else
   echo "   ⚠ launchd service registered but not running — starting directly..."
   launchctl unload "$PLIST_PATH" 2>/dev/null || true
   cd "$REPO_DIR/figma-bridge-plugin"
-  nohup env HOME="$HOME" PATH="$LAUNCHD_PATH" CLAUDE_BIN_PATH="$CLAUDE_BIN" CODEX_BIN_PATH="$CODEX_BIN" node bridge-relay.js > "$LOG_FILE" 2>&1 &
+  nohup env HOME="$HOME" PATH="$LAUNCHD_PATH" CLAUDE_BIN_PATH="$CLAUDE_BIN" CODEX_BIN_PATH="$CODEX_BIN" GEMINI_BIN_PATH="$GEMINI_BIN" node bridge-relay.js > "$LOG_FILE" 2>&1 &
   RELAY_PID=$!
   sleep 1
   if kill -0 "$RELAY_PID" 2>/dev/null; then
@@ -419,15 +579,23 @@ echo "  Then restart VS Code, Claude Code, or Codex if you use MCP tools there."
 echo ""
 echo "AI provider setup summary:"
 if [ "$CLAUDE_LOGGED_IN" = true ]; then
-  echo "   - Claude available${CLAUDE_AUTH_EMAIL:+ as $CLAUDE_AUTH_EMAIL}"
+  echo "   ✔ Claude available${CLAUDE_AUTH_EMAIL:+ as $CLAUDE_AUTH_EMAIL}"
 else
-  echo "   - Claude not ready"
+  echo "   - Claude not ready (run 'claude login')"
 fi
 if [ "$CODEX_LOGGED_IN" = true ]; then
-  echo "   - OpenAI Codex available${CODEX_AUTH_EMAIL:+ as $CODEX_AUTH_EMAIL}"
-  echo "     Codex is also registered for MCP, so switching the plugin to OpenAI reuses the running relay automatically."
+  echo "   ✔ OpenAI Codex available${CODEX_AUTH_EMAIL:+ as $CODEX_AUTH_EMAIL}"
+  echo "     Switching to OpenAI in the plugin reuses the running relay automatically."
 else
-  echo "   - OpenAI Codex not ready"
+  echo "   - OpenAI Codex not ready (run 'codex login')"
+fi
+if [ "$GEMINI_LOGGED_IN" = true ]; then
+  echo "   ✔ Google Gemini available${GEMINI_AUTH_EMAIL:+ as $GEMINI_AUTH_EMAIL} (Google One AI Premium / subscription mode)"
+  echo "     Switching to Gemini in the plugin reuses the running relay automatically — no API key needed."
+elif [ -n "$GEMINI_BIN" ]; then
+  echo "   - Gemini CLI installed but not logged in (run 'gemini' and sign in with Google)"
+else
+  echo "   - Gemini CLI not installed (npm install -g @google/gemini-cli)"
 fi
 echo "─────────────────────────────────────────────────────"
 echo ""

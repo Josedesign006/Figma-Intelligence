@@ -871,7 +871,7 @@
         </div>
         <div class="provider-info">
           <div class="provider-name">Gemini</div>
-          <div class="provider-desc">Google AI &middot; API key required</div>
+          <div class="provider-desc" id="pd-gemini">Google AI &middot; Subscription or API key</div>
         </div>
         <div class="provider-check">&#10003;</div>
       </div>
@@ -1115,6 +1115,7 @@
       { id: "gpt-5.4-mini", label: "GPT-5.4 Mini", desc: "Faster" },
     ],
     gemini: [
+      { id: "gemini-2.5-pro",      label: "Gemini 2.5 Pro",      desc: "Most capable" },
       { id: "gemini-2.0-flash",    label: "Gemini 2.0 Flash",    desc: "Balanced" },
       { id: "gemini-1.5-flash-8b", label: "Gemini 1.5 Flash 8B", desc: "Fastest" },
     ],
@@ -1123,7 +1124,7 @@
   var selectedModelByProvider = {
     claude: "sonnet",
     openai: "gpt-5.4",
-    gemini: "gemini-2.0-flash",
+    gemini: "gemini-2.5-pro",
     bridge: null,
   };
   var modelDropdownOpen = false;
@@ -1267,6 +1268,7 @@
   var selectedLoginProvider = null;
   var loginApiKey = null;
   var loginDismissed = false;
+  var geminiCliLoggedIn = false; // set from bridge-status message
 
   var PROVIDER_META = {
     claude:  { label: "Claude",  dotClass: "claude",  btnText: "Continue with Claude" },
@@ -1278,7 +1280,7 @@
   var PROVIDER_HINTS = {
     claude:  'Uses your Claude Code subscription. Setup prepares it up front so switching does not require restarting the relay.',
     openai:  'Uses the OpenAI account currently signed in to Codex. Setup also registers Codex for MCP so switching stays restart-free.',
-    gemini:  'Get your API key at aistudio.google.com/app/apikey',
+    gemini:  'If you have Google One AI Premium / Gemini Advanced, install the Gemini CLI (npm i -g @google/gemini-cli) and run \u201cgemini auth login\u201d. Otherwise enter an API key from aistudio.google.com/app/apikey.',
     bridge:  'Your AI tool (VS Code Copilot, Cursor, etc.) controls Figma via MCP.',
   };
 
@@ -1286,6 +1288,11 @@
     openai: "Get key at platform.openai.com",
     gemini: "Get key at aistudio.google.com",
   };
+
+  function geminiNeedsApiKey() {
+    // API key is only required when the Gemini CLI is not authenticated
+    return !geminiCliLoggedIn;
+  }
 
   function selectLoginProvider(id) {
     selectedLoginProvider = id;
@@ -1299,7 +1306,7 @@
     var apiInput     = document.getElementById("login-api-key");
     var apiLink      = document.getElementById("login-api-link");
 
-    if (id === "gemini") {
+    if (id === "gemini" && geminiNeedsApiKey()) {
       apiExpand.style.display = "block";
       bridgeExpand.style.display = "none";
       apiInput.placeholder = "AIza\u2026 (Google AI Studio key)";
@@ -1323,7 +1330,7 @@
     if (!btn) return;
     if (!selectedLoginProvider) { btn.disabled = true; return; }
 
-    var needsKey = selectedLoginProvider === "gemini";
+    var needsKey = selectedLoginProvider === "gemini" && geminiNeedsApiKey();
     var keyVal   = needsKey ? (document.getElementById("login-api-key").value || "").trim() : "";
     btn.disabled = needsKey && keyVal.length < 8;
 
@@ -1333,7 +1340,7 @@
 
   function continueWithProvider() {
     if (!selectedLoginProvider) return;
-    var needsKey = selectedLoginProvider === "gemini";
+    var needsKey = selectedLoginProvider === "gemini" && geminiNeedsApiKey();
     loginApiKey = needsKey ? (document.getElementById("login-api-key").value || "").trim() : null;
 
     try { localStorage.setItem("figma-intelligence-provider", selectedLoginProvider); } catch(e) {}
@@ -1390,15 +1397,16 @@
     if (saved && PROVIDER_META[saved]) {
       selectedLoginProvider = saved;
       selectLoginProvider(saved);
-      // Claude, OpenAI, and bridge use subscription auth — skip login screen
-      if (saved === "claude" || saved === "openai" || saved === "bridge") {
+      // Claude, OpenAI, and bridge use subscription auth — skip login screen.
+      // Gemini also skips when CLI is authenticated (geminiCliLoggedIn).
+      // When Gemini CLI is not authenticated, keep chooser visible for API key entry.
+      if (saved === "claude" || saved === "openai" || saved === "bridge" || (saved === "gemini" && geminiCliLoggedIn)) {
         hideLoginScreen();
         updateProviderBadge();
       } else {
-        // Gemini key is not persisted, so keep chooser visible for key entry.
+        // Gemini (API key mode): key is not persisted, show login screen for key entry.
         showLoginScreen();
       }
-      // Gemini: show screen to re-enter the key (we don't store it in localStorage)
     } else {
       // First run — show login screen, default select Claude
       selectLoginProvider("claude");
@@ -1509,10 +1517,13 @@
           (openaiEmail ? ' &middot; <span class="auth-email">' + openaiEmail + '</span>' : '')
         : '<span style="color:rgba(218,119,86,0.75)">Run <code style="font-size:10px">codex login</code> to use your current Codex account. No relay restart needed after login.</span>';
     } else if (prov === "gemini") {
-      authStrip.className = loginApiKey ? "auth-strip ok" : "auth-strip";
-      authText.innerHTML = loginApiKey
-        ? '&#10003; Gemini connected &middot; gemini-2.0-flash'
-        : '<span style="color:rgba(218,119,86,0.75)">Gemini API key not set &mdash; <span style="cursor:pointer;text-decoration:underline" onclick="showLoginScreen()">configure</span></span>';
+      var geminiReady = geminiCliLoggedIn || !!loginApiKey;
+      authStrip.className = geminiReady ? "auth-strip ok" : "auth-strip";
+      authText.innerHTML = geminiCliLoggedIn
+        ? '&#10003; Gemini subscription active &middot; Google One AI Premium'
+        : loginApiKey
+          ? '&#10003; Gemini connected &middot; API key'
+          : '<span style="color:rgba(218,119,86,0.75)">Gemini not configured &mdash; <span style="cursor:pointer;text-decoration:underline" onclick="showLoginScreen()">set up subscription or API key</span></span>';
     } else if (isClaudeLoggedIn) {
       authStrip.className = "auth-strip ok";
       authText.innerHTML = '&#10003; Claude subscription active' +
@@ -1538,7 +1549,7 @@
     } else if (prov === "openai") {
       canChat = isOpenAILoggedIn;
     } else if (prov === "gemini") {
-      canChat = !!loginApiKey;
+      canChat = geminiCliLoggedIn || !!loginApiKey;
     } else {
       canChat = isClaudeLoggedIn;
     }
@@ -1554,7 +1565,7 @@
     } else if (prov === "openai") {
       footer.textContent = isOpenAILoggedIn ? "" : "OpenAI Codex login required \u2014 run: codex login";
     } else if (prov === "gemini") {
-      footer.textContent = loginApiKey ? "" : "API key required \u2014 click provider badge to configure";
+      footer.textContent = (geminiCliLoggedIn || loginApiKey) ? "" : "Gemini not configured \u2014 click provider badge to set up";
     } else if (!isClaudeLoggedIn) {
       footer.textContent = "Claude login required";
     } else if (isStreaming) {
@@ -1568,7 +1579,7 @@
     if (prov === "openai") {
       hasAuth = isOpenAILoggedIn;
     } else if (prov === "gemini") {
-      hasAuth = !!loginApiKey;
+      hasAuth = geminiCliLoggedIn || !!loginApiKey;
     } else {
       hasAuth = isClaudeLoggedIn;
     }
@@ -2131,6 +2142,8 @@
         claudeEmail = msg.claudeEmail || null;
         isOpenAILoggedIn = !!msg.openaiLoggedIn;
         openaiEmail = msg.openaiEmail || null;
+        geminiCliLoggedIn = !!msg.geminiLoggedIn;
+        var geminiEmail = msg.geminiEmail || null;
         if (msg.provider && PROVIDER_META[msg.provider]) {
           var providerChanged = msg.provider !== selectedLoginProvider;
           selectedLoginProvider = msg.provider;
@@ -2139,7 +2152,13 @@
             renderThreadForProvider(selectedLoginProvider);
           }
           // If relay already knows a subscription provider, avoid login-screen bounce.
-          if (!loginDismissed && (selectedLoginProvider === "claude" || selectedLoginProvider === "openai" || selectedLoginProvider === "bridge")) {
+          // Gemini is now a subscription provider when the CLI is authenticated.
+          if (!loginDismissed && (
+            selectedLoginProvider === "claude" ||
+            selectedLoginProvider === "openai" ||
+            selectedLoginProvider === "bridge" ||
+            (selectedLoginProvider === "gemini" && geminiCliLoggedIn)
+          )) {
             hideLoginScreen();
             updateProviderBadge();
           }
@@ -2157,6 +2176,17 @@
           pdOpenAI.textContent = isOpenAILoggedIn
             ? ("Codex logged in" + (openaiEmail ? " \u00b7 " + openaiEmail : ""))
             : "OpenAI Codex \u00b7 Uses your current codex login";
+        }
+        // Update Gemini card description in login screen
+        var pdGemini = document.getElementById("pd-gemini");
+        if (pdGemini) {
+          pdGemini.textContent = geminiCliLoggedIn
+            ? ("Gemini CLI logged in" + (geminiEmail ? " \u00b7 " + geminiEmail : "") + " \u00b7 Subscription")
+            : "Google AI \u00b7 Subscription or API key";
+        }
+        // If Gemini CLI just became authenticated, refresh the API key expand state
+        if (selectedLoginProvider === "gemini") {
+          selectLoginProvider("gemini");
         }
         updateStatus();
         return;

@@ -21,6 +21,7 @@ const { join, resolve } = require("path");
 const { runClaude, isClaudeAvailable, getClaudeAuthInfo } = require("./chat-runner");
 const { runCodex, isCodexAvailable, getCodexAuthInfo } = require("./codex-runner");
 const { runGemini } = require("./gemini-runner");
+const { runGeminiCli, isGeminiCliAvailable, getGeminiCliAuthInfo } = require("./gemini-cli-runner");
 
 const PORT = parseInt(process.argv[2] || process.env.BRIDGE_PORT || "9001", 10);
 const MCP_SERVER_PATH = resolve(__dirname, "../figma-intelligence-layer/dist/index.js");
@@ -81,6 +82,7 @@ const activeChatProcesses = new Map();   // requestId → ChildProcess | EventEm
 // Auth info populated on startup and sent to plugin on connect
 let authInfo = { loggedIn: false, email: null };
 let openaiAuthInfo = { loggedIn: false, email: null };
+let geminiCliAuthInfo = { loggedIn: false, email: null };
 
 // ── Provider config (persisted to ~/.claude/settings.json) ───────────────────
 let providerConfig = { provider: "claude", apiKey: null };
@@ -149,6 +151,21 @@ async function refreshAuthState({ log = false } = {}) {
     if (log) console.log("⚠  OpenAI Codex CLI not found — run: npm install -g @openai/codex");
   }
 
+  const geminiCliAvailable = await isGeminiCliAvailable();
+  if (geminiCliAvailable) {
+    geminiCliAuthInfo = await getGeminiCliAuthInfo();
+    if (log) {
+      if (geminiCliAuthInfo.loggedIn) {
+        console.log(`✅ Gemini CLI: logged in${geminiCliAuthInfo.email ? " as " + geminiCliAuthInfo.email : ""}`);
+      } else {
+        console.log("⚠  Gemini CLI: not logged in — run 'gemini auth login'");
+      }
+    }
+  } else {
+    geminiCliAuthInfo = { loggedIn: false, email: null };
+    if (log) console.log("ℹ  Gemini CLI not found — Gemini will use API key mode (install: npm install -g @google/gemini-cli)");
+  }
+
   sendRelayStatus(pluginSocket, hasConnectedMcpSocket());
 }
 
@@ -169,6 +186,8 @@ function sendRelayStatus(ws, mcpConnected) {
     openaiEmail: openaiAuthInfo.email,
     provider: providerConfig.provider,
     hasApiKey: !!(providerConfig.apiKey),
+    geminiLoggedIn: geminiCliAuthInfo.loggedIn,
+    geminiEmail: geminiCliAuthInfo.email,
   }));
 }
 
@@ -267,15 +286,28 @@ wss.on("connection", (ws, req) => {
             onEvent,
           });
         } else if (prov === "gemini") {
-          proc = runGemini({
-            message: msg.message,
-            attachments: msg.attachments,
-            conversation: msg.conversation,
-            requestId,
-            apiKey: providerConfig.apiKey,
-            model: msg.model,
-            onEvent,
-          });
+          if (geminiCliAuthInfo.loggedIn) {
+            // Subscription mode — use Gemini CLI (Google One AI Premium / Gemini Advanced)
+            proc = runGeminiCli({
+              message: msg.message,
+              attachments: msg.attachments,
+              conversation: msg.conversation,
+              requestId,
+              model: msg.model,
+              onEvent,
+            });
+          } else {
+            // API key mode — fallback for users without subscription CLI auth
+            proc = runGemini({
+              message: msg.message,
+              attachments: msg.attachments,
+              conversation: msg.conversation,
+              requestId,
+              apiKey: providerConfig.apiKey,
+              model: msg.model,
+              onEvent,
+            });
+          }
         } else if (prov === "bridge") {
           // Bridge-only mode: no built-in AI — tell the plugin immediately
           sendToPlugin({
