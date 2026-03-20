@@ -69,6 +69,20 @@
       align-items: center;
       gap: 6px;
     }
+    .icon-btn {
+      width: 26px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      border: none; background: transparent;
+      color: var(--text-muted);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      padding: 0;
+    }
+    .icon-btn:hover {
+      background: rgba(255,255,255,0.08);
+      color: var(--text-primary);
+    }
     .conn-pill {
       display: flex;
       align-items: center;
@@ -1138,6 +1152,11 @@
       <div class="provider-badge" id="provider-badge" onclick="showLoginScreen()"></div>
     </div>
     <div class="header-controls">
+      <button class="icon-btn" id="new-chat-btn" title="New Chat" onclick="startNewConversation()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+      </button>
       <div class="conn-pill">
         <div class="conn-dot" id="conn-dot"></div>
         <span id="conn-text">Connecting…</span>
@@ -2645,6 +2664,29 @@
     resetSendBtn();
     updateStatus();
   }
+
+  /* ── New Conversation ─────────────────────────────────────────────────── */
+  window.startNewConversation = function() {
+    if (isStreaming) stopStreaming();
+
+    // Clear thread entries for the active provider
+    var activeProvider = getActiveProvider();
+    chatThreads[activeProvider] = [];
+    saveChatThreads();
+
+    // Reset DOM to home state
+    thread.innerHTML = homeStateTemplate;
+    homeState = document.getElementById("home-state");
+
+    // Tell the relay to reset the Claude session
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "new-conversation" }));
+    }
+
+    // Focus the input
+    input.value = "";
+    input.focus();
+  };
 
   function resetSendBtn() {
     sendBtn.className = "send-btn";

@@ -13,7 +13,7 @@ import {
 } from "./types.js";
 
 const WS_PORT = parseInt(process.env.FIGMA_BRIDGE_PORT || "9001", 10);
-const REQUEST_TIMEOUT = parseInt(process.env.FIGMA_REQUEST_TIMEOUT || "90000", 10);
+const REQUEST_TIMEOUT = parseInt(process.env.FIGMA_REQUEST_TIMEOUT || "30000", 10);
 
 let relayServer: WebSocketServer | null = null;
 let relayPluginSocket: WebSocket | null = null;

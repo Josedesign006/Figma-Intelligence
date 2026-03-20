@@ -175,7 +175,7 @@ const TOOLS: Tool[] = [
   {
     name: "figma_layout_intelligence",
     description:
-      "Analyze any frame and apply production-ready Auto Layout settings with design token binding in one command. Detects container type and applies the optimal layout pattern.",
+      "Analyze any frame and apply production-ready Auto Layout settings with design token binding in one command. Detects container type (card, form, nav, modal, list, grid, section) and applies the optimal layout pattern. Call this on every container frame created by figma_execute to ensure professional spacing and padding.",
     inputSchema: {
       type: "object",
       properties: {
@@ -191,7 +191,7 @@ const TOOLS: Tool[] = [
   {
     name: "figma_variant_expander",
     description:
-      "Turn one component state into a complete, production-ready variant matrix — all states, sizes, and themes automatically.",
+      "Turn one component state into a complete, production-ready variant matrix — all states, sizes, and themes automatically. ALWAYS use this instead of manually cloning variants with figma_execute. Workflow: create one base component frame with figma_execute, then call this tool with that nodeId and your desired dimensions.",
     inputSchema: {
       type: "object",
       properties: {
@@ -280,7 +280,7 @@ const TOOLS: Tool[] = [
   {
     name: "figma_page_architect",
     description:
-      "Generate complete, prototype-wired multi-screen flows from a plain-language product description using your real design system. Two weeks of wireframing in minutes.",
+      "Generate complete, prototype-wired multi-screen flows from a plain-language product description using your real design system. Two weeks of wireframing in minutes. Shows a shimmer skeleton immediately when each frame is created, then populates with full content. Automatically scrolls the viewport to the first created screen when done. Always prefer this over piecemeal figma_execute calls for screen creation.",
     inputSchema: {
       type: "object",
       properties: {
@@ -696,7 +696,7 @@ const TOOLS: Tool[] = [
   {
     name: "figma_execute",
     description:
-      "Execute Figma Plugin API code directly in the connected Figma file. The code runs inside the plugin sandbox with full access to the Figma Plugin API. Use `return` to return a value. All Figma API calls must use async methods (e.g. getNodeByIdAsync, findAllAsync).",
+      "Execute Figma Plugin API code directly in the connected Figma file. The code runs inside the plugin sandbox with full access to the Figma Plugin API. Use `return` to return a value. All Figma API calls must use async methods (e.g. getNodeByIdAsync, findAllAsync). IMPORTANT: (1) Frames are created at (0,0) by default which causes overlaps. Before creating top-level frames, find empty space: `const maxX = figma.currentPage.children.filter(n => n.type === 'FRAME').reduce((m,f) => Math.max(m, f.x+f.width), 0);` then position new frames at x = maxX + 100. (2) Always apply Auto Layout on container frames with proper padding (16-24px) and itemSpacing (8-16px). After building, call figma_layout_intelligence for production-quality layout. (3) For multi-screen flows, prefer figma_page_architect which handles positioning and layout automatically.",
     inputSchema: {
       type: "object",
       properties: {

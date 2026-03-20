@@ -18,25 +18,25 @@ const SCREEN_TEMPLATES = [
     {
         template: "auth",
         keywords: ["login", "sign in", "signup", "register", "auth", "password", "email", "forgot"],
-        components: ["TextInput", "Button", "Heading", "Link"],
+        components: ["TextInput", "Button", "Heading", "Link", "Divider", "SocialButton", "Checkbox", "Logo", "Avatar"],
         layoutPattern: "Centered single-column with email + password inputs and primary CTA",
     },
     {
         template: "dashboard",
         keywords: ["dashboard", "home", "overview", "main", "hub"],
-        components: ["Navigation", "Header", "Card", "Chart", "Badge"],
+        components: ["Navigation", "Header", "Card", "Chart", "Badge", "Avatar", "Table"],
         layoutPattern: "Sidebar nav + top header + main content grid",
     },
     {
         template: "list",
         keywords: ["list", "feed", "search", "browse", "explore", "results", "index", "directory"],
-        components: ["SearchBar", "Filter", "ListItem", "Pagination"],
+        components: ["SearchBar", "Filter", "ListItem", "Pagination", "FilterChip", "Thumbnail"],
         layoutPattern: "Search/filter header + scrollable list of items",
     },
     {
         template: "detail",
         keywords: ["detail", "view", "show", "profile", "product", "article", "post", "item"],
-        components: ["Image", "Heading", "Body", "Button", "ActionBar"],
+        components: ["Image", "Heading", "Body", "Button", "ActionBar", "BackButton", "ShareButton", "Rating", "Tag"],
         layoutPattern: "Hero image + content area + sticky action bar",
     },
     {
@@ -103,13 +103,27 @@ function mobileWidth(_platform) {
 }
 // ─── Parse flow into screen specs (template matching) ────────────────────────
 function parseFlowToScreens(productContext, flow, contentMode) {
-    const screenNames = flow
-        .split(/[,\n→>]/)
+    const rawParts = flow.split(/\s*(?:→|->|>>|,|\n)\s*/);
+    let screenNames = rawParts
         .map((s) => s.trim())
         .filter((s) => s.length > 2 && s.length < 60)
+        .filter((s) => {
+        const lower = s.toLowerCase();
+        // Keep if it matches any template keyword
+        const hasKeyword = SCREEN_TEMPLATES.some((t) => t.keywords.some((kw) => lower.includes(kw)));
+        // Keep if it looks like a proper name (capital letter or common UI term)
+        const looksLikeName = /[A-Z]/.test(s) ||
+            /^(home|profile|search|feed|inbox|cart|map)$/i.test(lower);
+        return hasKeyword || looksLikeName || s.split(/\s+/).length <= 3;
+    })
         .slice(0, 8);
+    // If we filtered out most fragments, treat the whole input as one screen
+    if (screenNames.length === 0 ||
+        (rawParts.length > 3 && screenNames.length <= 1)) {
+        screenNames = [flow.trim().slice(0, 80)];
+    }
     const parsed = screenNames.map((name) => ({
-        name: name.replace(/\s+/g, ""),
+        name: name.replace(/\s+/g, " ").trim(),
         purpose: `User navigates to ${name}`,
         templateHint: "generic",
         requiredComponents: ["Heading", "Button"],
@@ -448,6 +462,59 @@ async function loadStockImagery(query, flow, count, orientation) {
     }
     return imagery;
 }
+// ─── Shimmer skeleton script ──────────────────────────────────────────────────
+// Creates the outer frame immediately with loading-skeleton rectangles so the
+// user sees the frame appear in the viewport before content is injected.
+function buildShimmerScript(spec, isFirst) {
+    const { name, width, xOffset, wireframeMode } = spec;
+    const bgColor = wireframeMode ? "{ r: 0.97, g: 0.97, b: 0.97 }" : "{ r: 1, g: 1, b: 1 }";
+    const navigateSnippet = isFirst
+        ? `figma.viewport.scrollAndZoomIntoView([frame]);`
+        : "";
+    return `
+(async () => {
+  const frame = figma.createFrame();
+  frame.name = ${JSON.stringify(name)};
+  frame.resize(${width}, 800);
+  frame.layoutMode = 'VERTICAL';
+  frame.primaryAxisSizingMode = 'AUTO';
+  frame.counterAxisSizingMode = 'FIXED';
+  frame.itemSpacing = 16;
+  frame.paddingLeft = 24;
+  frame.paddingRight = 24;
+  frame.paddingTop = 24;
+  frame.paddingBottom = 32;
+  frame.fills = [{ type: 'SOLID', color: ${bgColor} }];
+  frame.x = ${xOffset};
+  frame.y = 0;
+  figma.currentPage.appendChild(frame);
+
+  const skeletonFill = [{ type: 'SOLID', color: { r: 0.91, g: 0.92, b: 0.95 } }];
+  const lightFill    = [{ type: 'SOLID', color: { r: 0.95, g: 0.96, b: 0.98 } }];
+  const shimmerItems = [
+    { h: 32, radius: 6, fill: skeletonFill },
+    { h: 18, radius: 4, fill: lightFill, w: 0.6 },
+    { h: 120, radius: 12, fill: lightFill },
+    { h: 72, radius: 8, fill: skeletonFill },
+    { h: 72, radius: 8, fill: skeletonFill },
+    { h: 48, radius: 24, fill: [{ type: 'SOLID', color: { r: 0.55, g: 0.40, b: 0.95 }, opacity: 0.18 }] },
+  ];
+  for (const item of shimmerItems) {
+    const r = figma.createRectangle();
+    r.name = '__shimmer__';
+    const rw = item.w ? Math.round((${width} - 48) * item.w) : ${width} - 48;
+    r.resize(rw, item.h);
+    r.cornerRadius = item.radius;
+    r.fills = item.fill;
+    frame.appendChild(r);
+    if (!item.w && 'layoutSizingHorizontal' in r) r.layoutSizingHorizontal = 'FILL';
+  }
+
+  ${navigateSnippet}
+  return { frameId: frame.id };
+})();
+`.trim();
+}
 function buildScreenScript(spec) {
     const { name, width, template, wireframeMode, contentMode, content, resolvedComponents, xOffset, imageHash, } = spec;
     const bgColor = wireframeMode
@@ -474,13 +541,14 @@ function buildScreenScript(spec) {
         ? content.helperText
         : "";
     // Template-specific skeleton builders
-    const templateBody = buildTemplateBody(template, headerText, subText, ctaText, wireframeMode, imageHash, bodyText, sectionTitle, listItems, summaryItems, helperText);
+    const templateBody = buildTemplateBody(template, headerText, subText, ctaText, wireframeMode, imageHash, bodyText, sectionTitle, listItems, summaryItems, helperText, resolvedComponents);
     return `
 (async () => {
   await figma.loadFontAsync({ family: 'Inter', style: 'Regular' });
   await figma.loadFontAsync({ family: 'Inter', style: 'Bold' });
   await figma.loadFontAsync({ family: 'Inter', style: 'Medium' });
 
+  // Create new frame
   const frame = figma.createFrame();
   frame.name = ${JSON.stringify(name)};
   frame.resize(${width}, 900);
@@ -503,10 +571,34 @@ function buildScreenScript(spec) {
 })();
 `.trim();
 }
-function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode, imageHash, bodyText, sectionTitle, listItems = [], summaryItems = [], helperText) {
+function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode, imageHash, bodyText, sectionTitle, listItems = [], summaryItems = [], helperText, resolvedComponents = []) {
+    // ── Centralized color palette ──
+    const palette = {
+        primary: "{ r: 0.09, g: 0.09, b: 0.09 }",
+        primaryText: "{ r: 1, g: 1, b: 1 }",
+        surface: "{ r: 0.98, g: 0.98, b: 0.99 }",
+        border: "{ r: 0.90, g: 0.91, b: 0.93 }",
+        muted: "{ r: 0.45, g: 0.45, b: 0.50 }",
+        accent: "{ r: 0.22, g: 0.35, b: 0.96 }",
+    };
     const rectColor = wireframeMode
         ? "{ r: 0.88, g: 0.88, b: 0.88 }"
         : "{ r: 0.94, g: 0.95, b: 1 }";
+    // Helper: try to instantiate a DS component, falling back to manual code
+    const tryInstantiate = (componentName, fallbackCode) => {
+        const match = resolvedComponents.find((c) => c.nodeId && c.name.toLowerCase().includes(componentName.toLowerCase()));
+        if (match) {
+            return `{
+      const comp = await figma.getNodeByIdAsync(${JSON.stringify(match.nodeId)});
+      if (comp && 'createInstance' in comp) {
+        const inst = comp.createInstance();
+        frame.appendChild(inst);
+        if ('layoutSizingHorizontal' in inst) inst.layoutSizingHorizontal = 'FILL';
+      } else { ${fallbackCode} }
+    }`;
+        }
+        return fallbackCode;
+    };
     const addHeading = `
   const heading = figma.createText();
   heading.characters = ${JSON.stringify(headerText)};
@@ -609,25 +701,25 @@ function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode
     frame.appendChild(r);
     if ('layoutSizingHorizontal' in r) r.layoutSizingHorizontal = 'FILL';
   }`;
-    const addCTA = `
-  {
+    const ctaFallback = `
     const btn = figma.createFrame();
     btn.name = 'CTA';
     btn.resize(frame.width - 48, 52);
     btn.layoutMode = 'HORIZONTAL';
     btn.primaryAxisAlignItems = 'CENTER';
     btn.counterAxisAlignItems = 'CENTER';
-    btn.fills = [{ type: 'SOLID', color: { r: 0.18, g: 0.30, b: 0.96 } }];
+    btn.fills = [{ type: 'SOLID', color: ${palette.primary} }];
     btn.cornerRadius = 12;
     const btnLabel = figma.createText();
     btnLabel.characters = ${JSON.stringify(ctaText)};
     btnLabel.fontSize = 16;
     btnLabel.fontName = { family: 'Inter', style: 'Medium' };
-    btnLabel.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
+    btnLabel.fills = [{ type: 'SOLID', color: ${palette.primaryText} }];
     btn.appendChild(btnLabel);
     frame.appendChild(btn);
     if ('layoutSizingHorizontal' in btn) btn.layoutSizingHorizontal = 'FILL';
-  }`;
+  `;
+    const addCTA = tryInstantiate("Button", ctaFallback);
     // ── Styled elements (replace grey rects in realistic / non-wireframe mode) ──
     const addInputField = (label, placeholder) => wireframeMode
         ? addPlaceholderRect(label, 52)
@@ -1210,19 +1302,23 @@ async function pageArchitectHandler(args) {
             purpose: spec.purpose,
             imageHash: assignedImage?.imageHash ?? null,
         };
+        // Build final frame directly in a single execute call (no shimmer phase —
+        // eliminates one WebSocket round-trip and prevents duplicate/overlapping frames).
         const script = buildScreenScript(frameSpec);
         const execResult = await bridge.execute(script);
         if (execResult.success && execResult.result) {
             const res = execResult.result;
-            createdScreens.push({
-                frameId: res.frameId,
-                name: spec.name,
-                template: spec.template,
-                instantiatedComponents: resolved
-                    .filter((c) => c.nodeId !== null)
-                    .map((c) => c.name),
-            });
-            xOffset += frameWidth + FRAME_GAP;
+            if (res.frameId) {
+                createdScreens.push({
+                    frameId: res.frameId,
+                    name: spec.name,
+                    template: spec.template,
+                    instantiatedComponents: resolved
+                        .filter((c) => c.nodeId !== null)
+                        .map((c) => c.name),
+                });
+                xOffset += frameWidth + FRAME_GAP;
+            }
         }
         else {
             console.error(`pageArchitect: Failed to create frame "${spec.name}": ${execResult.error}`);
@@ -1240,15 +1336,17 @@ async function pageArchitectHandler(args) {
             const mobileResult = await bridge.execute(mobileScript);
             if (mobileResult.success && mobileResult.result) {
                 const res = mobileResult.result;
-                createdScreens.push({
-                    frameId: res.frameId,
-                    name: `${spec.name} (Mobile)`,
-                    template: spec.template,
-                    instantiatedComponents: resolved
-                        .filter((c) => c.nodeId !== null)
-                        .map((c) => c.name),
-                });
-                xOffset += mw + FRAME_GAP;
+                if (res.frameId) {
+                    createdScreens.push({
+                        frameId: res.frameId,
+                        name: `${spec.name} (Mobile)`,
+                        template: spec.template,
+                        instantiatedComponents: resolved
+                            .filter((c) => c.nodeId !== null)
+                            .map((c) => c.name),
+                    });
+                    xOffset += mw + FRAME_GAP;
+                }
             }
         }
     }
@@ -1300,6 +1398,16 @@ async function pageArchitectHandler(args) {
             flowMapPageId,
         },
     });
+    // 7. Navigate viewport to the first created screen so the user lands there
+    const primaryScreens2 = createdScreens.filter((s) => !s.name.includes("(Mobile)"));
+    if (primaryScreens2.length > 0) {
+        try {
+            await bridge.navigate(primaryScreens2[0].frameId);
+        }
+        catch {
+            // Non-critical navigation error — ignore
+        }
+    }
     return {
         screens: createdScreens,
         prototypeConnections,

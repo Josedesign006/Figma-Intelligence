@@ -18,8 +18,8 @@ const { spawn } = require("child_process");
 const { readFileSync, writeFileSync, existsSync } = require("fs");
 const { homedir } = require("os");
 const { join, resolve } = require("path");
-const { runClaude, isClaudeAvailable, getClaudeAuthInfo } = require("./chat-runner");
-const { runCodex, isCodexAvailable, getCodexAuthInfo } = require("./codex-runner");
+const { runClaude, resetSession, isClaudeAvailable, getClaudeAuthInfo } = require("./chat-runner");
+const { runCodex, isCodexAvailable, getCodexAuthInfo, resetCodexSession } = require("./codex-runner");
 const { runGemini } = require("./gemini-runner");
 const { runGeminiCli, isGeminiCliAvailable, getGeminiCliAuthInfo } = require("./gemini-cli-runner");
 
@@ -388,6 +388,14 @@ wss.on("connection", (ws, req) => {
           activeChatProcesses.delete(msg.id);
           console.log(`  ⛔ chat aborted (id: ${msg.id})`);
         }
+        return;
+      }
+
+      // Reset conversation session (user clicked "New Chat" in plugin UI)
+      if (msg.type === "new-conversation" || msg.type === "clear-history") {
+        resetSession();
+        resetCodexSession();
+        console.log(`  🔄 conversation session reset`);
         return;
       }
 

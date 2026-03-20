@@ -186,12 +186,15 @@ var AGENTS = {
 };
 
 // ── Timing Constants ───────────────────────────────────────────────────────────
-var CURSOR_ANIM_DURATION  = 350;   // ms standard travel
-var PRE_BUILD_DELAY       = 200;   // wait before op
-var POST_BUILD_DELAY      = 100;   // micro-hover after result
-var SESSION_IDLE_TIMEOUT  = 20000;
+var CURSOR_ANIM_DURATION  = 80;    // ms standard travel (was 350)
+var PRE_BUILD_DELAY       = 30;    // wait before op (was 200)
+var POST_BUILD_DELAY      = 20;    // micro-hover after result (was 100)
+var SESSION_IDLE_TIMEOUT  = 8000;  // (was 20000)
 var READ_OP_DELAY         = 60;
-var QUIET_PAUSE_FOR_REVIEW = 3000;
+var QUIET_PAUSE_FOR_REVIEW = 500;  // (was 3000)
+
+// ── Methods that skip agent theatre entirely (they manage their own frames) ──
+var THEATRE_SKIP_METHODS = { execute: 1 };
 
 // ── Shared State ──────────────────────────────────────────────────────────────
 var agentCursors = {};
@@ -754,23 +757,23 @@ async function runReviewerSequence() {
       type: "agent-activity", agent: "Reviewer",
       method: "review", status: "Scanning header", timestamp: Date.now(),
     });
-    await animateCursorTo("Reviewer", fx + fw * 0.8, fy + fh * 0.12, 600);
-    await theatreDelay(600);
+    await animateCursorTo("Reviewer", fx + fw * 0.8, fy + fh * 0.12, 200);
+    await theatreDelay(100);
 
     figma.ui.postMessage({
       type: "agent-activity", agent: "Reviewer",
       method: "review", status: "Checking content", timestamp: Date.now(),
     });
-    await animateCursorTo("Reviewer", fx + fw * 0.5, fy + fh * 0.50, 700);
-    await theatreDelay(600);
+    await animateCursorTo("Reviewer", fx + fw * 0.5, fy + fh * 0.50, 200);
+    await theatreDelay(100);
 
     updateCursorLabel("Reviewer", "Checking consistency");
     figma.ui.postMessage({
       type: "agent-activity", agent: "Reviewer",
       method: "review", status: "Checking consistency", timestamp: Date.now(),
     });
-    await animateCursorTo("Reviewer", fx + fw * 0.3, fy + fh * 0.88, 700);
-    await theatreDelay(600);
+    await animateCursorTo("Reviewer", fx + fw * 0.3, fy + fh * 0.88, 200);
+    await theatreDelay(100);
 
     transitionPhase(PHASE.FINISHING);
   } catch (e) {}
@@ -789,15 +792,15 @@ async function runFinishingSequence() {
       updateCursorLabel(name, "Done");
       var driftX = cursor.x + (Math.random() > 0.5 ? 20 : -20);
       var driftY = cursor.y + (Math.random() > 0.5 ? 15 : -15);
-      await animateCursorTo(name, driftX, driftY, 800);
+      await animateCursorTo(name, driftX, driftY, 200);
       figma.ui.postMessage({
         type: "agent-activity", agent: name,
         method: "done", status: "Done", timestamp: Date.now(),
       });
     }
 
-    await theatreDelay(500);
-    await fadeOutCursors(1500);
+    await theatreDelay(100);
+    await fadeOutCursors(300);
     transitionPhase(PHASE.DONE);
 
     var headerNames = Object.keys(generatingHeaders);
@@ -1013,7 +1016,7 @@ figma.ui.onmessage = async (msg) => {
   const { id, method, params } = msg;
 
   // Activate agent cursor for this operation (errors must not block the real work)
-  try { await activateAgentForOperation(method, params); } catch (e) {}
+  try { if (!THEATRE_SKIP_METHODS[method]) await activateAgentForOperation(method, params); } catch (e) {}
 
   try {
     let result;
@@ -1571,7 +1574,7 @@ figma.ui.onmessage = async (msg) => {
     }
 
     // Post-operation: cursor inspects the result (visual operations only)
-    try { await postOperationEffect(method, params, result); } catch (e) {}
+    try { if (!THEATRE_SKIP_METHODS[method]) await postOperationEffect(method, params, result); } catch (e) {}
 
     figma.ui.postMessage({ type: "bridge-response", id, result });
   } catch (err) {
