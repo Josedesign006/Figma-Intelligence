@@ -398,7 +398,13 @@ export class FigmaBridge {
       const node = await figma.getNodeByIdAsync(${JSON.stringify(nodeId)});
       if (!node) throw new Error("Node not found");
       const bytes = await node.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: 2 } });
-      const base64 = btoa(String.fromCharCode(...bytes));
+      // Chunked conversion avoids "Maximum call stack size exceeded" on large PNGs
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.slice(i, i + chunkSize));
+      }
+      const base64 = btoa(binary);
       return 'data:image/png;base64,' + base64;
     `);
     if (!result.success) throw new Error(result.error);

@@ -281,6 +281,13 @@ cd "$REPO_DIR/figma-intelligence-layer"
 npm install
 echo "   ✔ Done"
 
+# ─── Step 2b: Install design bridge deps ──────────────────────────────────────
+echo ""
+echo "📦 Installing design bridge dependencies..."
+cd "$REPO_DIR/design-bridge"
+npm install
+echo "   ✔ Done"
+
 # Verify sharp native binary loaded correctly (it can silently fail on fresh installs)
 echo ""
 echo "🔍 Verifying sharp image module..."
@@ -297,6 +304,7 @@ echo "   ✔ sharp OK"
 
 echo ""
 echo "🔨 Building MCP server..."
+cd "$REPO_DIR/figma-intelligence-layer"
 npm run build --silent
 echo "   ✔ Built successfully"
 
@@ -338,13 +346,178 @@ else
 fi
 echo ""
 
+# ─── Step 3b: Design Bridge API keys ─────────────────────────────────────────
+echo ""
+echo "─────────────────────────────────────────────────────"
+echo "🎨 Design Bridge — API Keys"
+echo "   These power real photos, icons, palettes, and AI layout generation."
+echo "   Every key is FREE. Press Enter to skip any — fallbacks are built-in."
+echo ""
+
+DESIGN_ENV_FILE="$REPO_DIR/design-bridge/.env"
+
+# Load existing values as defaults
+_db_stitch_key=""
+_db_project_id=""
+_db_unsplash_key=""
+_db_pexels_key=""
+_db_fonts_key=""
+_db_stitch_mode="experimental"
+_db_theme="auto"
+_db_dark_mode="false"
+
+if [ -f "$DESIGN_ENV_FILE" ]; then
+  _db_stitch_key=$(grep "^STITCH_API_KEY=" "$DESIGN_ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]' || true)
+  _db_project_id=$(grep "^GOOGLE_CLOUD_PROJECT=" "$DESIGN_ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]' || true)
+  _db_unsplash_key=$(grep "^UNSPLASH_ACCESS_KEY=" "$DESIGN_ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]' || true)
+  _db_pexels_key=$(grep "^PEXELS_API_KEY=" "$DESIGN_ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]' || true)
+  _db_fonts_key=$(grep "^GOOGLE_FONTS_API_KEY=" "$DESIGN_ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]' || true)
+  _db_stitch_mode=$(grep "^STITCH_MODE=" "$DESIGN_ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]' || echo "experimental")
+  _db_theme=$(grep "^DEFAULT_THEME=" "$DESIGN_ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]' || echo "auto")
+  _db_dark_mode=$(grep "^DEFAULT_DARK_MODE=" "$DESIGN_ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]' || echo "false")
+fi
+
+mask_key() {
+  local k="$1"
+  if [ -z "$k" ]; then echo "(not set)"; return; fi
+  if [ ${#k} -lt 8 ]; then echo "$k"; return; fi
+  echo "${k:0:4}••••${k: -4}"
+}
+
+# ── Stitch API ────────────────────────────────────────────
+echo "   [1] Google Stitch (AI UI layout generation)"
+echo "       Get free key → https://stitch.withgoogle.com → Profile → Settings → API Keys"
+if [ -n "$_db_stitch_key" ]; then
+  echo "       Current key : $(mask_key "$_db_stitch_key")"
+  echo "       Current GCP : $_db_project_id"
+  echo -n "       Press Enter to keep, or paste a new Stitch API key: "
+else
+  echo "       Enable API  → gcloud services enable stitch.googleapis.com --project=<your-project>"
+  echo -n "       Stitch API key (Enter to skip): "
+fi
+read -r _input_stitch_key
+STITCH_API_KEY="${_input_stitch_key:-$_db_stitch_key}"
+
+if [ -n "$STITCH_API_KEY" ]; then
+  if [ -n "$_db_project_id" ] && [ -z "$_input_stitch_key" ]; then
+    # Keeping existing key — keep existing project too
+    GOOGLE_CLOUD_PROJECT="$_db_project_id"
+    echo "       ✔ Keeping existing Stitch configuration"
+  else
+    if [ -n "$_db_project_id" ]; then
+      echo -n "       GCP Project ID (Enter to keep '$_db_project_id'): "
+    else
+      echo -n "       GCP Project ID (e.g. my-project-123456): "
+    fi
+    read -r _input_project
+    GOOGLE_CLOUD_PROJECT="${_input_project:-$_db_project_id}"
+    if [ -n "$GOOGLE_CLOUD_PROJECT" ]; then
+      echo "       ✔ Stitch: API key + project saved"
+      echo "       ℹ  If generation fails, enable API: gcloud services enable stitch.googleapis.com --project=$GOOGLE_CLOUD_PROJECT"
+    fi
+  fi
+else
+  GOOGLE_CLOUD_PROJECT="$_db_project_id"
+  echo "       ○  Skipped — Claude generates UI directly (still great quality)"
+fi
+echo ""
+
+# ── Unsplash ──────────────────────────────────────────────
+echo "   [2] Unsplash (3M+ pro photos — makes UIs look agency-built)"
+echo "       Free key (50 req/hr) → https://unsplash.com/developers → New Application"
+if [ -n "$_db_unsplash_key" ]; then
+  echo -n "       Current: $(mask_key "$_db_unsplash_key") — Enter to keep, or paste new: "
+else
+  echo -n "       Unsplash Access Key (Enter to skip): "
+fi
+read -r _input_unsplash
+UNSPLASH_ACCESS_KEY="${_input_unsplash:-$_db_unsplash_key}"
+if [ -n "$UNSPLASH_ACCESS_KEY" ]; then
+  echo "       ✔ Unsplash key saved"
+else
+  echo "       ○  Skipped — using Pixabay fallback (free, no key needed)"
+fi
+echo ""
+
+# ── Pexels ────────────────────────────────────────────────
+echo "   [3] Pexels (1M+ curated photos — free, instant key)"
+echo "       Free key → https://www.pexels.com/api → Get Started"
+if [ -n "$_db_pexels_key" ]; then
+  echo -n "       Current: $(mask_key "$_db_pexels_key") — Enter to keep, or paste new: "
+else
+  echo -n "       Pexels API Key (Enter to skip): "
+fi
+read -r _input_pexels
+PEXELS_API_KEY="${_input_pexels:-$_db_pexels_key}"
+if [ -n "$PEXELS_API_KEY" ]; then
+  echo "       ✔ Pexels key saved"
+else
+  echo "       ○  Skipped — using Pixabay fallback"
+fi
+echo ""
+
+# ── Google Fonts key (optional) ───────────────────────────
+echo "   [4] Google Fonts API Key (optional — smarter font pairing)"
+echo "       Free → https://console.cloud.google.com → Enable Web Fonts API"
+if [ -n "$_db_fonts_key" ]; then
+  echo -n "       Current: $(mask_key "$_db_fonts_key") — Enter to keep, or paste new: "
+else
+  echo -n "       Google Fonts API Key (Enter to skip): "
+fi
+read -r _input_fonts
+GOOGLE_FONTS_API_KEY="${_input_fonts:-$_db_fonts_key}"
+if [ -n "$GOOGLE_FONTS_API_KEY" ]; then
+  echo "       ✔ Google Fonts key saved"
+else
+  echo "       ○  Skipped — CDN fallback works great"
+fi
+echo ""
+
+# ── Write design-bridge .env ──────────────────────────────
+cat > "$DESIGN_ENV_FILE" << ENVEOF
+# ═══════════════════════════════════════════════════════
+# Design Bridge — written by setup.sh
+# Re-run ./setup.sh anytime to update keys
+# ═══════════════════════════════════════════════════════
+
+# ── Google Stitch (AI UI Generation) ──────────────────
+STITCH_API_KEY=${STITCH_API_KEY}
+GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}
+STITCH_MODE=${_db_stitch_mode}
+
+# ── Photography APIs ───────────────────────────────────
+UNSPLASH_ACCESS_KEY=${UNSPLASH_ACCESS_KEY}
+PEXELS_API_KEY=${PEXELS_API_KEY}
+
+# ── Free APIs (auto-enabled, no keys needed) ──────────
+USE_COLOR_API=true
+USE_ICONIFY=true
+USE_DICEBEAR=true
+USE_JSON_PLACEHOLDER=true
+USE_GOOGLE_FONTS=true
+USE_PIXABAY=true
+
+# ── Google Fonts (optional key for smarter selection) ──
+GOOGLE_FONTS_API_KEY=${GOOGLE_FONTS_API_KEY}
+
+# ── Design Preferences ─────────────────────────────────
+DEFAULT_THEME=${_db_theme}
+DEFAULT_DARK_MODE=${_db_dark_mode}
+ENVEOF
+
+echo "   ✔ Design Bridge config written to design-bridge/.env"
+echo ""
+
 # ─── Step 4: Patch Claude Code MCP config ─────────────────────────────────────
 echo "⚙️  Registering MCP server settings..."
 
-node - "$REPO_DIR" "$FIGMA_TOKEN" "$CLAUDE_SETTINGS" << 'JSEOF'
+node - "$REPO_DIR" "$FIGMA_TOKEN" "$CLAUDE_SETTINGS" \
+  "$STITCH_API_KEY" "$GOOGLE_CLOUD_PROJECT" \
+  "$UNSPLASH_ACCESS_KEY" "$PEXELS_API_KEY" "$GOOGLE_FONTS_API_KEY" << 'JSEOF'
 const fs = require('fs');
 const path = require('path');
-const [,, repoDir, figmaToken, settingsPath] = process.argv;
+const [,, repoDir, figmaToken, settingsPath,
+  stitchKey, gcpProject, unsplashKey, pexelsKey, fontsKey] = process.argv;
 
 let settings = {};
 if (fs.existsSync(settingsPath)) {
@@ -358,6 +531,18 @@ if (!settings.mcpServers) settings.mcpServers = {};
 // Preserve any extra env vars that were already set (e.g. GEMINI_API_KEY)
 const existingEnv = settings.mcpServers['figma-intelligence-layer']?.env || {};
 
+// Read design-bridge .env before registering either MCP server
+const dbEnvPath = path.join(repoDir, 'design-bridge', '.env');
+let dbEnv = {};
+if (fs.existsSync(dbEnvPath)) {
+  fs.readFileSync(dbEnvPath, 'utf8').split('\n').forEach(line => {
+    const t = line.trim();
+    if (!t || t.startsWith('#')) return;
+    const idx = t.indexOf('=');
+    if (idx !== -1) dbEnv[t.slice(0, idx)] = t.slice(idx + 1);
+  });
+}
+
 settings.mcpServers['figma-intelligence-layer'] = {
   command: 'node',
   args: [path.join(repoDir, 'figma-intelligence-layer', 'dist', 'index.js')],
@@ -366,12 +551,37 @@ settings.mcpServers['figma-intelligence-layer'] = {
     FIGMA_ACCESS_TOKEN: figmaToken,
     FIGMA_BRIDGE_PORT: '9001',
     ENABLE_DECISION_LOG: 'true',
+    ...(dbEnv.UNSPLASH_ACCESS_KEY ? { UNSPLASH_ACCESS_KEY: dbEnv.UNSPLASH_ACCESS_KEY } : {}),
+    ...(dbEnv.PEXELS_API_KEY ? { PEXELS_API_KEY: dbEnv.PEXELS_API_KEY } : {}),
+  }
+};
+
+// Register design-bridge MCP server
+settings.mcpServers['design-bridge'] = {
+  command: 'node',
+  args: [path.join(repoDir, 'design-bridge', 'bridge.js')],
+  env: {
+    STITCH_API_KEY:       dbEnv.STITCH_API_KEY || '',
+    GOOGLE_CLOUD_PROJECT: dbEnv.GOOGLE_CLOUD_PROJECT || '',
+    STITCH_MODE:          dbEnv.STITCH_MODE || 'experimental',
+    UNSPLASH_ACCESS_KEY:  dbEnv.UNSPLASH_ACCESS_KEY || '',
+    PEXELS_API_KEY:       dbEnv.PEXELS_API_KEY || '',
+    GOOGLE_FONTS_API_KEY: dbEnv.GOOGLE_FONTS_API_KEY || '',
+    DEFAULT_THEME:        dbEnv.DEFAULT_THEME || 'auto',
+    DEFAULT_DARK_MODE:    dbEnv.DEFAULT_DARK_MODE || 'false',
+    USE_COLOR_API:        'true',
+    USE_ICONIFY:          'true',
+    USE_DICEBEAR:         'true',
+    USE_JSON_PLACEHOLDER: 'true',
+    USE_GOOGLE_FONTS:     'true',
+    USE_PIXABAY:          'true',
   }
 };
 
 fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
 fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
-console.log('   ✔ MCP server registered in ~/.claude/settings.json');
+console.log('   ✔ figma-intelligence-layer registered in ~/.claude/settings.json');
+console.log('   ✔ design-bridge registered in ~/.claude/settings.json');
 JSEOF
 
 # ─── Step 5: Register Codex MCP config ───────────────────────────────────────
@@ -384,10 +594,33 @@ if [ -n "$CODEX_BIN" ]; then
     --env FIGMA_BRIDGE_PORT=9001 \
     --env ENABLE_DECISION_LOG=true \
     -- node "$REPO_DIR/figma-intelligence-layer/dist/index.js" >/dev/null; then
-    echo "   ✔ MCP server registered in ~/.codex/config.toml"
+    echo "   ✔ figma-intelligence-layer registered in ~/.codex/config.toml"
   else
-    echo "   ⚠ Could not register the MCP server in Codex."
-    echo "     Claude and VS Code are configured, but OpenAI provider switching may not use MCP until this is fixed."
+    echo "   ⚠ Could not register figma-intelligence-layer in Codex."
+  fi
+
+  # Also register design-bridge in Codex
+  "$CODEX_BIN" mcp remove design-bridge >/dev/null 2>&1 || true
+  _db_env_args=""
+  [ -n "$STITCH_API_KEY" ]       && _db_env_args="$_db_env_args --env STITCH_API_KEY=$STITCH_API_KEY"
+  [ -n "$GOOGLE_CLOUD_PROJECT" ] && _db_env_args="$_db_env_args --env GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT"
+  [ -n "$UNSPLASH_ACCESS_KEY" ]  && _db_env_args="$_db_env_args --env UNSPLASH_ACCESS_KEY=$UNSPLASH_ACCESS_KEY"
+  [ -n "$PEXELS_API_KEY" ]       && _db_env_args="$_db_env_args --env PEXELS_API_KEY=$PEXELS_API_KEY"
+  [ -n "$GOOGLE_FONTS_API_KEY" ] && _db_env_args="$_db_env_args --env GOOGLE_FONTS_API_KEY=$GOOGLE_FONTS_API_KEY"
+  if "$CODEX_BIN" mcp add design-bridge \
+    --env STITCH_MODE=experimental \
+    --env USE_COLOR_API=true --env USE_ICONIFY=true \
+    --env USE_DICEBEAR=true --env USE_JSON_PLACEHOLDER=true \
+    --env USE_GOOGLE_FONTS=true --env USE_PIXABAY=true \
+    $( [ -n "$STITCH_API_KEY" ]       && echo "--env STITCH_API_KEY=$STITCH_API_KEY" ) \
+    $( [ -n "$GOOGLE_CLOUD_PROJECT" ] && echo "--env GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT" ) \
+    $( [ -n "$UNSPLASH_ACCESS_KEY" ]  && echo "--env UNSPLASH_ACCESS_KEY=$UNSPLASH_ACCESS_KEY" ) \
+    $( [ -n "$PEXELS_API_KEY" ]       && echo "--env PEXELS_API_KEY=$PEXELS_API_KEY" ) \
+    $( [ -n "$GOOGLE_FONTS_API_KEY" ] && echo "--env GOOGLE_FONTS_API_KEY=$GOOGLE_FONTS_API_KEY" ) \
+    -- node "$REPO_DIR/design-bridge/bridge.js" >/dev/null 2>&1; then
+    echo "   ✔ design-bridge registered in ~/.codex/config.toml"
+  else
+    echo "   ⚠ Could not register design-bridge in Codex (non-critical)."
   fi
 else
   echo "   ⚠ Codex CLI not found — skipping Codex MCP registration"
@@ -418,6 +651,18 @@ if (fs.existsSync(settingsPath)) {
 }
 if (!settings.mcpServers) settings.mcpServers = {};
 
+// Read design-bridge .env before registering either MCP server
+const dbEnvPath = path.join(repoDir, 'design-bridge', '.env');
+let dbEnv = {};
+if (fs.existsSync(dbEnvPath)) {
+  fs.readFileSync(dbEnvPath, 'utf8').split('\n').forEach(line => {
+    const t = line.trim();
+    if (!t || t.startsWith('#')) return;
+    const idx = t.indexOf('=');
+    if (idx !== -1) dbEnv[t.slice(0, idx)] = t.slice(idx + 1);
+  });
+}
+
 settings.mcpServers['figma-intelligence-layer'] = {
   command: 'node',
   args: [mcpBuildPath],
@@ -425,11 +670,32 @@ settings.mcpServers['figma-intelligence-layer'] = {
     FIGMA_ACCESS_TOKEN: figmaToken,
     FIGMA_BRIDGE_PORT: '9001',
     ENABLE_DECISION_LOG: 'true',
+    ...(dbEnv.UNSPLASH_ACCESS_KEY ? { UNSPLASH_ACCESS_KEY: dbEnv.UNSPLASH_ACCESS_KEY } : {}),
+    ...(dbEnv.PEXELS_API_KEY ? { PEXELS_API_KEY: dbEnv.PEXELS_API_KEY } : {}),
+  },
+};
+
+// Also register design-bridge
+settings.mcpServers['design-bridge'] = {
+  command: 'node',
+  args: [path.join(repoDir, 'design-bridge', 'bridge.js')],
+  env: {
+    STITCH_API_KEY:       dbEnv.STITCH_API_KEY || '',
+    GOOGLE_CLOUD_PROJECT: dbEnv.GOOGLE_CLOUD_PROJECT || '',
+    STITCH_MODE:          dbEnv.STITCH_MODE || 'experimental',
+    UNSPLASH_ACCESS_KEY:  dbEnv.UNSPLASH_ACCESS_KEY || '',
+    PEXELS_API_KEY:       dbEnv.PEXELS_API_KEY || '',
+    GOOGLE_FONTS_API_KEY: dbEnv.GOOGLE_FONTS_API_KEY || '',
+    DEFAULT_THEME:        dbEnv.DEFAULT_THEME || 'auto',
+    DEFAULT_DARK_MODE:    dbEnv.DEFAULT_DARK_MODE || 'false',
+    USE_COLOR_API: 'true', USE_ICONIFY: 'true', USE_DICEBEAR: 'true',
+    USE_JSON_PLACEHOLDER: 'true', USE_GOOGLE_FONTS: 'true', USE_PIXABAY: 'true',
   },
 };
 
 fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
-console.log('   ✔ MCP server registered in ~/.gemini/settings.json');
+console.log('   ✔ figma-intelligence-layer registered in ~/.gemini/settings.json');
+console.log('   ✔ design-bridge registered in ~/.gemini/settings.json');
 GEMINIEOF
 else
   echo "   ⚠ Gemini CLI not found — skipping Gemini MCP registration"
@@ -444,6 +710,18 @@ const fs = require('fs');
 const path = require('path');
 const [,, repoDir, figmaToken, mcpPath] = process.argv;
 
+// Load design-bridge .env
+const dbEnvPath = path.join(repoDir, 'design-bridge', '.env');
+let dbEnv = {};
+if (fs.existsSync(dbEnvPath)) {
+  fs.readFileSync(dbEnvPath, 'utf8').split('\n').forEach(line => {
+    const t = line.trim();
+    if (!t || t.startsWith('#')) return;
+    const idx = t.indexOf('=');
+    if (idx !== -1) dbEnv[t.slice(0, idx)] = t.slice(idx + 1);
+  });
+}
+
 const config = {
   servers: {
     "figma-intelligence-layer": {
@@ -453,7 +731,26 @@ const config = {
       env: {
         FIGMA_ACCESS_TOKEN: figmaToken,
         FIGMA_BRIDGE_PORT: "9001",
-        ENABLE_DECISION_LOG: "true"
+        ENABLE_DECISION_LOG: "true",
+        ...(dbEnv.UNSPLASH_ACCESS_KEY ? { UNSPLASH_ACCESS_KEY: dbEnv.UNSPLASH_ACCESS_KEY } : {}),
+        ...(dbEnv.PEXELS_API_KEY ? { PEXELS_API_KEY: dbEnv.PEXELS_API_KEY } : {}),
+      }
+    },
+    "design-bridge": {
+      type: "stdio",
+      command: "node",
+      args: [path.join(repoDir, "design-bridge", "bridge.js")],
+      env: {
+        STITCH_API_KEY:       dbEnv.STITCH_API_KEY || '',
+        GOOGLE_CLOUD_PROJECT: dbEnv.GOOGLE_CLOUD_PROJECT || '',
+        STITCH_MODE:          dbEnv.STITCH_MODE || 'experimental',
+        UNSPLASH_ACCESS_KEY:  dbEnv.UNSPLASH_ACCESS_KEY || '',
+        PEXELS_API_KEY:       dbEnv.PEXELS_API_KEY || '',
+        GOOGLE_FONTS_API_KEY: dbEnv.GOOGLE_FONTS_API_KEY || '',
+        DEFAULT_THEME:        dbEnv.DEFAULT_THEME || 'auto',
+        DEFAULT_DARK_MODE:    dbEnv.DEFAULT_DARK_MODE || 'false',
+        USE_COLOR_API: 'true', USE_ICONIFY: 'true', USE_DICEBEAR: 'true',
+        USE_JSON_PLACEHOLDER: 'true', USE_GOOGLE_FONTS: 'true', USE_PIXABAY: 'true',
       }
     }
   }
@@ -461,7 +758,8 @@ const config = {
 
 fs.mkdirSync(path.dirname(mcpPath), { recursive: true });
 fs.writeFileSync(mcpPath, JSON.stringify(config, null, 2));
-console.log('   ✔ .vscode/mcp.json updated');
+console.log('   ✔ figma-intelligence-layer registered in .vscode/mcp.json');
+console.log('   ✔ design-bridge registered in .vscode/mcp.json');
 JSEOF2
 
 # ─── Step 7: Install bridge relay as a macOS launch service ───────────────────
@@ -576,6 +874,10 @@ echo "     Plugins → Development → Figma Intelligence Bridge"
 echo "  5. Click  ▶ Start  — you should see  ✅ Connected"
 echo ""
 echo "  Then restart VS Code, Claude Code, or Codex if you use MCP tools there."
+echo ""
+echo "MCP servers registered:"
+echo "   ✔ figma-intelligence-layer — reads/writes Figma files"
+echo "   ✔ design-bridge — real photos, icons, palettes, Stitch AI layout${STITCH_API_KEY:+ (Stitch active)}"
 echo ""
 echo "AI provider setup summary:"
 if [ "$CLAUDE_LOGGED_IN" = true ]; then

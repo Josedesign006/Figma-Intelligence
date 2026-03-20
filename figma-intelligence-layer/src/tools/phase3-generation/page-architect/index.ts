@@ -183,8 +183,8 @@ function platformWidth(platform: "web" | "mobile" | "both", userWidth?: number):
   }
 }
 
-function mobileWidth(platform: "web" | "mobile" | "both"): number | null {
-  return platform === "both" ? 390 : null;
+function mobileWidth(_platform: "web" | "mobile" | "both"): number | null {
+  return null; // single-frame output — no duplicate (Mobile) frames
 }
 
 // ─── Parse flow into screen specs (template matching) ────────────────────────
@@ -319,6 +319,222 @@ function buildRealisticContent(
         heading: name,
         subheading: `Designed for ${productContext}.`,
         ctaLabel: index === 0 ? "Get started" : "Continue",
+      };
+  }
+}
+
+// ─── AI Content Bundle ────────────────────────────────────────────────────────
+
+interface ContentBundle {
+  brand: { name: string; tagline: string };
+  user: { name: string; email: string };
+  order: {
+    number: string;
+    items: Array<{ name: string; price: string; qty: number }>;
+    subtotal: string;
+    shipping: string;
+    tax: string;
+    total: string;
+    discount?: string;
+    estimatedDelivery: string;
+  };
+  address: { home: string; work: string };
+  imageQuery: string;
+  screens: Array<{
+    screenName: string;
+    heading: string;
+    subheading: string;
+    ctaLabel: string;
+    listItems?: string[];
+    summaryItems?: string[];
+    sectionTitle?: string;
+    helperText?: string;
+    bodyText?: string;
+  }>;
+}
+
+async function generateContentBundle(
+  productContext: string,
+  screenNames: string[]
+): Promise<ContentBundle | null> {
+  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  if (!apiKey) return null;
+
+  const prompt = `You are a UI content writer. Generate a realistic content bundle for a "${productContext}" app.
+
+Screens: ${screenNames.join(", ")}
+
+Return ONLY valid JSON (no markdown, no extra text):
+{
+  "brand": { "name": "string", "tagline": "string" },
+  "user": { "name": "string", "email": "string" },
+  "order": {
+    "number": "string",
+    "items": [{ "name": "string", "price": "string", "qty": 1 }],
+    "subtotal": "string", "shipping": "string", "tax": "string", "total": "string",
+    "discount": "string", "estimatedDelivery": "string"
+  },
+  "address": { "home": "string", "work": "string" },
+  "imageQuery": "string",
+  "screens": [
+    {
+      "screenName": "string",
+      "heading": "string",
+      "subheading": "string",
+      "ctaLabel": "string",
+      "listItems": ["string"],
+      "summaryItems": ["string"],
+      "sectionTitle": "string",
+      "helperText": "string",
+      "bodyText": "string"
+    }
+  ]
+}
+
+Rules:
+- Brand name, user name, products, and prices must fit the product context
+- imageQuery: a specific Unsplash-friendly photographic term (e.g. "artisan coffee overhead shot")
+- listItems and summaryItems: real relevant data, not generic placeholder text
+- Keep text concise like a real production app (subheading max 120 chars, bodyText max 150 chars)
+- screens array must have one entry per screen in the same order provided`;
+
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 2048,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn(`generateContentBundle: API error ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json() as { content: Array<{ type: string; text: string }> };
+    const text = data.content?.[0]?.text ?? "";
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+
+    return JSON.parse(jsonMatch[0]) as ContentBundle;
+  } catch (error) {
+    console.warn(`generateContentBundle: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
+function applyBundleToScreen(
+  template: ScreenTemplate,
+  screenName: string,
+  bundle: ContentBundle,
+  index: number
+): ScreenContent {
+  const screenData =
+    bundle.screens.find((s) => s.screenName.toLowerCase() === screenName.toLowerCase()) ??
+    bundle.screens[index] ??
+    bundle.screens[0];
+
+  if (!screenData) return buildRealisticContent(template, screenName, "", index);
+
+  switch (template) {
+    case "checkout-cart":
+      return {
+        heading: screenData.heading || "Your bag",
+        subheading: screenData.subheading,
+        ctaLabel: screenData.ctaLabel || "Continue to address",
+        sectionTitle: screenData.sectionTitle || bundle.brand.name,
+        listItems: bundle.order.items.map((i) => `${i.name} x${i.qty}  ${i.price}`),
+        summaryItems: [
+          `Subtotal  ${bundle.order.subtotal}`,
+          `Shipping  ${bundle.order.shipping}`,
+          `Tax  ${bundle.order.tax}`,
+          `Total  ${bundle.order.total}`,
+        ],
+        helperText: screenData.helperText,
+      };
+    case "checkout-address":
+      return {
+        heading: screenData.heading || "Delivery address",
+        subheading: screenData.subheading,
+        ctaLabel: screenData.ctaLabel || "Continue to shipping",
+        sectionTitle: screenData.sectionTitle || "Saved addresses",
+        listItems: [`Home  ${bundle.address.home}`, `Work  ${bundle.address.work}`],
+        helperText: screenData.helperText,
+      };
+    case "checkout-shipping":
+      return {
+        heading: screenData.heading || "Shipping method",
+        subheading: screenData.subheading,
+        ctaLabel: screenData.ctaLabel || "Continue to payment",
+        sectionTitle: screenData.sectionTitle || "Delivery options",
+        listItems: screenData.listItems ?? [
+          `Standard  Free  Arrives ${bundle.order.estimatedDelivery}`,
+          "Express  $12  Arrives tomorrow",
+          "Same day  $18  Arrives today by 9 PM",
+        ],
+        summaryItems: screenData.summaryItems ?? [
+          `Items  ${bundle.order.items.length}`,
+          `Estimated delivery  ${bundle.order.estimatedDelivery}`,
+        ],
+      };
+    case "checkout-payment":
+      return {
+        heading: screenData.heading || "Payment method",
+        subheading: screenData.subheading,
+        ctaLabel: screenData.ctaLabel || "Review order",
+        sectionTitle: screenData.sectionTitle || "Saved methods",
+        listItems: screenData.listItems ?? ["Visa ending in 4242", "Apple Pay", "Add new card"],
+        helperText: screenData.helperText,
+      };
+    case "checkout-review":
+      return {
+        heading: screenData.heading || "Review your order",
+        subheading: screenData.subheading,
+        ctaLabel: screenData.ctaLabel || "Place order",
+        sectionTitle: screenData.sectionTitle || "Order summary",
+        listItems: [
+          `Delivery to ${bundle.user.name}`,
+          "Payment  Visa 4242",
+          bundle.order.shipping === "Free" ? "Standard shipping  Free" : `Shipping  ${bundle.order.shipping}`,
+        ],
+        summaryItems: [
+          `Subtotal  ${bundle.order.subtotal}`,
+          ...(bundle.order.discount ? [`Discount  -${bundle.order.discount}`] : []),
+          `Tax  ${bundle.order.tax}`,
+          `Total  ${bundle.order.total}`,
+        ],
+        helperText: screenData.helperText,
+      };
+    case "checkout-success":
+      return {
+        heading: screenData.heading || "Order confirmed",
+        subheading: screenData.subheading || `Thanks for shopping with ${bundle.brand.name}. A receipt has been sent to your email.`,
+        ctaLabel: screenData.ctaLabel || "Track shipment",
+        sectionTitle: screenData.sectionTitle || "What happens next",
+        listItems: [
+          `Order ${bundle.order.number}`,
+          `Estimated arrival ${bundle.order.estimatedDelivery}`,
+          `Receipt sent to ${bundle.user.email}`,
+        ],
+        summaryItems: ["Need help? Contact support 24/7"],
+      };
+    default:
+      return {
+        heading: screenData.heading,
+        subheading: screenData.subheading,
+        ctaLabel: screenData.ctaLabel,
+        sectionTitle: screenData.sectionTitle,
+        listItems: screenData.listItems,
+        summaryItems: screenData.summaryItems,
+        helperText: screenData.helperText,
+        bodyText: screenData.bodyText,
       };
   }
 }
@@ -465,22 +681,6 @@ function buildScreenScript(spec: FrameSpec): string {
       ? content.helperText
       : "";
 
-  const componentInstances = resolvedComponents
-    .filter((c) => c.nodeId !== null)
-    .map(
-      (c) => `
-  {
-    const comp = await figma.getNodeByIdAsync(${JSON.stringify(c.nodeId)});
-    if (comp && comp.type === 'COMPONENT') {
-      const inst = comp.createInstance();
-      inst.name = ${JSON.stringify(c.name)};
-      if ('layoutSizingHorizontal' in inst) inst.layoutSizingHorizontal = 'FILL';
-      frame.appendChild(inst);
-    }
-  }`
-    )
-    .join("\n");
-
   // Template-specific skeleton builders
   const templateBody = buildTemplateBody(
     template,
@@ -520,8 +720,6 @@ function buildScreenScript(spec: FrameSpec): string {
 
   ${templateBody}
 
-  ${componentInstances}
-
   return { frameId: frame.id };
 })();
 `.trim();
@@ -549,8 +747,8 @@ function buildTemplateBody(
   heading.characters = ${JSON.stringify(headerText)};
   heading.fontSize = 28;
   heading.fontName = { family: 'Inter', style: 'Bold' };
-  if ('layoutSizingHorizontal' in heading) heading.layoutSizingHorizontal = 'FILL';
-  frame.appendChild(heading);`;
+  frame.appendChild(heading);
+  if ('layoutSizingHorizontal' in heading) heading.layoutSizingHorizontal = 'FILL';`;
 
   const addSubheading = subText
     ? `
@@ -559,8 +757,8 @@ function buildTemplateBody(
   subheading.fontSize = 16;
   subheading.fontName = { family: 'Inter', style: 'Regular' };
   subheading.opacity = 0.65;
-  if ('layoutSizingHorizontal' in subheading) subheading.layoutSizingHorizontal = 'FILL';
-  frame.appendChild(subheading);`
+  frame.appendChild(subheading);
+  if ('layoutSizingHorizontal' in subheading) subheading.layoutSizingHorizontal = 'FILL';`
     : "";
 
   const addSectionTitle = sectionTitle
@@ -570,8 +768,8 @@ function buildTemplateBody(
   sectionTitleNode.fontSize = 14;
   sectionTitleNode.fontName = { family: 'Inter', style: 'Bold' };
   sectionTitleNode.opacity = 0.8;
-  if ('layoutSizingHorizontal' in sectionTitleNode) sectionTitleNode.layoutSizingHorizontal = 'FILL';
-  frame.appendChild(sectionTitleNode);`
+  frame.appendChild(sectionTitleNode);
+  if ('layoutSizingHorizontal' in sectionTitleNode) sectionTitleNode.layoutSizingHorizontal = 'FILL';`
     : "";
 
   const addBodyText = bodyText
@@ -581,8 +779,8 @@ function buildTemplateBody(
   bodyNode.fontSize = 15;
   bodyNode.fontName = { family: 'Inter', style: 'Regular' };
   bodyNode.opacity = 0.75;
-  if ('layoutSizingHorizontal' in bodyNode) bodyNode.layoutSizingHorizontal = 'FILL';
-  frame.appendChild(bodyNode);`
+  frame.appendChild(bodyNode);
+  if ('layoutSizingHorizontal' in bodyNode) bodyNode.layoutSizingHorizontal = 'FILL';`
     : "";
 
   const addTextRows = (rows: string[], title: string) => {
@@ -601,23 +799,21 @@ function buildTemplateBody(
     group.paddingBottom = 16;
     group.cornerRadius = 12;
     group.fills = [{ type: 'SOLID', color: { r: 0.98, g: 0.98, b: 0.99 } }];
-    if ('layoutSizingHorizontal' in group) group.layoutSizingHorizontal = 'FILL';
-    ${
-      rows
-        .map(
-          (row) => `
+    ${rows
+      .map(
+        (row) => `
     {
       const t = figma.createText();
       t.characters = ${JSON.stringify(row)};
       t.fontSize = 15;
       t.fontName = { family: 'Inter', style: 'Regular' };
-      if ('layoutSizingHorizontal' in t) t.layoutSizingHorizontal = 'FILL';
       group.appendChild(t);
+      if ('layoutSizingHorizontal' in t) t.layoutSizingHorizontal = 'FILL';
     }`
-        )
-        .join("\n")
-    }
+      )
+      .join("\n")}
     frame.appendChild(group);
+    if ('layoutSizingHorizontal' in group) group.layoutSizingHorizontal = 'FILL';
   }`;
   };
 
@@ -628,10 +824,11 @@ function buildTemplateBody(
   helperNode.fontSize = 13;
   helperNode.fontName = { family: 'Inter', style: 'Regular' };
   helperNode.opacity = 0.6;
-  if ('layoutSizingHorizontal' in helperNode) helperNode.layoutSizingHorizontal = 'FILL';
-  frame.appendChild(helperNode);`
+  frame.appendChild(helperNode);
+  if ('layoutSizingHorizontal' in helperNode) helperNode.layoutSizingHorizontal = 'FILL';`
     : "";
 
+  // Wireframe-only grey block — only used in wireframeMode
   const addPlaceholderRect = (label: string, height: number) => `
   {
     const r = figma.createRectangle();
@@ -639,8 +836,8 @@ function buildTemplateBody(
     r.resize(frame.width - 48, ${height});
     r.fills = [{ type: 'SOLID', color: ${rectColor} }];
     r.cornerRadius = 8;
-    if ('layoutSizingHorizontal' in r) r.layoutSizingHorizontal = 'FILL';
     frame.appendChild(r);
+    if ('layoutSizingHorizontal' in r) r.layoutSizingHorizontal = 'FILL';
   }`;
 
   const addImageRect = (label: string, height: number) => `
@@ -652,21 +849,20 @@ function buildTemplateBody(
       ? `r.fills = [{ type: 'IMAGE', imageHash: ${JSON.stringify(imageHash)}, scaleMode: 'FILL' }];`
       : `r.fills = [{ type: 'SOLID', color: ${rectColor} }];`}
     r.cornerRadius = 12;
-    if ('layoutSizingHorizontal' in r) r.layoutSizingHorizontal = 'FILL';
     frame.appendChild(r);
+    if ('layoutSizingHorizontal' in r) r.layoutSizingHorizontal = 'FILL';
   }`;
 
   const addCTA = `
   {
     const btn = figma.createFrame();
     btn.name = 'CTA';
-    btn.resize(frame.width - 48, 48);
+    btn.resize(frame.width - 48, 52);
     btn.layoutMode = 'HORIZONTAL';
     btn.primaryAxisAlignItems = 'CENTER';
     btn.counterAxisAlignItems = 'CENTER';
-    btn.fills = [{ type: 'SOLID', color: { r: 0.24, g: 0.37, b: 1 } }];
-    btn.cornerRadius = 8;
-    if ('layoutSizingHorizontal' in btn) btn.layoutSizingHorizontal = 'FILL';
+    btn.fills = [{ type: 'SOLID', color: { r: 0.18, g: 0.30, b: 0.96 } }];
+    btn.cornerRadius = 12;
     const btnLabel = figma.createText();
     btnLabel.characters = ${JSON.stringify(ctaText)};
     btnLabel.fontSize = 16;
@@ -674,6 +870,301 @@ function buildTemplateBody(
     btnLabel.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
     btn.appendChild(btnLabel);
     frame.appendChild(btn);
+    if ('layoutSizingHorizontal' in btn) btn.layoutSizingHorizontal = 'FILL';
+  }`;
+
+  // ── Styled elements (replace grey rects in realistic / non-wireframe mode) ──
+
+  const addInputField = (label: string, placeholder: string) => wireframeMode
+    ? addPlaceholderRect(label, 52)
+    : `
+  {
+    const inp = figma.createFrame();
+    inp.name = ${JSON.stringify(label)};
+    inp.layoutMode = 'HORIZONTAL';
+    inp.counterAxisAlignItems = 'CENTER';
+    inp.paddingLeft = 16; inp.paddingRight = 16;
+    inp.primaryAxisSizingMode = 'FIXED'; inp.counterAxisSizingMode = 'FIXED';
+    inp.resize(frame.width - 48, 52);
+    inp.fills = [{ type: 'SOLID', color: { r: 0.99, g: 0.99, b: 1 } }];
+    inp.cornerRadius = 10;
+    inp.strokes = [{ type: 'SOLID', color: { r: 0.87, g: 0.88, b: 0.91 } }];
+    inp.strokeWeight = 1.5;
+    const ph = figma.createText();
+    ph.characters = ${JSON.stringify(placeholder)};
+    ph.fontSize = 15;
+    ph.fontName = { family: 'Inter', style: 'Regular' };
+    ph.fills = [{ type: 'SOLID', color: { r: 0.63, g: 0.64, b: 0.68 } }];
+    inp.appendChild(ph);
+    if ('layoutSizingHorizontal' in ph) ph.layoutSizingHorizontal = 'FILL';
+    frame.appendChild(inp);
+    if ('layoutSizingHorizontal' in inp) inp.layoutSizingHorizontal = 'FILL';
+  }`;
+
+  const addNavBar = (brandText: string) => wireframeMode
+    ? addPlaceholderRect("Navigation Bar", 56)
+    : `
+  {
+    const nav = figma.createFrame();
+    nav.name = 'NavBar';
+    nav.layoutMode = 'HORIZONTAL';
+    nav.counterAxisAlignItems = 'CENTER';
+    nav.primaryAxisAlignItems = 'SPACE_BETWEEN';
+    nav.paddingLeft = 0; nav.paddingRight = 0;
+    nav.primaryAxisSizingMode = 'FIXED'; nav.counterAxisSizingMode = 'FIXED';
+    nav.resize(frame.width - 48, 56);
+    nav.fills = [];
+    const bLabel = figma.createText();
+    bLabel.characters = ${JSON.stringify(brandText)};
+    bLabel.fontSize = 17;
+    bLabel.fontName = { family: 'Inter', style: 'Bold' };
+    nav.appendChild(bLabel);
+    const mIcon = figma.createText();
+    mIcon.characters = '\u22EF';
+    mIcon.fontSize = 20;
+    mIcon.fontName = { family: 'Inter', style: 'Bold' };
+    mIcon.opacity = 0.4;
+    nav.appendChild(mIcon);
+    frame.appendChild(nav);
+    if ('layoutSizingHorizontal' in nav) nav.layoutSizingHorizontal = 'FILL';
+  }`;
+
+  const addStatRow = () => wireframeMode
+    ? addPlaceholderRect("Stats Row", 96)
+    : `
+  {
+    const row = figma.createFrame();
+    row.name = 'StatsRow';
+    row.layoutMode = 'HORIZONTAL';
+    row.itemSpacing = 12;
+    row.primaryAxisSizingMode = 'FIXED'; row.counterAxisSizingMode = 'AUTO';
+    row.resize(frame.width - 48, 1);
+    row.fills = [];
+    ${[["24", "Active"], ["8", "Pending"], ["142", "Total"]]
+      .map(
+        ([val, lbl]) => `
+    {
+      const sc = figma.createFrame();
+      sc.name = ${JSON.stringify(lbl)};
+      sc.layoutMode = 'VERTICAL';
+      sc.primaryAxisSizingMode = 'AUTO'; sc.counterAxisSizingMode = 'AUTO';
+      sc.paddingLeft = 16; sc.paddingRight = 16;
+      sc.paddingTop = 14; sc.paddingBottom = 14;
+      sc.itemSpacing = 2;
+      sc.cornerRadius = 12;
+      sc.fills = [{ type: 'SOLID', color: { r: 0.96, g: 0.97, b: 1 } }];
+      const sv = figma.createText(); sv.characters = ${JSON.stringify(val)};
+      sv.fontSize = 24; sv.fontName = { family: 'Inter', style: 'Bold' };
+      sc.appendChild(sv);
+      const sl = figma.createText(); sl.characters = ${JSON.stringify(lbl)};
+      sl.fontSize = 12; sl.fontName = { family: 'Inter', style: 'Regular' }; sl.opacity = 0.55;
+      sc.appendChild(sl);
+      row.appendChild(sc);
+      if ('layoutSizingHorizontal' in sc) sc.layoutSizingHorizontal = 'FILL';
+    }`
+      )
+      .join("\n")}
+    frame.appendChild(row);
+    if ('layoutSizingHorizontal' in row) row.layoutSizingHorizontal = 'FILL';
+  }`;
+
+  const addSearchBar = () => wireframeMode
+    ? addPlaceholderRect("Search Bar", 48)
+    : `
+  {
+    const sb = figma.createFrame();
+    sb.name = 'SearchBar';
+    sb.layoutMode = 'HORIZONTAL';
+    sb.counterAxisAlignItems = 'CENTER';
+    sb.paddingLeft = 16; sb.paddingRight = 16;
+    sb.itemSpacing = 8;
+    sb.primaryAxisSizingMode = 'FIXED'; sb.counterAxisSizingMode = 'FIXED';
+    sb.resize(frame.width - 48, 48);
+    sb.fills = [{ type: 'SOLID', color: { r: 0.95, g: 0.95, b: 0.97 } }];
+    sb.cornerRadius = 24;
+    const sIcon = figma.createText();
+    sIcon.characters = '\uD83D\uDD0D';
+    sIcon.fontSize = 14; sIcon.fontName = { family: 'Inter', style: 'Regular' };
+    sIcon.opacity = 0.4;
+    sb.appendChild(sIcon);
+    const sph = figma.createText();
+    sph.characters = 'Search\u2026';
+    sph.fontSize = 15; sph.fontName = { family: 'Inter', style: 'Regular' };
+    sph.opacity = 0.45;
+    sb.appendChild(sph);
+    if ('layoutSizingHorizontal' in sph) sph.layoutSizingHorizontal = 'FILL';
+    frame.appendChild(sb);
+    if ('layoutSizingHorizontal' in sb) sb.layoutSizingHorizontal = 'FILL';
+  }`;
+
+  const addListItemRows = (items: string[]) => wireframeMode
+    ? items.map(() => addPlaceholderRect("List Item", 72)).join("\n")
+    : items
+        .map(
+          (item) => `
+  {
+    const row = figma.createFrame();
+    row.name = 'ListItem';
+    row.layoutMode = 'HORIZONTAL';
+    row.counterAxisAlignItems = 'CENTER';
+    row.paddingLeft = 16; row.paddingRight = 16;
+    row.itemSpacing = 12;
+    row.primaryAxisSizingMode = 'FIXED'; row.counterAxisSizingMode = 'FIXED';
+    row.resize(frame.width - 48, 68);
+    row.cornerRadius = 10;
+    row.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
+    row.strokes = [{ type: 'SOLID', color: { r: 0.92, g: 0.93, b: 0.96 } }];
+    row.strokeWeight = 1;
+    const avatar = figma.createEllipse();
+    avatar.resize(40, 40);
+    avatar.fills = [{ type: 'SOLID', color: { r: 0.91, g: 0.92, b: 0.97 } }];
+    row.appendChild(avatar);
+    const textCol = figma.createFrame();
+    textCol.name = 'Labels';
+    textCol.layoutMode = 'VERTICAL';
+    textCol.primaryAxisSizingMode = 'AUTO'; textCol.counterAxisSizingMode = 'AUTO';
+    textCol.itemSpacing = 3; textCol.fills = [];
+    const titleT = figma.createText();
+    titleT.characters = ${JSON.stringify(item)};
+    titleT.fontSize = 15; titleT.fontName = { family: 'Inter', style: 'Medium' };
+    textCol.appendChild(titleT);
+    const subT = figma.createText();
+    subT.characters = 'Tap to view details';
+    subT.fontSize = 13; subT.fontName = { family: 'Inter', style: 'Regular' };
+    subT.opacity = 0.5;
+    textCol.appendChild(subT);
+    row.appendChild(textCol);
+    if ('layoutSizingHorizontal' in textCol) textCol.layoutSizingHorizontal = 'FILL';
+    const arrowT = figma.createText();
+    arrowT.characters = '\u203A';
+    arrowT.fontSize = 18; arrowT.fontName = { family: 'Inter', style: 'Regular' };
+    arrowT.opacity = 0.35;
+    row.appendChild(arrowT);
+    frame.appendChild(row);
+    if ('layoutSizingHorizontal' in row) row.layoutSizingHorizontal = 'FILL';
+  }`
+        )
+        .join("\n");
+
+  const addSettingsGroup = (items: string[]) => wireframeMode
+    ? addPlaceholderRect("Settings Group", items.length * 52)
+    : `
+  {
+    const grp = figma.createFrame();
+    grp.name = 'SettingsGroup';
+    grp.layoutMode = 'VERTICAL';
+    grp.primaryAxisSizingMode = 'AUTO'; grp.counterAxisSizingMode = 'FIXED';
+    grp.resize(frame.width - 48, 1);
+    grp.cornerRadius = 12;
+    grp.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
+    grp.strokes = [{ type: 'SOLID', color: { r: 0.92, g: 0.93, b: 0.96 } }];
+    grp.strokeWeight = 1;
+    ${items
+      .map(
+        (item, i) => `
+    {
+      const ri = figma.createFrame();
+      ri.name = 'SettingsRow';
+      ri.layoutMode = 'HORIZONTAL';
+      ri.counterAxisAlignItems = 'CENTER';
+      ri.primaryAxisAlignItems = 'SPACE_BETWEEN';
+      ri.paddingLeft = 16; ri.paddingRight = 16;
+      ri.primaryAxisSizingMode = 'FIXED'; ri.counterAxisSizingMode = 'FIXED';
+      ri.resize(frame.width - 48, 52);
+      ri.fills = [];
+      ${i > 0 ? `ri.strokes = [{ type: 'SOLID', color: { r: 0.93, g: 0.94, b: 0.96 } }]; ri.strokeWeight = 1; ri.strokeAlign = 'INSIDE';` : ""}
+      const rl = figma.createText();
+      rl.characters = ${JSON.stringify(item)};
+      rl.fontSize = 15; rl.fontName = { family: 'Inter', style: 'Regular' };
+      ri.appendChild(rl);
+      const ra = figma.createText();
+      ra.characters = '\u203A';
+      ra.fontSize = 18; ra.fontName = { family: 'Inter', style: 'Regular' };
+      ra.opacity = 0.35;
+      ri.appendChild(ra);
+      grp.appendChild(ri);
+      if ('layoutSizingHorizontal' in ri) ri.layoutSizingHorizontal = 'FILL';
+    }`
+      )
+      .join("\n")}
+    frame.appendChild(grp);
+    if ('layoutSizingHorizontal' in grp) grp.layoutSizingHorizontal = 'FILL';
+  }`;
+
+  const addAddressForm = () => wireframeMode
+    ? addPlaceholderRect("Address Form", 180)
+    : `
+  {
+    const form = figma.createFrame();
+    form.name = 'AddressForm';
+    form.layoutMode = 'VERTICAL';
+    form.primaryAxisSizingMode = 'AUTO'; form.counterAxisSizingMode = 'FIXED';
+    form.resize(frame.width - 48, 1);
+    form.itemSpacing = 12;
+    form.paddingLeft = 16; form.paddingRight = 16;
+    form.paddingTop = 16; form.paddingBottom = 16;
+    form.cornerRadius = 12;
+    form.fills = [{ type: 'SOLID', color: { r: 0.99, g: 0.99, b: 1 } }];
+    form.strokes = [{ type: 'SOLID', color: { r: 0.9, g: 0.91, b: 0.94 } }];
+    form.strokeWeight = 1;
+    ['Street address', 'City', 'Postcode'].forEach(function(lbl) {
+      const fi = figma.createFrame();
+      fi.layoutMode = 'HORIZONTAL'; fi.counterAxisAlignItems = 'CENTER';
+      fi.paddingLeft = 12; fi.paddingRight = 12;
+      fi.primaryAxisSizingMode = 'FIXED'; fi.counterAxisSizingMode = 'FIXED';
+      fi.resize(form.width - 32, 46);
+      fi.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
+      fi.cornerRadius = 8;
+      fi.strokes = [{ type: 'SOLID', color: { r: 0.87, g: 0.88, b: 0.91 } }];
+      fi.strokeWeight = 1;
+      const ft = figma.createText();
+      ft.characters = lbl;
+      ft.fontSize = 14; ft.fontName = { family: 'Inter', style: 'Regular' };
+      ft.opacity = 0.5;
+      fi.appendChild(ft);
+      form.appendChild(fi);
+      if ('layoutSizingHorizontal' in fi) fi.layoutSizingHorizontal = 'FILL';
+    });
+    frame.appendChild(form);
+    if ('layoutSizingHorizontal' in form) form.layoutSizingHorizontal = 'FILL';
+  }`;
+
+  const addCardDetailsForm = () => wireframeMode
+    ? addPlaceholderRect("Card Details", 140)
+    : `
+  {
+    const cdf = figma.createFrame();
+    cdf.name = 'CardDetails';
+    cdf.layoutMode = 'VERTICAL';
+    cdf.primaryAxisSizingMode = 'AUTO'; cdf.counterAxisSizingMode = 'FIXED';
+    cdf.resize(frame.width - 48, 1);
+    cdf.itemSpacing = 12;
+    cdf.paddingLeft = 16; cdf.paddingRight = 16;
+    cdf.paddingTop = 16; cdf.paddingBottom = 16;
+    cdf.cornerRadius = 12;
+    cdf.fills = [{ type: 'SOLID', color: { r: 0.99, g: 0.99, b: 1 } }];
+    cdf.strokes = [{ type: 'SOLID', color: { r: 0.9, g: 0.91, b: 0.94 } }];
+    cdf.strokeWeight = 1;
+    ['Card number', 'MM / YY', 'CVV'].forEach(function(lbl) {
+      const fi = figma.createFrame();
+      fi.layoutMode = 'HORIZONTAL'; fi.counterAxisAlignItems = 'CENTER';
+      fi.paddingLeft = 12; fi.paddingRight = 12;
+      fi.primaryAxisSizingMode = 'FIXED'; fi.counterAxisSizingMode = 'FIXED';
+      fi.resize(cdf.width - 32, 46);
+      fi.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
+      fi.cornerRadius = 8;
+      fi.strokes = [{ type: 'SOLID', color: { r: 0.87, g: 0.88, b: 0.91 } }];
+      fi.strokeWeight = 1;
+      const ft = figma.createText();
+      ft.characters = lbl;
+      ft.fontSize = 14; ft.fontName = { family: 'Inter', style: 'Regular' };
+      ft.opacity = 0.5;
+      fi.appendChild(ft);
+      cdf.appendChild(fi);
+      if ('layoutSizingHorizontal' in fi) fi.layoutSizingHorizontal = 'FILL';
+    });
+    frame.appendChild(cdf);
+    if ('layoutSizingHorizontal' in cdf) cdf.layoutSizingHorizontal = 'FILL';
   }`;
 
   switch (template) {
@@ -681,28 +1172,29 @@ function buildTemplateBody(
       return `
   ${addHeading}
   ${addSubheading}
-  ${addPlaceholderRect("Email Input", 48)}
-  ${addPlaceholderRect("Password Input", 48)}
+  ${addInputField("Email", "Email address")}
+  ${addInputField("Password", "Password")}
   ${addCTA}
   `;
 
     case "dashboard":
       return `
-  ${addPlaceholderRect("Top Navigation", 56)}
+  ${addNavBar(sectionTitle || headerText)}
   ${addHeading}
-  ${addPlaceholderRect("Stats Row", 96)}
-  ${addPlaceholderRect("Main Content", 320)}
+  ${addSubheading}
+  ${addStatRow()}
+  ${addImageRect("Main Content", 300)}
   `;
 
-    case "list":
+    case "list": {
+      const displayItems = listItems.length > 0 ? listItems.slice(0, 3) : ["Item One", "Item Two", "Item Three"];
       return `
   ${addHeading}
-  ${addPlaceholderRect("Search Bar", 48)}
-  ${addPlaceholderRect("List Item", 72)}
-  ${addPlaceholderRect("List Item", 72)}
-  ${addPlaceholderRect("List Item", 72)}
-  ${addPlaceholderRect("List Item", 72)}
+  ${addSearchBar()}
+  ${addImageRect("Featured Item", 180)}
+  ${addListItemRows(displayItems)}
   `;
+    }
 
     case "detail":
       return `
@@ -710,17 +1202,21 @@ function buildTemplateBody(
   ${addHeading}
   ${addSubheading}
   ${addBodyText}
-  ${addPlaceholderRect("Content Body", 180)}
+  ${addTextRows(listItems.length > 0 ? listItems : ["Key feature or detail", "Another relevant point", "Why users should care"], "Details")}
   ${addCTA}
   `;
 
-    case "settings":
+    case "settings": {
+      const settingsItems = listItems.length > 0 ? listItems : ["Notifications", "Privacy & Security", "Language", "Help & Support", "Sign out"];
+      const half = Math.ceil(settingsItems.length / 2);
       return `
   ${addHeading}
-  ${addPlaceholderRect("Section Group 1", 140)}
-  ${addPlaceholderRect("Section Group 2", 140)}
+  ${addSubheading}
+  ${addSettingsGroup(settingsItems.slice(0, half))}
+  ${addSettingsGroup(settingsItems.slice(half))}
   ${addCTA}
   `;
+    }
 
     case "onboarding":
       return `
@@ -748,7 +1244,7 @@ function buildTemplateBody(
   ${addSubheading}
   ${addSectionTitle}
   ${addTextRows(listItems, "Saved Addresses")}
-  ${addPlaceholderRect("Address Form", 180)}
+  ${addAddressForm()}
   ${addHelperText}
   ${addCTA}
   `;
@@ -769,7 +1265,7 @@ function buildTemplateBody(
   ${addSubheading}
   ${addSectionTitle}
   ${addTextRows(listItems, "Payment Methods")}
-  ${addPlaceholderRect("Card Details", 140)}
+  ${addCardDetailsForm()}
   ${addHelperText}
   ${addCTA}
   `;
@@ -799,8 +1295,8 @@ function buildTemplateBody(
       return `
   ${addHeading}
   ${addSubheading}
-  ${imageHash ? addImageRect("Content Visual", 220) : ""}
-  ${addPlaceholderRect("Content Area", 300)}
+  ${addImageRect("Content Visual", 220)}
+  ${addTextRows(listItems.length > 0 ? listItems : ["Primary content area"], "Content")}
   ${addCTA}
   `;
   }
@@ -935,6 +1431,21 @@ export async function pageArchitectHandler(
     throw new Error("pageArchitect: Could not parse any screens from the flow description.");
   }
 
+  // 1.5 Generate AI content bundle for realistic mode
+  let contentBundle: ContentBundle | null = null;
+  if (contentMode === "realistic") {
+    try {
+      contentBundle = await generateContentBundle(productContext, screenSpecs.map((s) => s.name));
+    } catch (error) {
+      console.warn(`pageArchitect: content bundle generation failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    if (contentBundle) {
+      for (const [index, spec] of screenSpecs.entries()) {
+        spec.realisticContent = applyBundleToScreen(spec.template, spec.name, contentBundle, index);
+      }
+    }
+  }
+
   // 2. Load DS components for matching
   const componentSets = await bridge.getComponentSets();
   const fuse = buildFuse(componentSets);
@@ -942,14 +1453,16 @@ export async function pageArchitectHandler(
   // 2.5 Optionally prepare imagery for image-heavy flows
   const shouldUseStockImages =
     useStockImages &&
-    !wireframeMode &&
-    contentMode === "realistic" &&
-    isImageHeavyContext(productContext, flow);
+    !wireframeMode;
 
   let stockImagery: ScreenImagery[] = [];
   if (shouldUseStockImages) {
     try {
-      const querySource = imageQuery?.trim() ? imageQuery : guessImageQuery(productContext, flow);
+      const querySource = imageQuery?.trim()
+        ? imageQuery
+        : contentBundle?.imageQuery
+          ? contentBundle.imageQuery
+          : guessImageQuery(productContext, flow);
       stockImagery = await loadStockImagery(querySource, flow, screenSpecs.length, platform === "mobile" ? "portrait" : "landscape");
     } catch (error) {
       console.warn(`pageArchitect: stock imagery lookup failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -960,7 +1473,25 @@ export async function pageArchitectHandler(
   const createdScreens: CreatedScreen[] = [];
   const frameWidth = platformWidth(platform, userWidth);
   const FRAME_GAP = 80;
+
+  // Find rightmost existing frame so new screens don't overlap prior work
   let xOffset = 0;
+  try {
+    const posScript = `(async () => {
+  const frames = figma.currentPage.children.filter(n =>
+    n.type === 'FRAME' && !n.name.startsWith('__agent_')
+  );
+  const maxX = frames.reduce((max, f) => Math.max(max, f.x + f.width), 0);
+  return { maxX };
+})();`;
+    const posResult = await bridge.execute(posScript);
+    const posMax = (posResult.result as { maxX?: number })?.maxX ?? 0;
+    if (posResult.success && posMax > 0) {
+      xOffset = posMax + FRAME_GAP;
+    }
+  } catch {
+    // ignore — start at 0
+  }
 
   for (const [index, spec] of screenSpecs.entries()) {
     const resolved = resolveComponents(spec.requiredComponents, fuse);
@@ -1059,7 +1590,7 @@ export async function pageArchitectHandler(
   const logEntry = await decisionLog.log({
     tool: "page-architect",
     nodeIds: createdScreens.map((s) => s.frameId),
-    rationale: `Built ${createdScreens.length} screen frame(s) for flow: "${flow.slice(0, 100)}". Platform: ${platform}. Content: ${contentMode}. Wireframe: ${wireframeMode}. Prototype connections: ${prototypeConnections.length}. Flow map: ${!!flowMapPageId}.`,
+    rationale: `Built ${createdScreens.length} screen frame(s) for flow: "${flow.slice(0, 100)}". Platform: ${platform}. Content: ${contentMode}. AI content bundle: ${!!contentBundle}. Wireframe: ${wireframeMode}. Prototype connections: ${prototypeConnections.length}. Flow map: ${!!flowMapPageId}.`,
     tokens: [],
     reversible: true,
       metadata: {

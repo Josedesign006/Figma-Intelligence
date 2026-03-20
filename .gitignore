@@ -32,3 +32,7 @@ figma-intelligence-layer/node_modules/
 figma-intelligence-layer/dist/.DS_Store
 figma-intelligence-layer/docs/.DS_Store
 figma-intelligence-layer/src/.DS_Store
+
+design-bridge/.env
+design-bridge/node_modules/
+design-bridge/.DS_Store

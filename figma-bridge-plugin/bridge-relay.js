@@ -31,15 +31,29 @@ if (!process.env.CODEX_BIN_PATH && existsSync(DEFAULT_CODEX_APP_BIN)) {
   process.env.CODEX_BIN_PATH = DEFAULT_CODEX_APP_BIN;
 }
 
-function readFigmaToken() {
+function readMcpEnv() {
   try {
     const settingsPath = join(homedir(), ".claude", "settings.json");
     if (existsSync(settingsPath)) {
       const s = JSON.parse(readFileSync(settingsPath, "utf8"));
-      return s?.mcpServers?.["figma-intelligence-layer"]?.env?.FIGMA_ACCESS_TOKEN || "";
+      const figmaEnv = s?.mcpServers?.["figma-intelligence-layer"]?.env || {};
+      const bridgeEnv = s?.mcpServers?.["design-bridge"]?.env || {};
+      return {
+        // Merge figma-intelligence-layer env (has UNSPLASH, GEMINI, ANTHROPIC keys etc.)
+        ...figmaEnv,
+        // Pull Stitch/Unsplash/Pexels from design-bridge as a fallback
+        ...(bridgeEnv.UNSPLASH_ACCESS_KEY && !figmaEnv.UNSPLASH_ACCESS_KEY
+          ? { UNSPLASH_ACCESS_KEY: bridgeEnv.UNSPLASH_ACCESS_KEY } : {}),
+        ...(bridgeEnv.PEXELS_API_KEY && !figmaEnv.PEXELS_API_KEY
+          ? { PEXELS_API_KEY: bridgeEnv.PEXELS_API_KEY } : {}),
+        ...(bridgeEnv.STITCH_API_KEY && !figmaEnv.STITCH_API_KEY
+          ? { STITCH_API_KEY: bridgeEnv.STITCH_API_KEY } : {}),
+        ...(bridgeEnv.GOOGLE_CLOUD_PROJECT && !figmaEnv.GOOGLE_CLOUD_PROJECT
+          ? { GOOGLE_CLOUD_PROJECT: bridgeEnv.GOOGLE_CLOUD_PROJECT } : {}),
+      };
     }
   } catch {}
-  return "";
+  return {};
 }
 
 let _mcpProc = null;
@@ -48,11 +62,12 @@ function startPersistentMcpServer() {
     console.log("⚠  MCP server not built — run setup.sh");
     return;
   }
+  const savedEnv = readMcpEnv();
   _mcpProc = spawn("node", [MCP_SERVER_PATH], {
     stdio: ["ignore", "pipe", "pipe"],
     env: {
       ...process.env,
-      FIGMA_ACCESS_TOKEN: readFigmaToken(),
+      ...savedEnv,
       FIGMA_BRIDGE_PORT: String(PORT),
       ENABLE_DECISION_LOG: "true",
     },
@@ -83,6 +98,11 @@ const activeChatProcesses = new Map();   // requestId → ChildProcess | EventEm
 let authInfo = { loggedIn: false, email: null };
 let openaiAuthInfo = { loggedIn: false, email: null };
 let geminiCliAuthInfo = { loggedIn: false, email: null };
+
+// TTL cache for auth refresh — avoid spawning auth subprocesses on every plugin connect
+const AUTH_REFRESH_TTL_MS = 5 * 60 * 1000; // 5 minutes
+let _lastAuthRefresh = 0;
+let _authRefreshInFlight = null;
 
 // ── Provider config (persisted to ~/.claude/settings.json) ───────────────────
 let providerConfig = { provider: "claude", apiKey: null };
@@ -120,7 +140,29 @@ function saveProviderConfig() {
 
 loadProviderConfig();
 
-async function refreshAuthState({ log = false } = {}) {
+async function refreshAuthState({ log = false, force = false } = {}) {
+  // Return cached auth if within TTL (unless forced or startup log)
+  const now = Date.now();
+  if (!force && !log && (now - _lastAuthRefresh) < AUTH_REFRESH_TTL_MS) {
+    sendRelayStatus(pluginSocket, hasConnectedMcpSocket());
+    return;
+  }
+  // Deduplicate concurrent refresh calls
+  if (_authRefreshInFlight) {
+    await _authRefreshInFlight;
+    sendRelayStatus(pluginSocket, hasConnectedMcpSocket());
+    return;
+  }
+  _authRefreshInFlight = _doRefreshAuthState({ log });
+  try {
+    await _authRefreshInFlight;
+    _lastAuthRefresh = Date.now();
+  } finally {
+    _authRefreshInFlight = null;
+  }
+}
+
+async function _doRefreshAuthState({ log = false } = {}) {
   const claudeAvailable = await isClaudeAvailable();
   if (claudeAvailable) {
     authInfo = await getClaudeAuthInfo();
@@ -171,7 +213,7 @@ async function refreshAuthState({ log = false } = {}) {
 
 // ── Auth check on startup ───────────────────────────────────────────────────
 (async () => {
-  await refreshAuthState({ log: true });
+  await refreshAuthState({ log: true, force: true });
 })();
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -270,7 +312,11 @@ wss.on("connection", (ws, req) => {
         const onEvent = (event) => {
           sendToPlugin(event);
           if (event.type === "tool_start") {
-            console.log(`  🔧 tool: ${event.tool}`);
+            console.log(`  🔧 tool_start: ${event.tool}`);
+          } else if (event.type === "tool_done") {
+            console.log(`  ✅ tool_done:  ${event.tool}${event.isError ? " [ERROR]" : ""}`);
+          } else if (event.type === "phase_start") {
+            console.log(`  📋 phase: ${event.phase}`);
           }
         };
 
@@ -324,6 +370,7 @@ wss.on("connection", (ws, req) => {
             attachments: msg.attachments,
             conversation: msg.conversation,
             requestId,
+            model: msg.model,
             onEvent,
           });
         }

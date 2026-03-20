@@ -313,6 +313,35 @@
       color: rgba(160,132,232,0.95);
       font-weight: 600;
     }
+    .activity-line.phase .activity-dot {
+      background: rgba(160,132,232,0.72);
+    }
+
+    /* Tools-used summary shown after response completes */
+    .tools-used-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin: 8px 0 2px;
+    }
+    .tools-used-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(77,143,95,0.08);
+      border: 1px solid rgba(77,143,95,0.22);
+      color: rgba(77,143,95,0.9);
+      font-family: var(--font-sans);
+    }
+    .tools-used-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      font-family: var(--font-sans);
+    }
     .tool-pill {
       display: inline-flex;
       align-items: center;
@@ -1250,42 +1279,79 @@
   }
 
   var TOOL_LABELS = {
-    figma_create_frame: "Create frame",
-    figma_create_child: "Create node",
-    figma_create_page: "Create page",
-    figma_set_fills: "Set fills",
-    figma_set_text: "Set text",
-    figma_set_strokes: "Set strokes",
-    figma_resize_node: "Resize node",
-    figma_move_node: "Move node",
-    figma_delete_node: "Delete node",
-    figma_rename_node: "Rename node",
-    figma_clone_node: "Clone node",
-    figma_take_screenshot: "Screenshot",
-    figma_get_node: "Read node",
-    figma_get_status: "Check status",
-    figma_get_selection: "Get selection",
-    figma_get_pages: "Get pages",
-    figma_get_styles: "Get styles",
-    figma_get_variables: "Get variables",
-    figma_navigate: "Navigate",
-    figma_execute: "Execute code",
-    figma_search_components: "Search components",
+    // Vision / Audit
+    figma_screen_cloner: "Clone screen",
     figma_visual_audit: "Visual audit",
     figma_a11y_audit: "Accessibility audit",
-    figma_generate_spec: "Generate spec",
-    figma_layout_intelligence: "Layout",
-    figma_design_system_variables: "Design system",
-    figma_batch_create_variables: "Batch variables",
-    figma_theme_generator: "Generate theme",
-    figma_component_audit: "Component audit",
-    figma_health_report: "Health report",
+    figma_sketch_to_design: "Sketch → design",
+    figma_design_from_ref: "Design from reference",
+    // Accuracy / Layout
     figma_intent_translator: "Translate intent",
-    figma_page_architect: "Page architect",
-    figma_unsplash_search: "Image search",
-    figma_generate_image_and_insert: "Generate image",
+    figma_layout_intelligence: "Layout intelligence",
     figma_variant_expander: "Expand variants",
-    figma_screen_cloner: "Clone screen",
+    figma_theme_generator: "Generate theme",
+    figma_lint_rules: "Lint rules",
+    figma_component_audit: "Component audit",
+    figma_component_archaeologist: "Component archaeology",
+    // Generation
+    figma_page_architect: "Page architect",
+    figma_generate_image_and_insert: "Generate image",
+    figma_unsplash_search: "Image search",
+    figma_url_to_frame: "URL → frame",
+    figma_system_drift: "System drift",
+    figma_prototype_map: "Prototype map",
+    figma_animated_build: "Animated build",
+    // Sync
+    figma_animation_specifier: "Animation spec",
+    figma_sync_from_code: "Sync from code",
+    figma_webhook_listener: "Webhook listener",
+    // Governance
+    figma_design_system_scaffolder: "DS scaffolder",
+    figma_design_system_primitives: "DS primitives",
+    figma_design_system_variables: "DS variables",
+    figma_token_naming_convention: "Token naming",
+    figma_decision_log: "Decision log",
+    figma_health_report: "Health report",
+    figma_generate_spec: "Generate spec",
+    figma_apg_doc: "APG doc",
+    figma_token_migrate: "Token migrate",
+    // Bridge / Execute
+    figma_execute: "Execute code",
+    figma_get_status: "Check status",
+    figma_navigate: "Navigate",
+    figma_get_selection: "Get selection",
+    figma_take_screenshot: "Screenshot",
+    figma_get_node: "Read node",
+    figma_create_variable_collection: "Create var collection",
+    figma_create_variable: "Create variable",
+    figma_update_variable: "Update variable",
+    figma_delete_variable: "Delete variable",
+    figma_rename_variable: "Rename variable",
+    figma_delete_variable_collection: "Delete var collection",
+    figma_add_mode: "Add mode",
+    figma_rename_mode: "Rename mode",
+    figma_batch_create_variables: "Batch create variables",
+    figma_batch_update_variables: "Batch update variables",
+    figma_get_variables: "Get variables",
+    figma_clone_node: "Clone node",
+    figma_delete_node: "Delete node",
+    figma_move_node: "Move node",
+    figma_resize_node: "Resize node",
+    figma_rename_node: "Rename node",
+    figma_set_fills: "Set fills",
+    figma_set_strokes: "Set strokes",
+    figma_set_text: "Set text",
+    figma_search_components: "Search components",
+    figma_instantiate_component: "Use component",
+    figma_set_description: "Set description",
+    figma_get_styles: "Get styles",
+    figma_create_child: "Create node",
+    figma_create_frame: "Create frame",
+    figma_get_pages: "Get pages",
+    figma_create_page: "Create page",
+    // Generic
+    exec_command: "Run command",
+    mcp_tool: "MCP tool",
   };
 
   function toolLabel(name) {
@@ -1422,9 +1488,9 @@
   /* ── Model switcher ───────────────────────────────────────────────────── */
   var PROVIDER_MODELS = {
     claude: [
-      { id: "opus",   label: "Opus",   desc: "Most capable" },
-      { id: "sonnet", label: "Sonnet", desc: "Balanced" },
-      { id: "haiku",  label: "Haiku",  desc: "Fastest" },
+      { id: "claude-opus-4-6",          label: "Opus 4",    desc: "Most capable · default" },
+      { id: "claude-sonnet-4-6",        label: "Sonnet 4",  desc: "Faster · balanced" },
+      { id: "claude-haiku-4-5-20251001",label: "Haiku 4.5", desc: "Fastest · lightweight" },
     ],
     openai: [
       { id: "gpt-5.4",      label: "GPT-5.4",      desc: "Best quality" },
@@ -1440,7 +1506,7 @@
     bridge: [],
   };
   var selectedModelByProvider = {
-    claude: "sonnet",
+    claude: "claude-opus-4-6",
     openai: "gpt-5.4",
     gemini: "gemini-2.5-pro",
     bridge: null,
@@ -1940,6 +2006,7 @@
   var currentActivityEl = null;
   var currentToolStepsEl = null;
   var currentToolPills = {};
+  var currentToolsUsed = []; // ordered list of tools called this turn
 
   /* ── UI refs ──────────────────────────────────────────────────────────── */
   var thread = document.getElementById("thread");
@@ -2360,6 +2427,10 @@
       '<span>' + escapeHtml(label) + '</span>';
     currentToolStepsEl.appendChild(pill);
     currentToolPills[toolName] = pill;
+    // Track unique tools used this turn
+    if (currentToolsUsed.indexOf(toolName) === -1) {
+      currentToolsUsed.push(toolName);
+    }
     scrollBottom();
   }
 
@@ -2448,6 +2519,26 @@
       }
     }
 
+    // Append tools-used summary if any tools were called
+    if (currentToolsUsed.length > 0 && currentTextEl) {
+      var summaryWrap = document.createElement("div");
+      summaryWrap.style.marginTop = "10px";
+      var summaryLabel = document.createElement("div");
+      summaryLabel.className = "tools-used-label";
+      summaryLabel.textContent = currentToolsUsed.length + " MCP tool" + (currentToolsUsed.length > 1 ? "s" : "") + " used:";
+      summaryWrap.appendChild(summaryLabel);
+      var summaryRow = document.createElement("div");
+      summaryRow.className = "tools-used-summary";
+      currentToolsUsed.forEach(function(t) {
+        var tag = document.createElement("span");
+        tag.className = "tools-used-tag";
+        tag.innerHTML = '<svg width="8" height="8" viewBox="0 0 8 8" fill="none"><circle cx="4" cy="4" r="3" stroke="currentColor" stroke-width="1"/><path d="M2.5 4l1 1L5.5 2.5" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>' + escapeHtml(toolLabel(t));
+        summaryRow.appendChild(tag);
+      });
+      summaryWrap.appendChild(summaryRow);
+      currentTextEl.appendChild(summaryWrap);
+    }
+
     // Spacer between turns
     var sp = document.createElement("div");
     sp.style.height = "14px";
@@ -2459,6 +2550,7 @@
     currentAssistantRawText = "";
     currentToolStepsEl = null;
     currentToolPills = {};
+    currentToolsUsed = [];
     scrollBottom();
   }
 
@@ -2483,6 +2575,7 @@
     currentAssistantRawText = "";
     currentToolStepsEl = null;
     currentToolPills = {};
+    currentToolsUsed = [];
   }
 
   /* ── Send message ─────────────────────────────────────────────────────── */
@@ -2705,6 +2798,16 @@
       }
 
       // ── Chat streaming events ────────────────────────────────────────
+      if (msg.type === "phase_start") {
+        if (isStreaming && currentMsgEl) {
+          appendActivityLine("phase",
+            '<strong>' + escapeHtml(msg.phase || "") + '</strong>',
+            Date.now()
+          );
+        }
+        return;
+      }
+
       if (msg.type === "text_delta") {
         appendTextDelta(msg.delta);
         return;

@@ -396,7 +396,18 @@ export class VisionClient {
   private readonly anthropicProvider: AnthropicVisionProvider;
 
   constructor() {
-    this.providerName = (process.env.VISION_PROVIDER || "offline").toLowerCase();
+    const explicit = (process.env.VISION_PROVIDER || "").toLowerCase();
+    // Auto-detect a real vision provider when none is explicitly configured.
+    // Priority: explicit env → anthropic (if API key present) → openai (if API key present) → offline
+    if (explicit) {
+      this.providerName = explicit;
+    } else if (process.env.ANTHROPIC_API_KEY) {
+      this.providerName = "anthropic";
+    } else if (process.env.OPENAI_API_KEY) {
+      this.providerName = "openai";
+    } else {
+      this.providerName = "offline";
+    }
     this.openaiProvider = new OpenAIVisionProvider();
     this.anthropicProvider = new AnthropicVisionProvider();
   }

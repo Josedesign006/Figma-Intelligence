@@ -353,6 +353,17 @@ const SYSTEM_PROMPT =
   "3. Execute using MCP tools — do NOT stop at planning\n" +
   "4. Verify with figma_take_screenshot, figma_get_node, or direct inspection\n" +
   "5. Report concisely: what was done, which tools were used\n\n" +
+  "SCREEN COUNT RULE: Always create exactly ONE screen/frame unless the user explicitly asks for multiple screens, flows, or variants. Do not create multiple states, breakpoints, or iterations unless directly requested. One request = one frame.\n\n" +
+  "BATCHING RULES (critical for speed and quality):\n" +
+  "- NEVER make sequential individual figma_create_variable / figma_update_variable calls — always use figma_batch_create_variables or figma_batch_update_variables for 2+ variables\n" +
+  "- NEVER call figma_create_child + figma_set_fills + figma_set_text as separate round-trips — batch all node creation and styling into a SINGLE figma_execute call using Figma Plugin API directly\n" +
+  "- For complex UI builds (frames, nested layouts, text, fills), write ONE figma_execute call that creates everything in sequence inside the plugin sandbox — this is 5-10x faster than multiple MCP tool calls\n" +
+  "- Only use individual low-level tools (figma_create_child, figma_set_fills, etc.) when making a single targeted edit to an existing node\n" +
+  "- For design system operations (tokens, variables, collections), always batch: create collection → batch create all variables in one call\n\n" +
+  "QUALITY RULES:\n" +
+  "- Interpret vague requests intelligently: 'make a login page' means a polished, production-quality login screen with proper form fields, CTA, branding, and layout — not a bare wireframe\n" +
+  "- Apply proper Auto Layout, realistic spacing (8px grid), real typography hierarchy, and meaningful content by default\n" +
+  "- Use design tokens / variables when the file has them; fall back to sensible hex values otherwise\n\n" +
   "For document, subscription, pricing, and spec requests, follow this pipeline unless the workspace instructions require a stricter one: " +
   "figma_get_status -> figma_intent_translator -> figma_layout_intelligence -> figma_page_architect -> figma_generate_spec when documentation output is requested.\n\n" +
   "Recovery order when generation returns empty or weak results:\n" +
@@ -361,6 +372,53 @@ const SYSTEM_PROMPT =
   "3. Reuse existing file structure if similar screens exist\n" +
   "4. Only then use figma_execute for manual low-level construction\n\n" +
   "Response style: concise, direct, high-signal. Execute first, briefly explain after.";
+
+/**
+ * Expand short or vague prompts into a richer, actionable design request.
+ * Mirrors expandShortPrompt() in chat-runner.js — runs locally, no AI call.
+ */
+function expandShortPrompt(message) {
+  const text = (message || "").trim();
+  if (text.length > 60) return text;
+
+  const lower = text.toLowerCase();
+
+  const expansions = [
+    [/^(create|make|build|design|add)?\s*(a\s+)?login\s*(page|screen|form)?$/i,
+      "Create a polished, production-quality login screen. Include: email and password input fields with labels and placeholder text, a primary 'Log In' CTA button, a 'Forgot password?' link, a divider with 'or continue with', social login buttons (Google, Apple), and a 'Don't have an account? Sign up' footer link. Use proper Auto Layout, 8px grid spacing, and a clean modern aesthetic."],
+    [/^(create|make|build|design|add)?\s*(a\s+)?dashboard\s*(page|screen)?$/i,
+      "Create a modern analytics dashboard. Include: a top navigation bar with logo and user avatar, 4 KPI stat cards (total users, revenue, active sessions, conversion rate) with trend indicators, a line chart area, a recent activity table with status badges, and a sidebar navigation. Use proper Auto Layout and realistic placeholder data."],
+    [/^(create|make|build|design|add)?\s*(a\s+)?home\s*(page|screen)?$/i,
+      "Create a polished product home page. Include: a sticky navigation bar with logo, nav links, and a CTA button, a hero section with headline, subheadline, and primary/secondary CTAs, a features section with 3 icon+text cards, a social proof / testimonials row, and a footer. Use proper Auto Layout and compelling placeholder copy."],
+    [/^(create|make|build|design|add)?\s*(a\s+)?signup\s*(page|screen|form)?$/i,
+      "Create a clean signup / registration screen. Include: full name, email, and password fields with strength indicator, a 'Create Account' CTA, terms of service checkbox, and a social signup option. Use proper Auto Layout, label hierarchy, and error-state-ready field styling."],
+    [/^(create|make|build|design|add)?\s*(a\s+)?(profile|account)\s*(page|screen)?$/i,
+      "Create a user profile page with: avatar, display name, bio, stats row (followers, following, posts), tab bar (Posts, Likes, Saved), and a content grid. Use proper Auto Layout and realistic placeholder content."],
+    [/^(create|make|build|design|add)?\s*(a\s+)?(card|product card|item card)s?\s*$/i,
+      "Create a polished product card component with: product image placeholder, category tag, product name, price, rating with stars, and an 'Add to cart' button. Use proper Auto Layout, shadows, rounded corners, and realistic placeholder content."],
+    [/^(create|make|build|design|add)?\s*(a\s+)?(navbar|nav bar|navigation bar|header)\s*$/i,
+      "Create a responsive navigation bar with: logo on the left, navigation links in the center (Home, About, Features, Pricing), and a CTA button + user avatar on the right. Use proper Auto Layout and 8px grid spacing."],
+    [/^(create|make|build|design|add)?\s*(a\s+)?onboarding\s*(flow|screen|page)?\s*$/i,
+      "Create a single onboarding welcome screen with: a large illustration area, bold headline, supporting subtext, a 'Get Started' primary CTA, a 'Log in' secondary link, and a step indicator. Use proper Auto Layout and a friendly, approachable visual style."],
+    [/^(create|make|build|design|add)?\s*(a\s+)?checkout\s*(page|screen|flow)?\s*$/i,
+      "Create a checkout screen with: order summary section (item, qty, price), shipping address form, payment method selector (card/PayPal), order total breakdown, and a 'Place Order' CTA. Use proper Auto Layout and realistic placeholder content."],
+    [/^(create|make|build|design|add)?\s*(a\s+)?settings\s*(page|screen)?\s*$/i,
+      "Create a settings page with: a sidebar navigation (Account, Security, Notifications, Billing, Appearance), and a main content area showing Account settings with: profile photo upload, display name, email, phone fields, a language/timezone selector, and Save/Cancel buttons. Use proper Auto Layout."],
+  ];
+
+  for (const [pattern, expanded] of expansions) {
+    if (pattern.test(lower)) {
+      console.log(`[codex-runner] Expanded short prompt: "${text}" → enriched`);
+      return expanded;
+    }
+  }
+
+  if (text.length < 30 && text.length > 3) {
+    return `${text}. Design this as a polished, production-quality Figma screen with proper Auto Layout, an 8px spacing grid, realistic content, and a clean modern visual style.`;
+  }
+
+  return text;
+}
 
 function processAttachments(attachments) {
   const tempFiles = [];
@@ -459,7 +517,8 @@ function buildTaskSpecificGuidance(message) {
 function runCodex({ message, attachments, conversation, requestId, model, onEvent }) {
   const { imageArgs, extraText, tempFiles } = processAttachments(attachments);
 
-  const userText = (message || "").trim() || "Please help with the Figma design.";
+  const rawText = (message || "").trim() || "Please help with the Figma design.";
+  const userText = expandShortPrompt(rawText);
   const historyText = formatConversationHistory(conversation);
   const taskGuidance = buildTaskSpecificGuidance(userText);
 
