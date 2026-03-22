@@ -23,7 +23,9 @@ const { runCodex, isCodexAvailable, getCodexAuthInfo, resetCodexSession } = requ
 const { runGemini } = require("./gemini-runner");
 const { runGeminiCli, isGeminiCliAvailable, getGeminiCliAuthInfo } = require("./gemini-cli-runner");
 
-const PORT = parseInt(process.argv[2] || process.env.BRIDGE_PORT || "9001", 10);
+// P3: Port fallback — try PORT, then PORT+1 through PORT+9
+const BASE_PORT = parseInt(process.argv[2] || process.env.BRIDGE_PORT || "9001", 10);
+let PORT = BASE_PORT;
 const MCP_SERVER_PATH = resolve(__dirname, "../figma-intelligence-layer/dist/index.js");
 const DEFAULT_CODEX_APP_BIN = "/Applications/Codex.app/Contents/Resources/codex";
 
@@ -103,6 +105,9 @@ let geminiCliAuthInfo = { loggedIn: false, email: null };
 const AUTH_REFRESH_TTL_MS = 5 * 60 * 1000; // 5 minutes
 let _lastAuthRefresh = 0;
 let _authRefreshInFlight = null;
+
+// ── Active design system ─────────────────────────────────────────────────────
+let activeDesignSystemId = null;
 
 // ── Provider config (persisted to ~/.claude/settings.json) ───────────────────
 let providerConfig = { provider: "claude", apiKey: null };
@@ -230,6 +235,7 @@ function sendRelayStatus(ws, mcpConnected) {
     hasApiKey: !!(providerConfig.apiKey),
     geminiLoggedIn: geminiCliAuthInfo.loggedIn,
     geminiEmail: geminiCliAuthInfo.email,
+    activeDesignSystemId,
   }));
 }
 
@@ -254,8 +260,61 @@ function sendToPlugin(payload) {
   }
 }
 
+// ── P3: Grace period — retain plugin state briefly on disconnect ──────────────
+const PLUGIN_GRACE_PERIOD_MS = 5000;
+let pluginGraceTimer = null;
+let pluginGraceState = null; // stashed state during grace period
+
+// ── P3: Heartbeat — detect dead connections ──────────────────────────────────
+const HEARTBEAT_INTERVAL_MS = 30000;
+
+function setupHeartbeat(wss) {
+  const interval = setInterval(() => {
+    wss.clients.forEach((ws) => {
+      if (ws._isAlive === false) {
+        console.log("  ⚠ Terminating unresponsive connection");
+        return ws.terminate();
+      }
+      ws._isAlive = false;
+      ws.ping();
+    });
+  }, HEARTBEAT_INTERVAL_MS);
+  wss.on("close", () => clearInterval(interval));
+}
+
+// ── P3: Port fallback — try ports 9001-9010 ──────────────────────────────────
+function createServerWithFallback(basePort, maxRetries = 9) {
+  return new Promise((resolve, reject) => {
+    let attempt = 0;
+    function tryPort(port) {
+      const server = new WebSocketServer({ port });
+      server.on("listening", () => {
+        PORT = port;
+        resolve(server);
+      });
+      server.on("error", (err) => {
+        if (err.code === "EADDRINUSE" && attempt < maxRetries) {
+          attempt++;
+          console.log(`  ⚠ Port ${port} in use, trying ${port + 1}…`);
+          tryPort(port + 1);
+        } else {
+          reject(err);
+        }
+      });
+    }
+    tryPort(basePort);
+  });
+}
+
 // ── WebSocket Server ─────────────────────────────────────────────────────────
-const wss = new WebSocketServer({ port: PORT });
+(async () => {
+  let wss;
+  try {
+    wss = await createServerWithFallback(BASE_PORT);
+  } catch (err) {
+    console.error(`Fatal: could not bind to any port in range ${BASE_PORT}-${BASE_PORT + 9}:`, err.message);
+    process.exit(1);
+  }
 
 console.log(`\n🔌 Figma Intelligence Bridge Relay`);
 console.log(`   Listening on ws://localhost:${PORT}`);
@@ -263,15 +322,29 @@ console.log(`   MCP server   → connects to ws://localhost:${PORT}`);
 console.log(`   Figma plugin → connects to ws://localhost:${PORT}/plugin`);
 console.log(`   Waiting for connections…\n`);
 
+// Start heartbeat monitoring
+setupHeartbeat(wss);
+
 // Start the MCP server as a persistent child process so the plugin
 // always shows "Connected" — not just during active chat requests.
-wss.on("listening", () => startPersistentMcpServer());
+startPersistentMcpServer();
 
 wss.on("connection", (ws, req) => {
   const path = req.url || "/";
   const isPlugin = path.includes("/plugin");
 
+  // P3: Heartbeat — mark connection alive on pong
+  ws._isAlive = true;
+  ws.on("pong", () => { ws._isAlive = true; });
+
   if (isPlugin) {
+    // P3: Cancel grace timer if plugin reconnects within grace period
+    if (pluginGraceTimer) {
+      clearTimeout(pluginGraceTimer);
+      pluginGraceTimer = null;
+      pluginGraceState = null;
+      console.log("  ↺ Plugin reconnected within grace period");
+    }
     pluginSocket = ws;
     console.log("✅ Figma plugin connected");
     sendRelayStatus(ws, hasConnectedMcpSocket());
@@ -303,6 +376,19 @@ wss.on("connection", (ws, req) => {
         return;
       }
 
+      // Set active design system
+      if (msg.type === "set-design-system") {
+        const newId = msg.designSystemId || null;
+        if (newId !== activeDesignSystemId) {
+          activeDesignSystemId = newId;
+          resetSession();
+          resetCodexSession();
+          console.log(`  🎨 design system: ${newId || "none"} (sessions reset)`);
+        }
+        sendToPlugin({ type: "design-system-stored", designSystemId: activeDesignSystemId });
+        return;
+      }
+
       // Chat message → route to the configured AI runner
       if (msg.type === "chat") {
         const requestId = msg.id;
@@ -329,6 +415,7 @@ wss.on("connection", (ws, req) => {
             conversation: msg.conversation,
             requestId,
             model: msg.model,
+            designSystemId: activeDesignSystemId,
             onEvent,
           });
         } else if (prov === "gemini") {
@@ -340,6 +427,7 @@ wss.on("connection", (ws, req) => {
               conversation: msg.conversation,
               requestId,
               model: msg.model,
+              designSystemId: activeDesignSystemId,
               onEvent,
             });
           } else {
@@ -351,6 +439,7 @@ wss.on("connection", (ws, req) => {
               requestId,
               apiKey: providerConfig.apiKey,
               model: msg.model,
+              designSystemId: activeDesignSystemId,
               onEvent,
             });
           }
@@ -371,6 +460,7 @@ wss.on("connection", (ws, req) => {
             conversation: msg.conversation,
             requestId,
             model: msg.model,
+            designSystemId: activeDesignSystemId,
             onEvent,
           });
         }
@@ -449,8 +539,16 @@ wss.on("connection", (ws, req) => {
 
   ws.on("close", () => {
     if (isPlugin) {
-      pluginSocket = null;
-      console.log("⚠  Figma plugin disconnected");
+      // P3: Grace period — wait before fully disconnecting plugin
+      console.log(`⚠  Figma plugin disconnected — ${PLUGIN_GRACE_PERIOD_MS / 1000}s grace period`);
+      pluginGraceState = { activeDesignSystemId };
+      pluginGraceTimer = setTimeout(() => {
+        pluginSocket = null;
+        pluginGraceTimer = null;
+        pluginGraceState = null;
+        console.log("⚠  Plugin grace period expired — fully disconnected");
+        sendRelayStatus(null, hasConnectedMcpSocket());
+      }, PLUGIN_GRACE_PERIOD_MS);
     } else {
       mcpSockets.delete(ws);
       for (const [requestId, requestSocket] of pendingRequests.entries()) {
@@ -471,6 +569,9 @@ process.on("SIGINT", () => {
   console.log("\nShutting down relay…");
   for (const proc of activeChatProcesses.values()) proc.kill();
   if (_mcpProc) _mcpProc.kill();
+  if (pluginGraceTimer) clearTimeout(pluginGraceTimer);
   wss.close();
   process.exit(0);
 });
+
+})(); // end async IIFE for port fallback

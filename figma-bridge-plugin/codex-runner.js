@@ -41,6 +41,7 @@ const MODEL_MAP = {
 
 const {
   SYSTEM_PROMPT,
+  buildSystemPrompt,
   detectActiveSkills,
 } = require("./shared-prompt-config");
 
@@ -275,7 +276,7 @@ function processAttachments(attachments) {
  * Streams text back via onEvent({ type: "text_delta", delta, id }).
  * Returns the ChildProcess so the caller can kill it for abort.
  */
-function runCodex({ message, attachments, conversation, requestId, model, onEvent }) {
+function runCodex({ message, attachments, conversation, requestId, model, designSystemId, onEvent }) {
   const { imageArgs, extraText, tempFiles } = processAttachments(attachments);
 
   const rawText = (message || "").trim() || "Please help with the Figma design.";
@@ -300,7 +301,7 @@ function runCodex({ message, attachments, conversation, requestId, model, onEven
       "--color", "never",
       "--dangerously-bypass-approvals-and-sandbox",
       "--model", openAIModel,
-      "-c", `instructions=${JSON.stringify(SYSTEM_PROMPT)}`,
+      "-c", `instructions=${JSON.stringify(buildSystemPrompt(designSystemId))}`,
       ...imageArgs,
     ];
   } else {

@@ -17,6 +17,7 @@ const crypto = require("crypto");
 
 const {
   SYSTEM_PROMPT,
+  buildSystemPrompt,
   detectActiveSkills,
   REPO_DIR,
 } = require("./shared-prompt-config");
@@ -165,7 +166,7 @@ function processAttachments(attachments) {
 const CLAUDE_DEFAULT_MODEL = "claude-opus-4-6";
 const CLAUDE_VALID_MODELS = new Set(["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]);
 
-function runClaude({ message, attachments, conversation, requestId, model, onEvent }) {
+function runClaude({ message, attachments, conversation, requestId, model, designSystemId, onEvent }) {
   const { imageArgs, extraText, tempFiles } = processAttachments(attachments);
 
   const resolvedModel = CLAUDE_VALID_MODELS.has(model) ? model : CLAUDE_DEFAULT_MODEL;
@@ -195,7 +196,7 @@ function runClaude({ message, attachments, conversation, requestId, model, onEve
   let args;
   if (isFirstMessage) {
     // First message: create session with full config
-    const fullSystemPrompt = SYSTEM_PROMPT;
+    const fullSystemPrompt = buildSystemPrompt(designSystemId);
     args = [
       "--model", resolvedModel,
       "--system-prompt", fullSystemPrompt,

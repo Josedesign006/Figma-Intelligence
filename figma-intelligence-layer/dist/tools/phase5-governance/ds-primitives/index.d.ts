@@ -1,3 +1,4 @@
+import { FontConfig } from "../../../shared/font-config.js";
 export interface DsPrimitivesArgs {
     brandName: string;
     primaryColor?: string;
@@ -6,6 +7,7 @@ export interface DsPrimitivesArgs {
     accentColor?: string;
     createSemantics?: boolean;
     createDarkMode?: boolean;
+    fonts?: Partial<FontConfig>;
 }
 export interface DsPrimitivesResult {
     ok: boolean;

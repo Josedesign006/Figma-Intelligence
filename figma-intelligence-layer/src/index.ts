@@ -65,6 +65,9 @@ import { tokenMigrateHandler } from "./tools/phase5-governance/token-migrate/ind
 // ─── Bridge (for direct execute) ────────────────────────────────────────────
 import { ensureRelayServer, getBridge } from "./shared/figma-bridge.js";
 
+// ─── P0: Response compression ───────────────────────────────────────────────
+import { compressResponse } from "./shared/response-compression.js";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tool registry — 22 tools
 // ─────────────────────────────────────────────────────────────────────────────
@@ -293,6 +296,10 @@ const TOOLS: Tool[] = [
         contentMode: { type: "string", enum: ["placeholder", "realistic"] },
         useStockImages: { type: "boolean", description: "Automatically pull Unsplash photos for image-heavy product flows" },
         imageQuery: { type: "string", description: "Optional image search phrase override for stock imagery" },
+        fonts: {
+          type: "object",
+          description: "Optional font config: { heading, body, mono, ui } each with { family, styles[] }",
+        },
       },
       required: ["productContext", "flow", "platform", "contentMode"],
     },
@@ -527,6 +534,16 @@ const TOOLS: Tool[] = [
         },
         generateDarkMode: { type: "boolean" },
         dtcgExport: { type: "boolean" },
+        fonts: {
+          type: "object",
+          description: "Optional font config: { heading: { family, styles[] }, body: { family, styles[] }, mono: { family, styles[] }, ui: { family, styles[] } }",
+          properties: {
+            heading: { type: "object", properties: { family: { type: "string" }, styles: { type: "array", items: { type: "string" } } } },
+            body: { type: "object", properties: { family: { type: "string" }, styles: { type: "array", items: { type: "string" } } } },
+            mono: { type: "object", properties: { family: { type: "string" }, styles: { type: "array", items: { type: "string" } } } },
+            ui: { type: "object", properties: { family: { type: "string" }, styles: { type: "array", items: { type: "string" } } } },
+          },
+        },
       },
       required: ["brandColors", "productType", "brandName", "includeComponents", "generateDarkMode"],
     },
@@ -545,6 +562,16 @@ const TOOLS: Tool[] = [
         accentColor: { type: "string", description: "Accent hex color" },
         createSemantics: { type: "boolean", description: "Also create semantic color aliases" },
         createDarkMode: { type: "boolean", description: "Create Light and Dark modes for color collections" },
+        fonts: {
+          type: "object",
+          description: "Optional font config override. Default: Inter for body/ui, JetBrains Mono for mono.",
+          properties: {
+            heading: { type: "object", properties: { family: { type: "string" }, styles: { type: "array", items: { type: "string" } } } },
+            body: { type: "object", properties: { family: { type: "string" }, styles: { type: "array", items: { type: "string" } } } },
+            mono: { type: "object", properties: { family: { type: "string" }, styles: { type: "array", items: { type: "string" } } } },
+            ui: { type: "object", properties: { family: { type: "string" }, styles: { type: "array", items: { type: "string" } } } },
+          },
+        },
       },
       required: ["brandName"],
     },
@@ -1208,7 +1235,8 @@ async function dispatch(name: string, args: AnyArgs): Promise<unknown> {
     }
     case "figma_get_node": {
       const bridge = await getBridge();
-      return bridge.getNode((args as { nodeId: string }).nodeId);
+      // P0+P1: Return enriched node data with resolved styles via cache
+      return bridge.getNodeEnriched((args as { nodeId: string }).nodeId);
     }
 
     // ── Variable Management ──────────────────────────────────────────────
@@ -1383,10 +1411,27 @@ export function createMcpServer() {
         }
       }
 
-      content.push({
-        type: "text",
-        text: typeof result === "string" ? result : JSON.stringify(result, null, 2),
-      });
+      // P0: Adaptive response compression — prevent context window overflow
+      if (typeof result === "string") {
+        content.push({ type: "text", text: result });
+      } else {
+        const compressed = compressResponse(result);
+        if (compressed.tier === "full") {
+          content.push({ type: "text", text: JSON.stringify(result, null, 2) });
+        } else {
+          // Include compression metadata so the AI knows data was truncated
+          const envelope = {
+            _compressed: {
+              tier: compressed.tier,
+              originalSizeKB: Math.round(compressed.originalSizeBytes / 1024),
+              compressedSizeKB: Math.round(compressed.compressedSizeBytes / 1024),
+              note: `Response was compressed from ${Math.round(compressed.originalSizeBytes / 1024)}KB to ${Math.round(compressed.compressedSizeBytes / 1024)}KB (tier: ${compressed.tier}). Use more specific queries or nodeIds to get full data.`,
+            },
+            data: compressed.data,
+          };
+          content.push({ type: "text", text: JSON.stringify(envelope, null, 2) });
+        }
+      }
 
       return { content };
     } catch (error) {

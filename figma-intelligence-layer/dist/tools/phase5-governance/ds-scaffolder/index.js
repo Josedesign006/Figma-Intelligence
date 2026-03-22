@@ -10,6 +10,10 @@ exports.dsScaffolderHandler = dsScaffolderHandler;
 const figma_bridge_js_1 = require("../../../shared/figma-bridge.js");
 const decision_log_js_1 = require("../../../shared/decision-log.js");
 const token_utils_js_1 = require("../../../shared/token-utils.js");
+const font_config_js_1 = require("../../../shared/font-config.js");
+const semantic_token_catalog_js_1 = require("../../../shared/semantic-token-catalog.js");
+const component_templates_js_1 = require("../../../shared/component-templates.js");
+const component_script_builder_js_1 = require("../../../shared/component-script-builder.js");
 // ─── Color palette generation ─────────────────────────────────────────────────
 // Shade steps and their target lightness (0–1 in HSL)
 const SHADE_STEPS = [
@@ -122,9 +126,44 @@ function buildColorTokens(palettes, generateDarkMode) {
     }
     return tokens;
 }
-function buildSemanticTokens(primaryPalette, neutralPalette, generateDarkMode) {
+function buildSemanticTokens(palettes, generateDarkMode) {
     const tokens = [];
-    const semanticEntries = [
+    // Helper: resolve a primitive ref like "color/primitive/brand/500" to a hex
+    // by looking up the palette name and shade step
+    const resolveRef = (ref) => {
+        // Parse: "color/primitive/{paletteName}/{step}"
+        const parts = ref.split("/");
+        const paletteName = parts[2] ?? "neutral"; // brand, secondary, neutral, etc.
+        const step = parseInt(parts[3] ?? "500", 10);
+        // Map palette names: "brand" → primary palette (first), others by name
+        let palette;
+        if (paletteName === "brand") {
+            palette = palettes[0]; // primary is always first
+        }
+        else {
+            palette = palettes.find((p) => p.name.toLowerCase() === paletteName.toLowerCase());
+        }
+        if (!palette)
+            palette = palettes.find((p) => p.name === "neutral") ?? palettes[0];
+        return getShadeHex(palette, step);
+    };
+    // Use the semantic token catalog for COLOR tokens
+    const colorEntries = (0, semantic_token_catalog_js_1.getColorSemanticTokens)();
+    for (const entry of colorEntries) {
+        const lightHex = resolveRef(entry.lightRef);
+        const darkHex = generateDarkMode ? resolveRef(entry.darkRef) : undefined;
+        tokens.push({
+            name: entry.name,
+            value: lightHex,
+            type: "COLOR",
+            description: entry.description,
+            darkValue: darkHex,
+        });
+    }
+    // Legacy compat: also emit the old semantic names so existing bindings don't break
+    const primaryPalette = palettes[0];
+    const neutralPalette = palettes.find((p) => p.name === "neutral") ?? palettes[1];
+    const legacyEntries = [
         { name: "color/semantic/primary", lightStep: 500, darkStep: 400, palette: primaryPalette, description: "Primary brand color" },
         { name: "color/semantic/primary-hover", lightStep: 600, darkStep: 300, palette: primaryPalette, description: "Primary hover state" },
         { name: "color/semantic/primary-subtle", lightStep: 100, darkStep: 900, palette: primaryPalette, description: "Subtle primary tint" },
@@ -139,7 +178,10 @@ function buildSemanticTokens(primaryPalette, neutralPalette, generateDarkMode) {
         { name: "color/text/disabled", lightStep: 400, darkStep: 600, palette: neutralPalette, description: "Disabled text color" },
         { name: "color/text/on-primary", lightStep: 50, darkStep: 950, palette: primaryPalette, description: "Text on primary background" },
     ];
-    for (const entry of semanticEntries) {
+    for (const entry of legacyEntries) {
+        // Skip if already added by catalog (avoid duplicates)
+        if (tokens.some((t) => t.name === entry.name))
+            continue;
         const lightHex = getShadeHex(entry.palette, entry.lightStep);
         const darkHex = generateDarkMode && entry.darkStep !== undefined
             ? getShadeHex(entry.palette, entry.darkStep)
@@ -329,10 +371,12 @@ function buildSwatchesScript(allTokens) {
 })();
   `.trim();
 }
-function buildTypeAndSpacingScript() {
+function buildTypeAndSpacingScript(fontConfig) {
+    const fontLoads = (0, font_config_js_1.generateFontLoadScript)(fontConfig);
+    const bodyFont = (0, font_config_js_1.fontNameLiteral)("body", "Regular", fontConfig);
     return `
 (async () => {
-  await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+${fontLoads}
 
   var typeFrame = figma.createFrame();
   typeFrame.name = "Type Scale";
@@ -348,7 +392,7 @@ function buildTypeAndSpacingScript() {
   var typeSizes = [['xs', 12], ['sm', 14], ['base', 16], ['lg', 18], ['xl', 20], ['2xl', 24], ['3xl', 30], ['4xl', 36], ['5xl', 48]];
   for (var i = 0; i < typeSizes.length; i++) {
     var textNode = figma.createText();
-    textNode.fontName = { family: "Inter", style: "Regular" };
+    textNode.fontName = ${bodyFont};
     textNode.fontSize = typeSizes[i][1];
     textNode.characters = typeSizes[i][0] + ' — The quick brown fox';
     typeFrame.appendChild(textNode);
@@ -378,137 +422,20 @@ function buildTypeAndSpacingScript() {
 })();
   `.trim();
 }
-const COMPONENT_TEMPLATES = {
-    core: `
-    // Button
-    const btn = figma.createComponent();
-    btn.name = 'Button';
-    btn.resize(120, 40);
-    btn.layoutMode = 'HORIZONTAL';
-    btn.primaryAxisAlignItems = 'CENTER';
-    btn.counterAxisAlignItems = 'CENTER';
-    btn.paddingLeft = btn.paddingRight = 16;
-    btn.cornerRadius = 6;
-    btn.fills = [{ type: 'SOLID', color: { r: 0.15, g: 0.4, b: 0.96 } }];
-    const btnText = figma.createText();
-    btnText.characters = 'Button';
-    btnText.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
-    btn.appendChild(btnText);
-    page.appendChild(btn);
-    btn.x = 32; btn.y = 32;
-  `,
-    forms: `
-    // Input field
-    const input = figma.createComponent();
-    input.name = 'Input';
-    input.resize(240, 40);
-    input.layoutMode = 'HORIZONTAL';
-    input.primaryAxisAlignItems = 'CENTER';
-    input.paddingLeft = input.paddingRight = 12;
-    input.cornerRadius = 4;
-    input.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
-    input.strokes = [{ type: 'SOLID', color: { r: 0.8, g: 0.8, b: 0.85 } }];
-    input.strokeWeight = 1;
-    const inputPlaceholder = figma.createText();
-    inputPlaceholder.characters = 'Placeholder text';
-    inputPlaceholder.fills = [{ type: 'SOLID', color: { r: 0.6, g: 0.6, b: 0.65 } }];
-    input.appendChild(inputPlaceholder);
-    page.appendChild(input);
-    input.x = 32; input.y = 100;
-  `,
-    navigation: `
-    // Nav bar
-    const nav = figma.createComponent();
-    nav.name = 'NavBar';
-    nav.resize(1440, 64);
-    nav.layoutMode = 'HORIZONTAL';
-    nav.primaryAxisAlignItems = 'CENTER';
-    nav.counterAxisAlignItems = 'CENTER';
-    nav.paddingLeft = nav.paddingRight = 32;
-    nav.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
-    nav.strokes = [{ type: 'SOLID', color: { r: 0.9, g: 0.9, b: 0.92 } }];
-    nav.strokeAlign = 'OUTSIDE';
-    page.appendChild(nav);
-    nav.x = 32; nav.y = 168;
-  `,
-    data: `
-    // Table
-    const table = figma.createComponent();
-    table.name = 'Table';
-    table.resize(800, 200);
-    table.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
-    table.strokes = [{ type: 'SOLID', color: { r: 0.9, g: 0.9, b: 0.92 } }];
-    table.strokeWeight = 1;
-    page.appendChild(table);
-    table.x = 32; table.y = 260;
-  `,
-    feedback: `
-    // Toast
-    const toast = figma.createComponent();
-    toast.name = 'Toast';
-    toast.resize(320, 56);
-    toast.layoutMode = 'HORIZONTAL';
-    toast.primaryAxisAlignItems = 'CENTER';
-    toast.paddingLeft = toast.paddingRight = 16;
-    toast.cornerRadius = 8;
-    toast.fills = [{ type: 'SOLID', color: { r: 0.1, g: 0.7, b: 0.3 } }];
-    const toastText = figma.createText();
-    toastText.characters = 'Success message';
-    toastText.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
-    toast.appendChild(toastText);
-    page.appendChild(toast);
-    toast.x = 32; toast.y = 500;
-  `,
-    overlay: `
-    // Modal
-    const modal = figma.createComponent();
-    modal.name = 'Modal';
-    modal.resize(480, 320);
-    modal.layoutMode = 'VERTICAL';
-    modal.primaryAxisAlignItems = 'MIN';
-    modal.paddingLeft = modal.paddingRight = 24;
-    modal.paddingTop = modal.paddingBottom = 24;
-    modal.itemSpacing = 16;
-    modal.cornerRadius = 12;
-    modal.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
-    modal.effects = [{
-      type: 'DROP_SHADOW',
-      color: { r: 0, g: 0, b: 0, a: 0.12 },
-      offset: { x: 0, y: 8 },
-      radius: 24,
-      spread: 0,
-      visible: true,
-      blendMode: 'NORMAL',
-    }];
-    page.appendChild(modal);
-    modal.x = 32; modal.y = 580;
-  `,
-};
-function buildComponentsScript(brandName, includeComponents) {
-    const componentCode = includeComponents
-        .map((cat) => COMPONENT_TEMPLATES[cat] ?? "")
-        .join("\n");
-    return `
-(async () => {
-  await figma.loadFontAsync({ family: "Inter", style: "Regular" });
-  await figma.loadFontAsync({ family: "Inter", style: "Medium" });
-
-  const page = figma.createPage();
-  page.name = ${JSON.stringify(`${brandName} – Components`)};
-  figma.currentPage = page;
-
-  ${componentCode}
-
-  return { pageId: page.id };
-})();
-  `.trim();
+/**
+ * Build the components page script using blueprint-driven generation.
+ * Creates all 17 professional component stubs with auto-layout, typography
+ * presets, and token bindings.
+ */
+function buildComponentsScriptFromBlueprints(brandName, includeComponents, fontConfig, collectionId) {
+    const blueprints = (0, component_templates_js_1.getBlueprintsByCategory)(includeComponents);
+    return (0, component_script_builder_js_1.buildAllComponentsScript)(blueprints, brandName, fontConfig, collectionId);
 }
-function buildTemplatesScript(brandName) {
+function buildTemplatesScript(brandName, fontConfig) {
+    const fontLoads = (0, font_config_js_1.generateFontLoadScript)(fontConfig);
     return `
 (async () => {
-  await figma.loadFontAsync({ family: "Inter", style: "Regular" });
-  await figma.loadFontAsync({ family: "Inter", style: "Medium" });
-  await figma.loadFontAsync({ family: "Inter", style: "Bold" });
+${fontLoads}
 
   const page = figma.createPage();
   page.name = ${JSON.stringify(`${brandName} – Templates`)};
@@ -574,6 +501,7 @@ function buildTemplatesScript(brandName) {
 // ─── Main handler ─────────────────────────────────────────────────────────────
 async function dsScaffolderHandler(args) {
     const { brandColors, brandName, includeComponents, generateDarkMode, dtcgExport } = args;
+    const fontConfig = (0, font_config_js_1.resolveFontConfig)(args.fonts);
     const bridge = await (0, figma_bridge_js_1.getBridge)();
     // 1. Generate color palettes
     const primaryPalette = generatePalette("primary", brandColors.primary);
@@ -589,7 +517,7 @@ async function dsScaffolderHandler(args) {
     palettes.push(...generateStatusPalettes());
     // 2. Build all token sets
     const colorTokens = buildColorTokens(palettes, generateDarkMode);
-    const semanticTokens = buildSemanticTokens(primaryPalette, neutralPalette, generateDarkMode);
+    const semanticTokens = buildSemanticTokens(palettes, generateDarkMode);
     const typographyTokens = buildTypographyTokens();
     const spacingTokens = buildSpacingTokens();
     const radiusTokens = buildRadiusTokens();
@@ -597,8 +525,14 @@ async function dsScaffolderHandler(args) {
     const allTokens = [...colorTokens, ...semanticTokens, ...typographyTokens, ...spacingTokens, ...radiusTokens];
     const pageAndTokensScript = buildCreatePageAndTokensScript(brandName, allTokens, generateDarkMode);
     const pageResult = await bridge.execute(pageAndTokensScript);
-    const foundationsPageId = pageResult.success
-        ? String(pageResult.result["pageId"] ?? "")
+    const pageResultData = pageResult.success
+        ? pageResult.result
+        : undefined;
+    const foundationsPageId = pageResultData
+        ? String(pageResultData["pageId"] ?? "")
+        : undefined;
+    const collectionId = pageResultData
+        ? String(pageResultData["collectionId"] ?? "")
         : undefined;
     // 3b. Build color swatches (on the same page — already set as currentPage)
     if (foundationsPageId) {
@@ -606,16 +540,16 @@ async function dsScaffolderHandler(args) {
     }
     // 3c. Build type scale + spacing frames
     if (foundationsPageId) {
-        await bridge.execute(buildTypeAndSpacingScript());
+        await bridge.execute(buildTypeAndSpacingScript(fontConfig));
     }
-    // 4. Create Components page
-    const componentsScript = buildComponentsScript(brandName, includeComponents);
+    // 4. Create Components page (pass collectionId so stubs get variable bindings)
+    const componentsScript = buildComponentsScriptFromBlueprints(brandName, includeComponents, fontConfig, collectionId);
     const componentsResult = await bridge.execute(componentsScript);
     const componentsPageId = componentsResult.success
         ? String(componentsResult.result["pageId"] ?? "")
         : undefined;
     // 5. Create Templates page
-    const templatesScript = buildTemplatesScript(brandName);
+    const templatesScript = buildTemplatesScript(brandName, fontConfig);
     const templatesResult = await bridge.execute(templatesScript);
     const templatesPageId = templatesResult.success
         ? String(templatesResult.result["pageId"] ?? "")

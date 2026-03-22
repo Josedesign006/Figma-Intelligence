@@ -37,6 +37,9 @@ exports.FigmaBridge = void 0;
 exports.ensureRelayServer = ensureRelayServer;
 exports.getBridge = getBridge;
 const ws_1 = __importStar(require("ws"));
+const cache_js_1 = require("./cache.js");
+const response_compression_js_1 = require("./response-compression.js");
+const enrichment_pipeline_js_1 = require("./enrichment-pipeline.js");
 const WS_PORT = parseInt(process.env.FIGMA_BRIDGE_PORT || "9001", 10);
 const REQUEST_TIMEOUT = parseInt(process.env.FIGMA_REQUEST_TIMEOUT || "30000", 10);
 let relayServer = null;
@@ -146,34 +149,48 @@ function setupRelayRouting(wss) {
         });
     });
 }
+// P3: Port fallback range
+const PORT_FALLBACK_RANGE = 10;
 async function ensureRelayServer() {
     if (relayServer)
         return;
     if (relayStartupPromise)
         return relayStartupPromise;
     relayStartupPromise = new Promise((resolve, reject) => {
-        const wss = new ws_1.WebSocketServer({ port: WS_PORT });
-        let settled = false;
-        const finish = (callback) => {
-            if (settled)
-                return;
-            settled = true;
-            callback();
-        };
-        setupRelayRouting(wss);
-        wss.on("listening", () => {
-            relayServer = wss;
-            process.stderr.write(`Figma bridge relay listening on ws://localhost:${WS_PORT}\n`);
-            finish(() => resolve());
-        });
-        wss.on("error", (error) => {
-            if (error.code === "EADDRINUSE") {
-                process.stderr.write(`Figma bridge relay already running on ws://localhost:${WS_PORT}\n`);
+        let attempt = 0;
+        function tryPort(port) {
+            const wss = new ws_1.WebSocketServer({ port });
+            let settled = false;
+            const finish = (callback) => {
+                if (settled)
+                    return;
+                settled = true;
+                callback();
+            };
+            setupRelayRouting(wss);
+            wss.on("listening", () => {
+                relayServer = wss;
+                process.stderr.write(`Figma bridge relay listening on ws://localhost:${port}\n`);
                 finish(() => resolve());
-                return;
-            }
-            finish(() => reject(error));
-        });
+            });
+            wss.on("error", (error) => {
+                if (error.code === "EADDRINUSE") {
+                    if (attempt < PORT_FALLBACK_RANGE - 1) {
+                        attempt++;
+                        process.stderr.write(`Port ${port} in use, trying ${port + 1}…\n`);
+                        tryPort(port + 1);
+                    }
+                    else {
+                        // All ports exhausted — assume relay is already running externally
+                        process.stderr.write(`Figma bridge relay already running on ws://localhost:${WS_PORT}\n`);
+                        finish(() => resolve());
+                    }
+                    return;
+                }
+                finish(() => reject(error));
+            });
+        }
+        tryPort(WS_PORT);
     }).finally(() => {
         relayStartupPromise = null;
     });
@@ -196,6 +213,13 @@ class FigmaBridge {
     connected = false;
     connectPromise = null;
     capabilitiesCache = null;
+    // ─── P1: Caching Layer ──────────────────────────────────────────────────
+    _cache = null;
+    get cache() {
+        if (!this._cache)
+            this._cache = new cache_js_1.BridgeCache(this);
+        return this._cache;
+    }
     isConnected() {
         return this.connected && this.ws?.readyState === ws_1.default.OPEN;
     }
@@ -296,6 +320,9 @@ class FigmaBridge {
         if (event.eventType === "documentchange") {
             const payload = event.payload;
             nextContext.lastDocumentChange = payload;
+            // P1: Invalidate cache on document changes
+            if (this._cache)
+                this._cache.onDocumentChange();
         }
         this.context = nextContext;
     }
@@ -729,6 +756,48 @@ class FigmaBridge {
     async setDescription(nodeId, description) {
         return this.send("setDescription", { nodeId, description });
     }
+    // ─── Variable Binding ───────────────────────────────────────────────────
+    async bindVariables(bindings) {
+        if (bindings.length === 0)
+            return { bound: 0, total: 0 };
+        await this.ensureVariablesApi();
+        const script = `
+(async () => {
+  const bindings = ${JSON.stringify(bindings)};
+  let bound = 0;
+
+  for (const b of bindings) {
+    const node = await figma.getNodeByIdAsync(b.nodeId);
+    if (!node) continue;
+
+    const variable = await figma.variables.getVariableByIdAsync(b.variableId);
+    if (!variable) continue;
+
+    if (b.field === 'fills' || b.field === 'strokes') {
+      const idx = b.fillIndex ?? 0;
+      if (node[b.field] && node[b.field].length > idx) {
+        const paints = [...node[b.field]];
+        paints[idx] = figma.variables.setBoundVariableForPaint(paints[idx], 'color', variable);
+        node[b.field] = paints;
+        bound++;
+      }
+    } else {
+      try {
+        node.setBoundVariable(b.field, variable.id);
+        bound++;
+      } catch (e) { /* skip unsupported fields */ }
+    }
+  }
+
+  return { bound, total: bindings.length };
+})();
+    `.trim();
+        const result = await this.execute(script);
+        if (!result.success) {
+            return { bound: 0, total: bindings.length };
+        }
+        return result.result;
+    }
     // ─── Design System Extraction ────────────────────────────────────────────
     async getVariables(collectionId, verbosity) {
         await this.ensureVariablesApi();
@@ -736,6 +805,33 @@ class FigmaBridge {
     }
     async getStyles() {
         return this.send("getStyles");
+    }
+    // ─── P0: Enrichment & Compression ─────────────────────────────────────
+    /**
+     * Get enriched design system data — tokens organized semantically,
+     * components categorized, relationships mapped. Cached for 5 minutes.
+     */
+    async getEnrichedDesignSystem() {
+        return this.cache.getEnrichedDesignSystem();
+    }
+    /**
+     * Get a node with resolved styles — fills as hex, typography categorized,
+     * spacing grid-snapped, radius categorized.
+     */
+    async getNodeEnriched(nodeId) {
+        const [node, tokens] = await Promise.all([
+            this.cache.getNode(nodeId),
+            this.cache.getTokens(),
+        ]);
+        const styles = (0, enrichment_pipeline_js_1.resolveStyles)(node, tokens);
+        return { node, styles };
+    }
+    /**
+     * Compress any response payload to fit within AI context window limits.
+     * Automatically selects compression tier based on byte size.
+     */
+    compressForAI(data, forceTier) {
+        return (0, response_compression_js_1.compressResponse)(data, { forceTier });
     }
     // ─── Create Child Node ───────────────────────────────────────────────────
     async createChild(childType, parentId, name, width, height, x, y, characters) {

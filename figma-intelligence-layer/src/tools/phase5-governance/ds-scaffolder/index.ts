@@ -8,6 +8,10 @@
 import { getBridge } from "../../../shared/figma-bridge.js";
 import { decisionLog } from "../../../shared/decision-log.js";
 import { hexToRgb, rgbToHex } from "../../../shared/token-utils.js";
+import { FontConfig, resolveFontConfig, generateFontLoadScript, fontNameLiteral } from "../../../shared/font-config.js";
+import { SEMANTIC_TOKEN_CATALOG, getColorSemanticTokens } from "../../../shared/semantic-token-catalog.js";
+import { getBlueprintsByCategory, ComponentBlueprint } from "../../../shared/component-templates.js";
+import { buildAllComponentsScript } from "../../../shared/component-script-builder.js";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -23,6 +27,7 @@ export interface DsScaffolderArgs {
   includeComponents: Array<"core" | "forms" | "navigation" | "data" | "feedback" | "overlay">;
   generateDarkMode: boolean;
   dtcgExport: boolean;
+  fonts?: Partial<FontConfig>;
 }
 
 export interface ColorShade {
@@ -180,13 +185,50 @@ function buildColorTokens(
 }
 
 function buildSemanticTokens(
-  primaryPalette: ColorPalette,
-  neutralPalette: ColorPalette,
+  palettes: ColorPalette[],
   generateDarkMode: boolean
 ): TokenDefinition[] {
   const tokens: TokenDefinition[] = [];
 
-  const semanticEntries: Array<{
+  // Helper: resolve a primitive ref like "color/primitive/brand/500" to a hex
+  // by looking up the palette name and shade step
+  const resolveRef = (ref: string): string => {
+    // Parse: "color/primitive/{paletteName}/{step}"
+    const parts = ref.split("/");
+    const paletteName = parts[2] ?? "neutral"; // brand, secondary, neutral, etc.
+    const step = parseInt(parts[3] ?? "500", 10);
+
+    // Map palette names: "brand" → primary palette (first), others by name
+    let palette: ColorPalette | undefined;
+    if (paletteName === "brand") {
+      palette = palettes[0]; // primary is always first
+    } else {
+      palette = palettes.find((p) => p.name.toLowerCase() === paletteName.toLowerCase());
+    }
+    if (!palette) palette = palettes.find((p) => p.name === "neutral") ?? palettes[0];
+
+    return getShadeHex(palette, step);
+  };
+
+  // Use the semantic token catalog for COLOR tokens
+  const colorEntries = getColorSemanticTokens();
+  for (const entry of colorEntries) {
+    const lightHex = resolveRef(entry.lightRef);
+    const darkHex = generateDarkMode ? resolveRef(entry.darkRef) : undefined;
+    tokens.push({
+      name: entry.name,
+      value: lightHex,
+      type: "COLOR",
+      description: entry.description,
+      darkValue: darkHex,
+    });
+  }
+
+  // Legacy compat: also emit the old semantic names so existing bindings don't break
+  const primaryPalette = palettes[0];
+  const neutralPalette = palettes.find((p) => p.name === "neutral") ?? palettes[1];
+
+  const legacyEntries: Array<{
     name: string;
     lightStep: number;
     darkStep?: number;
@@ -211,7 +253,10 @@ function buildSemanticTokens(
     { name: "color/text/on-primary",            lightStep: 50,  darkStep: 950, palette: primaryPalette, description: "Text on primary background" },
   ];
 
-  for (const entry of semanticEntries) {
+  for (const entry of legacyEntries) {
+    // Skip if already added by catalog (avoid duplicates)
+    if (tokens.some((t) => t.name === entry.name)) continue;
+
     const lightHex = getShadeHex(entry.palette, entry.lightStep);
     const darkHex = generateDarkMode && entry.darkStep !== undefined
       ? getShadeHex(entry.palette, entry.darkStep)
@@ -428,10 +473,13 @@ function buildSwatchesScript(allTokens: TokenDefinition[]): string {
   `.trim();
 }
 
-function buildTypeAndSpacingScript(): string {
+function buildTypeAndSpacingScript(fontConfig: FontConfig): string {
+  const fontLoads = generateFontLoadScript(fontConfig);
+  const bodyFont = fontNameLiteral("body", "Regular", fontConfig);
+
   return `
 (async () => {
-  await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+${fontLoads}
 
   var typeFrame = figma.createFrame();
   typeFrame.name = "Type Scale";
@@ -447,7 +495,7 @@ function buildTypeAndSpacingScript(): string {
   var typeSizes = [['xs', 12], ['sm', 14], ['base', 16], ['lg', 18], ['xl', 20], ['2xl', 24], ['3xl', 30], ['4xl', 36], ['5xl', 48]];
   for (var i = 0; i < typeSizes.length; i++) {
     var textNode = figma.createText();
-    textNode.fontName = { family: "Inter", style: "Regular" };
+    textNode.fontName = ${bodyFont};
     textNode.fontSize = typeSizes[i][1];
     textNode.characters = typeSizes[i][0] + ' — The quick brown fox';
     typeFrame.appendChild(textNode);
@@ -478,143 +526,27 @@ function buildTypeAndSpacingScript(): string {
   `.trim();
 }
 
-const COMPONENT_TEMPLATES: Record<string, string> = {
-  core: `
-    // Button
-    const btn = figma.createComponent();
-    btn.name = 'Button';
-    btn.resize(120, 40);
-    btn.layoutMode = 'HORIZONTAL';
-    btn.primaryAxisAlignItems = 'CENTER';
-    btn.counterAxisAlignItems = 'CENTER';
-    btn.paddingLeft = btn.paddingRight = 16;
-    btn.cornerRadius = 6;
-    btn.fills = [{ type: 'SOLID', color: { r: 0.15, g: 0.4, b: 0.96 } }];
-    const btnText = figma.createText();
-    btnText.characters = 'Button';
-    btnText.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
-    btn.appendChild(btnText);
-    page.appendChild(btn);
-    btn.x = 32; btn.y = 32;
-  `,
-  forms: `
-    // Input field
-    const input = figma.createComponent();
-    input.name = 'Input';
-    input.resize(240, 40);
-    input.layoutMode = 'HORIZONTAL';
-    input.primaryAxisAlignItems = 'CENTER';
-    input.paddingLeft = input.paddingRight = 12;
-    input.cornerRadius = 4;
-    input.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
-    input.strokes = [{ type: 'SOLID', color: { r: 0.8, g: 0.8, b: 0.85 } }];
-    input.strokeWeight = 1;
-    const inputPlaceholder = figma.createText();
-    inputPlaceholder.characters = 'Placeholder text';
-    inputPlaceholder.fills = [{ type: 'SOLID', color: { r: 0.6, g: 0.6, b: 0.65 } }];
-    input.appendChild(inputPlaceholder);
-    page.appendChild(input);
-    input.x = 32; input.y = 100;
-  `,
-  navigation: `
-    // Nav bar
-    const nav = figma.createComponent();
-    nav.name = 'NavBar';
-    nav.resize(1440, 64);
-    nav.layoutMode = 'HORIZONTAL';
-    nav.primaryAxisAlignItems = 'CENTER';
-    nav.counterAxisAlignItems = 'CENTER';
-    nav.paddingLeft = nav.paddingRight = 32;
-    nav.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
-    nav.strokes = [{ type: 'SOLID', color: { r: 0.9, g: 0.9, b: 0.92 } }];
-    nav.strokeAlign = 'OUTSIDE';
-    page.appendChild(nav);
-    nav.x = 32; nav.y = 168;
-  `,
-  data: `
-    // Table
-    const table = figma.createComponent();
-    table.name = 'Table';
-    table.resize(800, 200);
-    table.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
-    table.strokes = [{ type: 'SOLID', color: { r: 0.9, g: 0.9, b: 0.92 } }];
-    table.strokeWeight = 1;
-    page.appendChild(table);
-    table.x = 32; table.y = 260;
-  `,
-  feedback: `
-    // Toast
-    const toast = figma.createComponent();
-    toast.name = 'Toast';
-    toast.resize(320, 56);
-    toast.layoutMode = 'HORIZONTAL';
-    toast.primaryAxisAlignItems = 'CENTER';
-    toast.paddingLeft = toast.paddingRight = 16;
-    toast.cornerRadius = 8;
-    toast.fills = [{ type: 'SOLID', color: { r: 0.1, g: 0.7, b: 0.3 } }];
-    const toastText = figma.createText();
-    toastText.characters = 'Success message';
-    toastText.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
-    toast.appendChild(toastText);
-    page.appendChild(toast);
-    toast.x = 32; toast.y = 500;
-  `,
-  overlay: `
-    // Modal
-    const modal = figma.createComponent();
-    modal.name = 'Modal';
-    modal.resize(480, 320);
-    modal.layoutMode = 'VERTICAL';
-    modal.primaryAxisAlignItems = 'MIN';
-    modal.paddingLeft = modal.paddingRight = 24;
-    modal.paddingTop = modal.paddingBottom = 24;
-    modal.itemSpacing = 16;
-    modal.cornerRadius = 12;
-    modal.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
-    modal.effects = [{
-      type: 'DROP_SHADOW',
-      color: { r: 0, g: 0, b: 0, a: 0.12 },
-      offset: { x: 0, y: 8 },
-      radius: 24,
-      spread: 0,
-      visible: true,
-      blendMode: 'NORMAL',
-    }];
-    page.appendChild(modal);
-    modal.x = 32; modal.y = 580;
-  `,
-};
-
-function buildComponentsScript(
+/**
+ * Build the components page script using blueprint-driven generation.
+ * Creates all 17 professional component stubs with auto-layout, typography
+ * presets, and token bindings.
+ */
+function buildComponentsScriptFromBlueprints(
   brandName: string,
-  includeComponents: DsScaffolderArgs["includeComponents"]
+  includeComponents: DsScaffolderArgs["includeComponents"],
+  fontConfig: FontConfig,
+  collectionId?: string
 ): string {
-  const componentCode = includeComponents
-    .map((cat) => COMPONENT_TEMPLATES[cat] ?? "")
-    .join("\n");
-
-  return `
-(async () => {
-  await figma.loadFontAsync({ family: "Inter", style: "Regular" });
-  await figma.loadFontAsync({ family: "Inter", style: "Medium" });
-
-  const page = figma.createPage();
-  page.name = ${JSON.stringify(`${brandName} – Components`)};
-  figma.currentPage = page;
-
-  ${componentCode}
-
-  return { pageId: page.id };
-})();
-  `.trim();
+  const blueprints = getBlueprintsByCategory(includeComponents);
+  return buildAllComponentsScript(blueprints, brandName, fontConfig, collectionId);
 }
 
-function buildTemplatesScript(brandName: string): string {
+function buildTemplatesScript(brandName: string, fontConfig: FontConfig): string {
+  const fontLoads = generateFontLoadScript(fontConfig);
+
   return `
 (async () => {
-  await figma.loadFontAsync({ family: "Inter", style: "Regular" });
-  await figma.loadFontAsync({ family: "Inter", style: "Medium" });
-  await figma.loadFontAsync({ family: "Inter", style: "Bold" });
+${fontLoads}
 
   const page = figma.createPage();
   page.name = ${JSON.stringify(`${brandName} – Templates`)};
@@ -684,6 +616,7 @@ export async function dsScaffolderHandler(
   args: DsScaffolderArgs
 ): Promise<DsScaffolderResult> {
   const { brandColors, brandName, includeComponents, generateDarkMode, dtcgExport } = args;
+  const fontConfig = resolveFontConfig(args.fonts);
 
   const bridge = await getBridge();
 
@@ -706,7 +639,7 @@ export async function dsScaffolderHandler(
 
   // 2. Build all token sets
   const colorTokens = buildColorTokens(palettes, generateDarkMode);
-  const semanticTokens = buildSemanticTokens(primaryPalette, neutralPalette, generateDarkMode);
+  const semanticTokens = buildSemanticTokens(palettes, generateDarkMode);
   const typographyTokens = buildTypographyTokens();
   const spacingTokens = buildSpacingTokens();
   const radiusTokens = buildRadiusTokens();
@@ -716,8 +649,14 @@ export async function dsScaffolderHandler(
 
   const pageAndTokensScript = buildCreatePageAndTokensScript(brandName, allTokens, generateDarkMode);
   const pageResult = await bridge.execute(pageAndTokensScript);
-  const foundationsPageId = pageResult.success
-    ? String((pageResult.result as Record<string, unknown>)["pageId"] ?? "")
+  const pageResultData = pageResult.success
+    ? (pageResult.result as Record<string, unknown>)
+    : undefined;
+  const foundationsPageId = pageResultData
+    ? String(pageResultData["pageId"] ?? "")
+    : undefined;
+  const collectionId = pageResultData
+    ? String(pageResultData["collectionId"] ?? "")
     : undefined;
 
   // 3b. Build color swatches (on the same page — already set as currentPage)
@@ -727,18 +666,18 @@ export async function dsScaffolderHandler(
 
   // 3c. Build type scale + spacing frames
   if (foundationsPageId) {
-    await bridge.execute(buildTypeAndSpacingScript());
+    await bridge.execute(buildTypeAndSpacingScript(fontConfig));
   }
 
-  // 4. Create Components page
-  const componentsScript = buildComponentsScript(brandName, includeComponents);
+  // 4. Create Components page (pass collectionId so stubs get variable bindings)
+  const componentsScript = buildComponentsScriptFromBlueprints(brandName, includeComponents, fontConfig, collectionId);
   const componentsResult = await bridge.execute(componentsScript);
   const componentsPageId = componentsResult.success
     ? String((componentsResult.result as Record<string, unknown>)["pageId"] ?? "")
     : undefined;
 
   // 5. Create Templates page
-  const templatesScript = buildTemplatesScript(brandName);
+  const templatesScript = buildTemplatesScript(brandName, fontConfig);
   const templatesResult = await bridge.execute(templatesScript);
   const templatesPageId = templatesResult.success
     ? String((templatesResult.result as Record<string, unknown>)["pageId"] ?? "")

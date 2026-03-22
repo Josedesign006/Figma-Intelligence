@@ -11,6 +11,9 @@ import {
   FigmaPageSummary,
   FigmaSelectionItem,
 } from "./types.js";
+import { BridgeCache } from "./cache.js";
+import { compressResponse, CompressedResponse, CompressionTier } from "./response-compression.js";
+import { enrichDesignSystem, EnrichedDesignSystem, resolveStyles, ResolvedStyle } from "./enrichment-pipeline.js";
 
 const WS_PORT = parseInt(process.env.FIGMA_BRIDGE_PORT || "9001", 10);
 const REQUEST_TIMEOUT = parseInt(process.env.FIGMA_REQUEST_TIMEOUT || "30000", 10);
@@ -144,36 +147,52 @@ function setupRelayRouting(wss: WebSocketServer) {
   });
 }
 
+// P3: Port fallback range
+const PORT_FALLBACK_RANGE = 10;
+
 export async function ensureRelayServer(): Promise<void> {
   if (relayServer) return;
   if (relayStartupPromise) return relayStartupPromise;
 
   relayStartupPromise = new Promise<void>((resolve, reject) => {
-    const wss = new WebSocketServer({ port: WS_PORT });
-    let settled = false;
+    let attempt = 0;
 
-    const finish = (callback: () => unknown) => {
-      if (settled) return;
-      settled = true;
-      callback();
-    };
+    function tryPort(port: number) {
+      const wss = new WebSocketServer({ port });
+      let settled = false;
 
-    setupRelayRouting(wss);
+      const finish = (callback: () => unknown) => {
+        if (settled) return;
+        settled = true;
+        callback();
+      };
 
-    wss.on("listening", () => {
-      relayServer = wss;
-      process.stderr.write(`Figma bridge relay listening on ws://localhost:${WS_PORT}\n`);
-      finish(() => resolve());
-    });
+      setupRelayRouting(wss);
 
-    wss.on("error", (error: NodeJS.ErrnoException) => {
-      if (error.code === "EADDRINUSE") {
-        process.stderr.write(`Figma bridge relay already running on ws://localhost:${WS_PORT}\n`);
+      wss.on("listening", () => {
+        relayServer = wss;
+        process.stderr.write(`Figma bridge relay listening on ws://localhost:${port}\n`);
         finish(() => resolve());
-        return;
-      }
-      finish(() => reject(error));
-    });
+      });
+
+      wss.on("error", (error: NodeJS.ErrnoException) => {
+        if (error.code === "EADDRINUSE") {
+          if (attempt < PORT_FALLBACK_RANGE - 1) {
+            attempt++;
+            process.stderr.write(`Port ${port} in use, trying ${port + 1}…\n`);
+            tryPort(port + 1);
+          } else {
+            // All ports exhausted — assume relay is already running externally
+            process.stderr.write(`Figma bridge relay already running on ws://localhost:${WS_PORT}\n`);
+            finish(() => resolve());
+          }
+          return;
+        }
+        finish(() => reject(error));
+      });
+    }
+
+    tryPort(WS_PORT);
   }).finally(() => {
     relayStartupPromise = null;
   });
@@ -202,6 +221,13 @@ export class FigmaBridge {
   private connected = false;
   private connectPromise: Promise<void> | null = null;
   private capabilitiesCache: Record<string, unknown> | null = null;
+
+  // ─── P1: Caching Layer ──────────────────────────────────────────────────
+  private _cache: BridgeCache | null = null;
+  get cache(): BridgeCache {
+    if (!this._cache) this._cache = new BridgeCache(this);
+    return this._cache;
+  }
 
   isConnected(): boolean {
     return this.connected && this.ws?.readyState === WebSocket.OPEN;
@@ -314,6 +340,8 @@ export class FigmaBridge {
     if (event.eventType === "documentchange") {
       const payload = event.payload as FigmaDocumentChangeSummary;
       nextContext.lastDocumentChange = payload;
+      // P1: Invalidate cache on document changes
+      if (this._cache) this._cache.onDocumentChange();
     }
 
     this.context = nextContext;
@@ -846,6 +874,54 @@ export class FigmaBridge {
     return this.send("setDescription", { nodeId, description });
   }
 
+  // ─── Variable Binding ───────────────────────────────────────────────────
+
+  async bindVariables(
+    bindings: Array<{ nodeId: string; field: string; variableId: string; fillIndex?: number }>
+  ): Promise<{ bound: number; total: number }> {
+    if (bindings.length === 0) return { bound: 0, total: 0 };
+
+    await this.ensureVariablesApi();
+
+    const script = `
+(async () => {
+  const bindings = ${JSON.stringify(bindings)};
+  let bound = 0;
+
+  for (const b of bindings) {
+    const node = await figma.getNodeByIdAsync(b.nodeId);
+    if (!node) continue;
+
+    const variable = await figma.variables.getVariableByIdAsync(b.variableId);
+    if (!variable) continue;
+
+    if (b.field === 'fills' || b.field === 'strokes') {
+      const idx = b.fillIndex ?? 0;
+      if (node[b.field] && node[b.field].length > idx) {
+        const paints = [...node[b.field]];
+        paints[idx] = figma.variables.setBoundVariableForPaint(paints[idx], 'color', variable);
+        node[b.field] = paints;
+        bound++;
+      }
+    } else {
+      try {
+        node.setBoundVariable(b.field, variable.id);
+        bound++;
+      } catch (e) { /* skip unsupported fields */ }
+    }
+  }
+
+  return { bound, total: bindings.length };
+})();
+    `.trim();
+
+    const result = await this.execute(script);
+    if (!result.success) {
+      return { bound: 0, total: bindings.length };
+    }
+    return result.result as { bound: number; total: number };
+  }
+
   // ─── Design System Extraction ────────────────────────────────────────────
 
   async getVariables(collectionId?: string, verbosity?: string): Promise<unknown[]> {
@@ -855,6 +931,37 @@ export class FigmaBridge {
 
   async getStyles(): Promise<Record<string, unknown>> {
     return this.send("getStyles");
+  }
+
+  // ─── P0: Enrichment & Compression ─────────────────────────────────────
+
+  /**
+   * Get enriched design system data — tokens organized semantically,
+   * components categorized, relationships mapped. Cached for 5 minutes.
+   */
+  async getEnrichedDesignSystem(): Promise<EnrichedDesignSystem> {
+    return this.cache.getEnrichedDesignSystem();
+  }
+
+  /**
+   * Get a node with resolved styles — fills as hex, typography categorized,
+   * spacing grid-snapped, radius categorized.
+   */
+  async getNodeEnriched(nodeId: string): Promise<{ node: FigmaNode; styles: ResolvedStyle }> {
+    const [node, tokens] = await Promise.all([
+      this.cache.getNode(nodeId),
+      this.cache.getTokens(),
+    ]);
+    const styles = resolveStyles(node, tokens);
+    return { node, styles };
+  }
+
+  /**
+   * Compress any response payload to fit within AI context window limits.
+   * Automatically selects compression tier based on byte size.
+   */
+  compressForAI(data: unknown, forceTier?: CompressionTier): CompressedResponse {
+    return compressResponse(data, { forceTier });
   }
 
   // ─── Create Child Node ───────────────────────────────────────────────────

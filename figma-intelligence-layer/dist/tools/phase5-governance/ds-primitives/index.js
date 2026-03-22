@@ -4,6 +4,7 @@ exports.dsPrimitivesHandler = dsPrimitivesHandler;
 const figma_bridge_js_1 = require("../../../shared/figma-bridge.js");
 const decision_log_js_1 = require("../../../shared/decision-log.js");
 const token_utils_js_1 = require("../../../shared/token-utils.js");
+const font_config_js_1 = require("../../../shared/font-config.js");
 function rgbToHsl(r, g, b) {
     const rn = r / 255;
     const gn = g / 255;
@@ -65,10 +66,24 @@ function generateScale(name, baseHex, includeDark) {
     const steps = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
     const lightness = [0.97, 0.94, 0.86, 0.74, 0.62, 0.5, 0.4, 0.3, 0.22, 0.14, 0.08];
     const { h, s } = rgbToHsl(rgb.r, rgb.g, rgb.b);
+    // Determine if this is a neutral/surface palette (low saturation or neutral name)
+    const isNeutral = name.toLowerCase().includes("neutral") || s < 0.15;
     return steps.map((step, index) => {
         const value = hslToHex(h, s, lightness[index]);
         const darkIndex = Math.max(0, steps.length - 1 - index);
-        const darkValue = hslToHex(h, s * 0.92, lightness[darkIndex]);
+        // Role-aware dark mode: neutrals get more desaturation, brand/accent
+        // colors keep vibrancy, surface-light steps stay truly dark
+        let darkSatMult = 0.92;
+        if (isNeutral) {
+            darkSatMult = 0.60; // neutrals desaturate more for clean dark surfaces
+        }
+        else if (step <= 200 || step >= 800) {
+            darkSatMult = 0.85; // extremes desaturate slightly
+        }
+        else {
+            darkSatMult = 1.05; // midtones slightly boost for vibrancy
+        }
+        const darkValue = hslToHex(h, Math.min(1, s * darkSatMult), lightness[darkIndex]);
         const valuesByMode = { Light: value };
         if (includeDark) {
             valuesByMode.Dark = darkValue;
@@ -181,12 +196,12 @@ function buildElevationTokens() {
         { name: "elevation/level/4", resolvedType: "FLOAT", valuesByMode: { Base: 4 } },
     ];
 }
-function buildTypographyTokens() {
+function buildTypographyTokens(fontConfig) {
     const specs = [];
     const sizes = [["xs", 12], ["sm", 14], ["md", 16], ["lg", 18], ["xl", 20], ["2xl", 24], ["3xl", 30], ["4xl", 36]];
     const lineHeights = [["xs", 16], ["sm", 20], ["md", 24], ["lg", 28], ["xl", 30], ["2xl", 32], ["3xl", 36], ["4xl", 40]];
     const weights = [["regular", 400], ["medium", 500], ["semibold", 600], ["bold", 700]];
-    specs.push({ name: "typography/family/base", resolvedType: "STRING", valuesByMode: { Base: "Inter" } }, { name: "typography/family/mono", resolvedType: "STRING", valuesByMode: { Base: "JetBrains Mono" } });
+    specs.push({ name: "typography/family/base", resolvedType: "STRING", valuesByMode: { Base: fontConfig.body.family } }, { name: "typography/family/heading", resolvedType: "STRING", valuesByMode: { Base: fontConfig.heading.family } }, { name: "typography/family/mono", resolvedType: "STRING", valuesByMode: { Base: fontConfig.mono.family } }, { name: "typography/family/ui", resolvedType: "STRING", valuesByMode: { Base: fontConfig.ui.family } });
     for (const [name, value] of sizes) {
         specs.push({ name: `typography/size/${name}`, resolvedType: "FLOAT", valuesByMode: { Base: value } });
     }
@@ -251,6 +266,7 @@ async function dsPrimitivesHandler(args) {
     const secondaryColor = args.secondaryColor ?? "#0EA5E9";
     const neutralColor = args.neutralColor ?? "#64748B";
     const accentColor = args.accentColor ?? "#F59E0B";
+    const fontConfig = (0, font_config_js_1.resolveFontConfig)(args.fonts);
     const colorTokens = buildColorTokens({
         primaryColor,
         secondaryColor,
@@ -259,7 +275,7 @@ async function dsPrimitivesHandler(args) {
         createDarkMode,
         createSemantics,
     });
-    const typographyTokens = buildTypographyTokens();
+    const typographyTokens = buildTypographyTokens(fontConfig);
     const spacingTokens = buildSpacingTokens();
     const radiusTokens = buildRadiusTokens();
     const borderTokens = buildBorderTokens();

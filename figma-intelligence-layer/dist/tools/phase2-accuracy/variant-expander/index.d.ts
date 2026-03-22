@@ -1,3 +1,4 @@
+import { FontConfig } from "../../../shared/font-config.js";
 export interface VariantDimensions {
     state?: string[];
     size?: string[];
@@ -10,6 +11,7 @@ export interface VariantExpanderArgs {
     namingConvention: "figma" | "storybook";
     autoApplyTokens: boolean;
     arrangeInGrid?: boolean;
+    fonts?: Partial<FontConfig>;
 }
 export interface VariantCombination {
     key: string;

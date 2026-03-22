@@ -1,5 +1,6 @@
 import { getBridge } from "../../../shared/figma-bridge.js";
 import { dsPrimitivesHandler, DsPrimitivesArgs } from "../ds-primitives/index.js";
+import { SEMANTIC_TOKEN_CATALOG, type SemanticTokenEntry } from "../../../shared/semantic-token-catalog.js";
 
 type VariableScalar = string | number | boolean;
 type VariableAliasValue = { type: "VARIABLE_ALIAS"; variableId: string };
@@ -140,116 +141,98 @@ function buildSemanticVariableSpecs(
   variableIndex: Map<string, { id: string; collectionId: string }>,
   createDarkMode: boolean
 ): DsVariableInput[] {
-  const lightDark = (light: string, dark: string): Record<string, VariableValue> => {
-    const values: Record<string, VariableValue> = {
-      Light: makeAlias(requireVariable(variableIndex, light)),
-    };
+  const specs: DsVariableInput[] = [];
+
+  const tryAlias = (ref: string): VariableValue | null => {
+    const found = variableIndex.get(ref);
+    if (found) return makeAlias(found.id);
+    return null;
+  };
+
+  const lightDark = (lightRef: string, darkRef: string): Record<string, VariableValue> => {
+    const lightAlias = tryAlias(lightRef);
+    if (!lightAlias) return {}; // skip if primitive not found
+    const values: Record<string, VariableValue> = { Light: lightAlias };
     if (createDarkMode) {
-      values.Dark = makeAlias(requireVariable(variableIndex, dark));
+      const darkAlias = tryAlias(darkRef);
+      if (darkAlias) values.Dark = darkAlias;
     }
     return values;
   };
 
-  const baseOnly = (value: VariableValue) => ({ Base: value });
+  const baseOnly = (ref: string): Record<string, VariableValue> => {
+    const alias = tryAlias(ref);
+    if (!alias) return {};
+    return { Base: alias };
+  };
 
-  return [
-    {
-      collectionName: `${brandName} Semantic Colors`,
-      name: "color.actions.primary.background.default",
-      resolvedType: "COLOR",
-      valuesByMode: lightDark("color/primitive/brand/500", "color/primitive/brand/400"),
-    },
-    {
-      collectionName: `${brandName} Semantic Colors`,
-      name: "color.actions.primary.background.hover",
-      resolvedType: "COLOR",
-      valuesByMode: lightDark("color/primitive/brand/600", "color/primitive/brand/300"),
-    },
-    {
-      collectionName: `${brandName} Semantic Colors`,
-      name: "color.actions.primary.text.default",
-      resolvedType: "COLOR",
-      valuesByMode: lightDark("color/primitive/neutral/50", "color/primitive/neutral/950"),
-    },
-    {
-      collectionName: `${brandName} Semantic Colors`,
-      name: "color.surface.background.default",
-      resolvedType: "COLOR",
-      valuesByMode: lightDark("color/primitive/neutral/50", "color/primitive/neutral/950"),
-    },
-    {
-      collectionName: `${brandName} Semantic Colors`,
-      name: "color.surface.border.default",
-      resolvedType: "COLOR",
-      valuesByMode: lightDark("color/primitive/neutral/200", "color/primitive/neutral/700"),
-    },
-    {
-      collectionName: `${brandName} Semantic Colors`,
-      name: "color.text.primary.default",
-      resolvedType: "COLOR",
-      valuesByMode: lightDark("color/primitive/neutral/900", "color/primitive/neutral/50"),
-    },
-    {
-      collectionName: `${brandName} Semantic Colors`,
-      name: "color.text.secondary.default",
-      resolvedType: "COLOR",
-      valuesByMode: lightDark("color/primitive/neutral/600", "color/primitive/neutral/300"),
-    },
-    {
-      collectionName: `${brandName} Semantic Colors`,
-      name: "color.field.border.default",
-      resolvedType: "COLOR",
-      valuesByMode: lightDark("color/primitive/neutral/300", "color/primitive/neutral/600"),
-    },
-    {
-      collectionName: `${brandName} Semantic Colors`,
-      name: "color.field.border.focus",
-      resolvedType: "COLOR",
-      valuesByMode: lightDark("color/primitive/brand/500", "color/primitive/brand/400"),
-    },
-    {
-      collectionName: `${brandName} Semantic Space`,
-      name: "space.inset.control.md",
-      resolvedType: "FLOAT",
-      valuesByMode: baseOnly(makeAlias(requireVariable(variableIndex, "space/4"))),
-    },
-    {
-      collectionName: `${brandName} Semantic Space`,
-      name: "space.gap.stack.md",
-      resolvedType: "FLOAT",
-      valuesByMode: baseOnly(makeAlias(requireVariable(variableIndex, "space/4"))),
-    },
-    {
-      collectionName: `${brandName} Semantic Radius`,
-      name: "radius.field.all.default",
-      resolvedType: "FLOAT",
-      valuesByMode: baseOnly(makeAlias(requireVariable(variableIndex, "radius/sm"))),
-    },
-    {
-      collectionName: `${brandName} Semantic Radius`,
-      name: "radius.surface.all.default",
-      resolvedType: "FLOAT",
-      valuesByMode: baseOnly(makeAlias(requireVariable(variableIndex, "radius/lg"))),
-    },
-    {
-      collectionName: `${brandName} Semantic Typography`,
-      name: "typography.body.md.size",
-      resolvedType: "FLOAT",
-      valuesByMode: baseOnly(makeAlias(requireVariable(variableIndex, "typography/size/md"))),
-    },
-    {
-      collectionName: `${brandName} Semantic Typography`,
-      name: "typography.body.md.line-height",
-      resolvedType: "FLOAT",
-      valuesByMode: baseOnly(makeAlias(requireVariable(variableIndex, "typography/line-height/md"))),
-    },
-    {
-      collectionName: `${brandName} Semantic Typography`,
-      name: "typography.label.sm.weight",
-      resolvedType: "FLOAT",
-      valuesByMode: baseOnly(makeAlias(requireVariable(variableIndex, "typography/weight/medium"))),
-    },
+  // Iterate the full semantic token catalog
+  for (const entry of SEMANTIC_TOKEN_CATALOG) {
+    // Determine collection name based on category
+    let collectionName: string;
+    if (entry.type === "COLOR") {
+      collectionName = `${brandName} Semantic Colors`;
+    } else if (entry.category === "spacing") {
+      collectionName = `${brandName} Semantic Space`;
+    } else if (entry.category === "radius") {
+      collectionName = `${brandName} Semantic Radius`;
+    } else {
+      collectionName = `${brandName} Semantic Colors`;
+    }
+
+    // Convert token name to dot-notation for variable name
+    const varName = entry.name.replace(/\//g, ".");
+
+    if (entry.type === "COLOR") {
+      const valuesByMode = lightDark(entry.lightRef, entry.darkRef);
+      if (Object.keys(valuesByMode).length === 0) continue;
+      specs.push({
+        collectionName,
+        name: varName,
+        resolvedType: "COLOR",
+        valuesByMode,
+        description: entry.description,
+      });
+    } else {
+      const valuesByMode = baseOnly(entry.lightRef);
+      if (Object.keys(valuesByMode).length === 0) continue;
+      specs.push({
+        collectionName,
+        name: varName,
+        resolvedType: "FLOAT",
+        valuesByMode,
+        description: entry.description,
+      });
+    }
+  }
+
+  // Also add typography semantic aliases
+  const typoAliases: Array<[string, string, string]> = [
+    ["typography.body.md.size", "typography/size/md", "Body medium font size"],
+    ["typography.body.md.line-height", "typography/line-height/md", "Body medium line height"],
+    ["typography.body.sm.size", "typography/size/sm", "Body small font size"],
+    ["typography.body.sm.line-height", "typography/line-height/sm", "Body small line height"],
+    ["typography.heading.h3.size", "typography/size/2xl", "Heading h3 font size"],
+    ["typography.heading.h3.line-height", "typography/line-height/2xl", "Heading h3 line height"],
+    ["typography.label.md.size", "typography/size/sm", "Label medium font size"],
+    ["typography.label.md.weight", "typography/weight/medium", "Label medium font weight"],
+    ["typography.label.sm.size", "typography/size/xs", "Label small font size"],
+    ["typography.label.sm.weight", "typography/weight/medium", "Label small font weight"],
   ];
+
+  for (const [name, ref, desc] of typoAliases) {
+    const valuesByMode = baseOnly(ref);
+    if (Object.keys(valuesByMode).length === 0) continue;
+    specs.push({
+      collectionName: `${brandName} Semantic Typography`,
+      name,
+      resolvedType: "FLOAT",
+      valuesByMode,
+      description: desc,
+    });
+  }
+
+  return specs;
 }
 
 function buildComponentVariableSpecs(

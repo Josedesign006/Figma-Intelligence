@@ -8,6 +8,8 @@
 
 import { getBridge } from "../../../shared/figma-bridge.js";
 import { decisionLog } from "../../../shared/decision-log.js";
+import { FontConfig, resolveFontConfig, generateFontLoadScript } from "../../../shared/font-config.js";
+import { DIMENSION_OVERRIDES } from "./token-override-maps.js";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -24,6 +26,7 @@ export interface VariantExpanderArgs {
   namingConvention: "figma" | "storybook";
   autoApplyTokens: boolean;
   arrangeInGrid?: boolean;
+  fonts?: Partial<FontConfig>;
 }
 
 export interface VariantCombination {
@@ -93,106 +96,84 @@ function cartesian(dimensions: VariantDimensions): Array<Record<string, string>>
 
 // ─── Per-dimension token overrides ───────────────────────────────────────────
 
+/**
+ * Resolve token overrides from the unified DIMENSION_OVERRIDES maps.
+ * This replaces the previous inline logic with a single source of truth.
+ */
 function resolveTokenOverrides(props: Record<string, string>): TokenOverride[] {
   const overrides: TokenOverride[] = [];
 
-  const state = props["state"]?.toLowerCase();
-  const size = props["size"]?.toLowerCase();
-  const theme = props["theme"]?.toLowerCase();
+  for (const [dimension, dimValue] of Object.entries(props)) {
+    const dimKey = dimension.toLowerCase() as keyof typeof DIMENSION_OVERRIDES;
+    const overrideMap = DIMENSION_OVERRIDES[dimKey];
+    if (!overrideMap) continue;
 
-  if (state === "hover") {
-    overrides.push({
-      property: "fills[0].variableId",
-      value: "{{hover-background-token}}",
-      description: "background uses hover token variant",
-    });
-  }
+    const valueKey = dimValue.toLowerCase();
+    const mapOverrides = overrideMap[valueKey];
+    if (!mapOverrides) continue;
 
-  if (state === "disabled") {
-    overrides.push({
-      property: "opacity",
-      value: 0.4,
-      description: "disabled state — opacity 0.4",
-    });
-  }
-
-  if (state === "loading") {
-    overrides.push({
-      property: "characters",
-      value: "Loading...",
-      description: "replace visible text with Loading…",
-    });
-  }
-
-  if (state === "pressed") {
-    overrides.push({
-      property: "fills[0].variableId",
-      value: "{{pressed-background-token}}",
-      description: "background uses pressed token variant",
-    });
-  }
-
-  if (size === "sm") {
-    overrides.push(
-      {
-        property: "paddingLeft",
-        value: 4,  // --space-xs
-        description: "size:sm — padding reduced to --space-xs (4px)",
-      },
-      {
-        property: "paddingRight",
-        value: 4,
-        description: "size:sm — padding reduced to --space-xs (4px)",
-      },
-      {
-        property: "paddingTop",
-        value: 4,
-        description: "size:sm — padding reduced to --space-xs (4px)",
-      },
-      {
-        property: "paddingBottom",
-        value: 4,
-        description: "size:sm — padding reduced to --space-xs (4px)",
-      },
-      {
-        property: "style.fontSize",
-        value: 14,  // --text-sm
-        description: "size:sm — font size reduced to --text-sm (14px)",
+    for (const mo of mapOverrides) {
+      // Convert override map entries to the TokenOverride format used by the expander
+      if (mo.property === "background") {
+        overrides.push({
+          property: "fills[0]",
+          value: mo.token,
+          description: `${dimension}:${dimValue} — background: ${mo.token}`,
+        });
+      } else if (mo.property === "textColor") {
+        overrides.push({
+          property: "textFill",
+          value: mo.token,
+          description: `${dimension}:${dimValue} — text color: ${mo.token}`,
+        });
+      } else if (mo.property === "borderColor") {
+        overrides.push({
+          property: "strokes[0]",
+          value: mo.token,
+          description: `${dimension}:${dimValue} — border: ${mo.token}`,
+        });
+      } else if (mo.property === "opacity") {
+        overrides.push({
+          property: "opacity",
+          value: mo.rawValue ?? 1,
+          description: `${dimension}:${dimValue} — opacity: ${mo.rawValue}`,
+        });
+      } else if (mo.property === "fontSize") {
+        overrides.push({
+          property: "style.fontSize",
+          value: mo.rawValue ?? 16,
+          description: `${dimension}:${dimValue} — fontSize: ${mo.rawValue}px`,
+        });
+      } else if (mo.property === "paddingX") {
+        overrides.push(
+          { property: "paddingLeft", value: mo.rawValue ?? 16, description: `${dimension}:${dimValue} — paddingX: ${mo.rawValue}px` },
+          { property: "paddingRight", value: mo.rawValue ?? 16, description: `${dimension}:${dimValue} — paddingX: ${mo.rawValue}px` }
+        );
+      } else if (mo.property === "paddingY") {
+        overrides.push(
+          { property: "paddingTop", value: mo.rawValue ?? 8, description: `${dimension}:${dimValue} — paddingY: ${mo.rawValue}px` },
+          { property: "paddingBottom", value: mo.rawValue ?? 8, description: `${dimension}:${dimValue} — paddingY: ${mo.rawValue}px` }
+        );
+      } else if (mo.property === "height") {
+        overrides.push({
+          property: "height",
+          value: mo.rawValue ?? 40,
+          description: `${dimension}:${dimValue} — height: ${mo.rawValue}px`,
+        });
+      } else if (mo.property === "borderWidth") {
+        overrides.push({
+          property: "strokeWeight",
+          value: mo.rawValue ?? 1,
+          description: `${dimension}:${dimValue} — borderWidth: ${mo.rawValue}`,
+        });
+      } else if (mo.property === "text") {
+        overrides.push({
+          property: "characters",
+          value: mo.rawValue ?? "",
+          description: `${dimension}:${dimValue} — text: ${mo.rawValue}`,
+        });
       }
-    );
-  }
-
-  if (size === "lg") {
-    overrides.push(
-      {
-        property: "paddingLeft",
-        value: 24,  // --space-lg
-        description: "size:lg — padding increased to --space-lg (24px)",
-      },
-      {
-        property: "paddingRight",
-        value: 24,
-        description: "size:lg — padding increased to --space-lg (24px)",
-      },
-      {
-        property: "paddingTop",
-        value: 16,  // --space-md
-        description: "size:lg — vertical padding set to --space-md (16px)",
-      },
-      {
-        property: "paddingBottom",
-        value: 16,
-        description: "size:lg — vertical padding set to --space-md (16px)",
-      }
-    );
-  }
-
-  if (theme === "dark") {
-    overrides.push({
-      property: "variableMode",
-      value: "dark",
-      description: "theme:dark — swap to dark variable mode",
-    });
+    }
   }
 
   return overrides;
@@ -331,8 +312,12 @@ export async function variantExpanderHandler(
           overrideLines.push(`clone.opacity = ${o.value};`);
         } else if (o.property === "characters") {
           overrideLines.push(`var textNodes = clone.findAll(function(n) { return n.type === 'TEXT'; }); for (var ti = 0; ti < textNodes.length; ti++) { textNodes[ti].characters = ${JSON.stringify(o.value)}; }`);
-        } else if (o.property.startsWith("padding")) {
+        } else if (o.property.startsWith("padding") || o.property === "strokeWeight") {
           overrideLines.push(`if ('${o.property}' in clone) clone.${o.property} = ${o.value};`);
+        } else if (o.property === "height") {
+          overrideLines.push(`try { clone.resize(clone.width, ${o.value}); } catch(e) {}`);
+        } else if (o.property === "style.fontSize") {
+          overrideLines.push(`var textNodes = clone.findAll(function(n) { return n.type === 'TEXT'; }); for (var ti = 0; ti < textNodes.length; ti++) { textNodes[ti].fontSize = ${o.value}; }`);
         }
       }
       cloneLines.push(`
@@ -346,8 +331,12 @@ export async function variantExpanderHandler(
       `);
     }
 
+    const fontConfig = resolveFontConfig(args.fonts);
+    const fontLoads = generateFontLoadScript(fontConfig);
+
     const batchScript = `
       (async () => {
+        ${fontLoads}
         var base = await figma.getNodeByIdAsync(${JSON.stringify(nodeId)});
         if (!base) throw new Error('Base node not found');
         var ids = [];

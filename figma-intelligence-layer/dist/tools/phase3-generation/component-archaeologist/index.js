@@ -10,6 +10,7 @@ exports.componentArchaeologistHandler = componentArchaeologistHandler;
 const figma_bridge_js_1 = require("../../../shared/figma-bridge.js");
 const decision_log_js_1 = require("../../../shared/decision-log.js");
 const token_utils_js_1 = require("../../../shared/token-utils.js");
+const token_binder_js_1 = require("../../../shared/token-binder.js");
 function inferSignal(node) {
     const signals = [];
     const nameLower = node.name.toLowerCase();
@@ -262,12 +263,55 @@ function extractTokenMappings(node, tokens) {
     return mappings;
 }
 // ─── Figma script: promote to component + bind variables ─────────────────────
-function buildPromoteScript(nodeId, componentName, mappings) {
-    const bindingLines = mappings
-        .filter((m) => m.property.includes("fills"))
-        .slice(0, 20) // Figma API: avoid overly long scripts
-        .map((m) => `  /* bind ${m.property} → ${m.suggestedToken} (${m.hardcodedValue}) */`)
-        .join("\n");
+function buildPromoteScript(nodeId, componentName, mappings, tokens) {
+    // Resolve actual variable IDs for fill/stroke bindings
+    const resolvedBindings = mappings
+        .filter((m) => m.property.includes("fills") || m.property.includes("strokes"))
+        .slice(0, 20)
+        .map((m) => {
+        const variableId = (0, token_binder_js_1.resolveTokenId)(m.suggestedToken, tokens);
+        return { ...m, variableId };
+    })
+        .filter((m) => m.variableId !== null);
+    // Generate actual setBoundVariable calls for resolved tokens
+    const bindingLines = resolvedBindings.length > 0
+        ? `
+  // Bind resolved design-system variables
+  const bindNode = async (n) => {
+    if (n.fills) {
+      for (let i = 0; i < n.fills.length; i++) {
+        if (n.fills[i].type === 'SOLID' && !n.fills[i].boundVariables?.color) {
+          const hex = (() => {
+            const c = n.fills[i].color;
+            const toHex = (v) => Math.round(v * 255).toString(16).padStart(2, '0');
+            return '#' + toHex(c.r) + toHex(c.g) + toHex(c.b);
+          })();
+          const mapping = ${JSON.stringify(resolvedBindings.map((m) => ({
+            hex: m.hardcodedValue.toLowerCase(),
+            variableId: m.variableId,
+        })))};
+          const match = mapping.find(m => m.hex === hex.toLowerCase());
+          if (match) {
+            const v = await figma.variables.getVariableByIdAsync(match.variableId);
+            if (v) {
+              const paints = [...n.fills];
+              paints[i] = figma.variables.setBoundVariableForPaint(paints[i], 'color', v);
+              n.fills = paints;
+            }
+          }
+        }
+      }
+    }
+    if (n.children) {
+      for (const child of n.children) await bindNode(child);
+    }
+  };
+  await bindNode(component);`
+        : mappings
+            .filter((m) => m.property.includes("fills"))
+            .slice(0, 20)
+            .map((m) => `  /* bind ${m.property} → ${m.suggestedToken} (${m.hardcodedValue}) — no matching variable found */`)
+            .join("\n");
     return `
 (async () => {
   const node = await figma.getNodeByIdAsync(${JSON.stringify(nodeId)});
@@ -399,7 +443,7 @@ async function componentArchaeologistHandler(args) {
     if ((outputAs === "component" || outputAs === "both") &&
         createLibraryComponent) {
         const componentName = `[DS] ${bestMatch} / ${node.name}`;
-        const script = buildPromoteScript(nodeId, componentName, tokenMappings);
+        const script = buildPromoteScript(nodeId, componentName, tokenMappings, tokens);
         const execResult = await bridge.execute(script);
         if (execResult.success && execResult.result) {
             const res = execResult.result;

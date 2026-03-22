@@ -232,15 +232,56 @@ function hslToRgb(h, s, l) {
         b: Math.round(b * 255),
     };
 }
-function generateDarkModeColor(lightHex) {
+/**
+ * Role-aware dark mode color transformation.
+ *
+ * Instead of naively inverting lightness (which produces bright surfaces and
+ * dark text), this function clamps lightness into ranges appropriate for each
+ * semantic role:
+ *
+ *   surface  → L 0.06–0.15  (truly dark backgrounds)
+ *   text     → L 0.85–0.98  (high-contrast readable text)
+ *   brand    → L 0.45–0.55, saturation ×1.1 (vibrant accent)
+ *   border   → L 0.25–0.35  (subtle dividers on dark bg)
+ *   feedback → L 0.45–0.55, saturation ×1.1 (status colors)
+ *
+ * When `role` is omitted the legacy inversion behavior is used as fallback.
+ */
+function generateDarkModeColor(lightHex, role) {
     const rgb = hexToRgb(lightHex);
     if (!rgb)
         return lightHex;
     const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
-    // Flip lightness for dark mode while preserving hue and saturation
-    const newL = 1 - hsl.l;
-    // Boost saturation slightly for dark backgrounds
-    const newS = Math.min(1, hsl.s * 1.1);
+    let newL;
+    let newS = hsl.s;
+    switch (role) {
+        case "surface":
+            // Clamp to dark surface range
+            newL = Math.max(0.06, Math.min(0.15, 0.10 + (1 - hsl.l) * 0.05));
+            newS = Math.min(1, hsl.s * 0.6); // desaturate surfaces
+            break;
+        case "text":
+            // Clamp to near-white readable range
+            newL = Math.max(0.85, Math.min(0.98, 0.90 + hsl.l * 0.08));
+            newS = Math.min(1, hsl.s * 0.5); // text should be mostly neutral
+            break;
+        case "brand":
+        case "feedback":
+            // Keep brand/feedback colors vibrant, moderate lightness
+            newL = Math.max(0.45, Math.min(0.55, 0.50));
+            newS = Math.min(1, hsl.s * 1.1);
+            break;
+        case "border":
+            // Subtle but visible on dark backgrounds
+            newL = Math.max(0.25, Math.min(0.35, 0.30));
+            newS = Math.min(1, hsl.s * 0.5);
+            break;
+        default:
+            // Legacy fallback: simple inversion
+            newL = 1 - hsl.l;
+            newS = Math.min(1, hsl.s * 1.1);
+            break;
+    }
     const newRgb = hslToRgb(hsl.h, newS, newL);
     return rgbToHex(newRgb.r, newRgb.g, newRgb.b);
 }

@@ -6,27 +6,15 @@ export interface TokenOverride {
 export type OverrideMap = Record<string, TokenOverride[]>;
 /**
  * State dimension overrides.
- *
- * From the plan:
- *   hover    → background: --color-primary-hover
- *   disabled → opacity: 0.4, pointer-events: none
- *   loading  → icon: Spinner, text: "Loading..."
  */
 export declare const STATE_OVERRIDES: OverrideMap;
 /**
  * Size dimension overrides.
- *
- * From the plan:
- *   sm → padding: --space-xs --space-sm, fontSize: --text-sm
- *   md → defaults
- *   lg → padding: --space-md --space-lg, fontSize: --text-lg
+ * All heights on 8px grid: xs=24, sm=32, md=40, lg=48, xl=56
  */
 export declare const SIZE_OVERRIDES: OverrideMap;
 /**
  * Theme dimension overrides.
- *
- * From the plan:
- *   dark → background: --color-surface-dark, text: --color-text-dark
  */
 export declare const THEME_OVERRIDES: OverrideMap;
 /**

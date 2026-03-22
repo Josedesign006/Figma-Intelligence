@@ -11,6 +11,7 @@ exports.themeGeneratorHandler = themeGeneratorHandler;
 const figma_bridge_js_1 = require("../../../shared/figma-bridge.js");
 const decision_log_js_1 = require("../../../shared/decision-log.js");
 const token_utils_js_1 = require("../../../shared/token-utils.js");
+const font_config_js_1 = require("../../../shared/font-config.js");
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function tokenValueToHex(value) {
     if (typeof value === "string") {
@@ -130,7 +131,7 @@ function buildSetVariableValueScript(variableId, modeId, hexColor) {
     })()
   `.trim();
 }
-function buildPreviewFrameScript(newModeName, colorDeltas) {
+function buildPreviewFrameScript(newModeName, colorDeltas, fontConfig) {
     const swatchEntries = colorDeltas.slice(0, 12).map((d) => ({
         name: d.tokenName,
         before: d.sourceModeValue,
@@ -178,7 +179,8 @@ function buildPreviewFrameScript(newModeName, colorDeltas) {
         afterSwatch.name = 'after:' + s.name;
 
         const label = figma.createText();
-        await figma.loadFontAsync({ family: 'Inter', style: 'Regular' });
+        await figma.loadFontAsync(${(0, font_config_js_1.fontNameLiteral)("ui", "Regular", fontConfig)});
+        label.fontName = ${(0, font_config_js_1.fontNameLiteral)("ui", "Regular", fontConfig)};
         label.characters = s.name;
         label.fontSize = 11;
 
@@ -227,6 +229,7 @@ async function themeGeneratorHandler(args) {
     if (strategy === "brand-shift" && !brandDirection) {
         throw new Error("themeGenerator: `brandDirection` is required when strategy is 'brand-shift'.");
     }
+    const fontConfig = (0, font_config_js_1.resolveFontConfig)(args.fonts);
     const bridge = await (0, figma_bridge_js_1.getBridge)();
     // 1. Fetch all tokens
     const allTokens = await bridge.getTokens();
@@ -285,7 +288,7 @@ async function themeGeneratorHandler(args) {
     let previewFrameId = null;
     if (previewBeforeApply) {
         try {
-            const previewScript = buildPreviewFrameScript(newModeName, colorDeltas);
+            const previewScript = buildPreviewFrameScript(newModeName, colorDeltas, fontConfig);
             const previewResult = await bridge.execute(previewScript);
             if (previewResult.success) {
                 previewFrameId = previewResult.result;

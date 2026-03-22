@@ -17,6 +17,7 @@ import {
   hexToRgb,
 } from "../../../shared/token-utils.js";
 import { Token } from "../../../shared/types.js";
+import { FontConfig, resolveFontConfig, generateFontLoadScript, fontNameLiteral } from "../../../shared/font-config.js";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -30,6 +31,7 @@ export interface ThemeGeneratorArgs {
   brandDirection?: string;   // required when strategy === "brand-shift"
   wcagTarget: WCAGLevel;
   previewBeforeApply: boolean;
+  fonts?: Partial<FontConfig>;
 }
 
 export interface ColorDelta {
@@ -182,7 +184,8 @@ function buildSetVariableValueScript(
 
 function buildPreviewFrameScript(
   newModeName: string,
-  colorDeltas: ColorDelta[]
+  colorDeltas: ColorDelta[],
+  fontConfig: FontConfig
 ): string {
   const swatchEntries = colorDeltas.slice(0, 12).map((d) => ({
     name: d.tokenName,
@@ -232,7 +235,8 @@ function buildPreviewFrameScript(
         afterSwatch.name = 'after:' + s.name;
 
         const label = figma.createText();
-        await figma.loadFontAsync({ family: 'Inter', style: 'Regular' });
+        await figma.loadFontAsync(${fontNameLiteral("ui", "Regular", fontConfig)});
+        label.fontName = ${fontNameLiteral("ui", "Regular", fontConfig)};
         label.characters = s.name;
         label.fontSize = 11;
 
@@ -304,6 +308,7 @@ export async function themeGeneratorHandler(
     throw new Error("themeGenerator: `brandDirection` is required when strategy is 'brand-shift'.");
   }
 
+  const fontConfig = resolveFontConfig(args.fonts);
   const bridge = await getBridge();
 
   // 1. Fetch all tokens
@@ -383,7 +388,7 @@ export async function themeGeneratorHandler(
   let previewFrameId: string | null = null;
   if (previewBeforeApply) {
     try {
-      const previewScript = buildPreviewFrameScript(newModeName, colorDeltas);
+      const previewScript = buildPreviewFrameScript(newModeName, colorDeltas, fontConfig);
       const previewResult = await bridge.execute(previewScript);
       if (previewResult.success) {
         previewFrameId = previewResult.result as string;

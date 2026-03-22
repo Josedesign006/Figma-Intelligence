@@ -1,3 +1,4 @@
+import { FontConfig } from "../../../shared/font-config.js";
 export interface DsScaffolderArgs {
     brandColors: {
         primary: string;
@@ -10,6 +11,7 @@ export interface DsScaffolderArgs {
     includeComponents: Array<"core" | "forms" | "navigation" | "data" | "feedback" | "overlay">;
     generateDarkMode: boolean;
     dtcgExport: boolean;
+    fonts?: Partial<FontConfig>;
 }
 export interface ColorShade {
     step: number;

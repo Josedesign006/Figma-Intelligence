@@ -8,6 +8,7 @@
 import Fuse from "fuse.js";
 import { getBridge } from "../../../shared/figma-bridge.js";
 import { decisionLog } from "../../../shared/decision-log.js";
+import { resolveTokenRefsForComponent } from "../../../shared/token-binder.js";
 import { ComponentSet, Token } from "../../../shared/types.js";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
@@ -236,13 +237,19 @@ export async function intentTranslatorHandler(
   // 1. Parse the prompt into components using keyword matching
   const parsedIntent = parseFromKeywords(prompt, context);
 
-  // 2. Fetch DS component sets via the bridge (graceful fallback on timeout)
+  // 2. Fetch DS component sets and tokens via the bridge (graceful fallback on timeout)
   const bridge = await getBridge();
   let componentSets: ComponentSet[] = [];
+  let tokens: Token[] = [];
   try {
     componentSets = await bridge.getComponentSets();
   } catch {
     // If scanning times out, continue with keyword-only results
+  }
+  try {
+    tokens = await bridge.getTokens();
+  } catch {
+    // If token fetch fails, tokenRefs will remain empty
   }
 
   // 3. Fuzzy match parsed component names against DS sets
@@ -251,6 +258,15 @@ export async function intentTranslatorHandler(
     componentSets,
     parsedIntent.variants
   );
+
+  // 3b. Populate tokenRefs for each match by resolving semantic token mappings
+  if (tokens.length > 0) {
+    for (const match of allMatches) {
+      // Use the DS component name to infer which tokens are relevant
+      const componentType = match.dsName.split("/").pop()?.trim() ?? match.dsName;
+      match.tokenRefs = resolveTokenRefsForComponent(componentType, tokens);
+    }
+  }
 
   // 4. Determine overall confidence from the best match
   const bestScore = allMatches.length > 0 ? allMatches[0].score : 0;

@@ -1,4 +1,7 @@
 import { FigmaNode, ExecuteResult, ComponentSet, Token, FigmaBridgeEvent, FigmaBridgeEventType, FigmaContextSnapshot } from "./types.js";
+import { BridgeCache } from "./cache.js";
+import { CompressedResponse, CompressionTier } from "./response-compression.js";
+import { EnrichedDesignSystem, ResolvedStyle } from "./enrichment-pipeline.js";
 export declare function ensureRelayServer(): Promise<void>;
 export declare class FigmaBridge {
     private ws;
@@ -10,6 +13,8 @@ export declare class FigmaBridge {
     private connected;
     private connectPromise;
     private capabilitiesCache;
+    private _cache;
+    get cache(): BridgeCache;
     isConnected(): boolean;
     private rejectAllPending;
     private invalidateConnection;
@@ -92,8 +97,35 @@ export declare class FigmaBridge {
     searchComponents(query: string, limit?: number): Promise<Array<Record<string, unknown>>>;
     instantiateComponent(nodeId: string, variant?: Record<string, string>, x?: number, y?: number, parentId?: string): Promise<Record<string, unknown>>;
     setDescription(nodeId: string, description: string): Promise<Record<string, unknown>>;
+    bindVariables(bindings: Array<{
+        nodeId: string;
+        field: string;
+        variableId: string;
+        fillIndex?: number;
+    }>): Promise<{
+        bound: number;
+        total: number;
+    }>;
     getVariables(collectionId?: string, verbosity?: string): Promise<unknown[]>;
     getStyles(): Promise<Record<string, unknown>>;
+    /**
+     * Get enriched design system data — tokens organized semantically,
+     * components categorized, relationships mapped. Cached for 5 minutes.
+     */
+    getEnrichedDesignSystem(): Promise<EnrichedDesignSystem>;
+    /**
+     * Get a node with resolved styles — fills as hex, typography categorized,
+     * spacing grid-snapped, radius categorized.
+     */
+    getNodeEnriched(nodeId: string): Promise<{
+        node: FigmaNode;
+        styles: ResolvedStyle;
+    }>;
+    /**
+     * Compress any response payload to fit within AI context window limits.
+     * Automatically selects compression tier based on byte size.
+     */
+    compressForAI(data: unknown, forceTier?: CompressionTier): CompressedResponse;
     createChild(childType: string, parentId?: string, name?: string, width?: number, height?: number, x?: number, y?: number, characters?: string): Promise<Record<string, unknown>>;
 }
 export declare function getBridge(): Promise<FigmaBridge>;

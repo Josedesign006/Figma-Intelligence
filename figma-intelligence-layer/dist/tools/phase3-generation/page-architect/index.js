@@ -13,7 +13,9 @@ exports.pageArchitectHandler = pageArchitectHandler;
 const fuse_js_1 = __importDefault(require("fuse.js"));
 const figma_bridge_js_1 = require("../../../shared/figma-bridge.js");
 const decision_log_js_1 = require("../../../shared/decision-log.js");
+const token_binder_js_1 = require("../../../shared/token-binder.js");
 const unsplash_js_1 = require("../../../shared/unsplash.js");
+const font_config_js_1 = require("../../../shared/font-config.js");
 const SCREEN_TEMPLATES = [
     {
         template: "auth",
@@ -516,7 +518,12 @@ function buildShimmerScript(spec, isFirst) {
 `.trim();
 }
 function buildScreenScript(spec) {
-    const { name, width, template, wireframeMode, contentMode, content, resolvedComponents, xOffset, imageHash, } = spec;
+    const { name, width, template, wireframeMode, contentMode, content, resolvedComponents, xOffset, imageHash, resolvedPalette, fontConfig: fc, } = spec;
+    // Font literals for template string interpolation
+    const fontLoadBlock = (0, font_config_js_1.generateFontLoadScript)(fc);
+    const headingBoldFont = (0, font_config_js_1.fontNameLiteral)("heading", "Bold", fc);
+    const bodyRegularFont = (0, font_config_js_1.fontNameLiteral)("body", "Regular", fc);
+    const uiMediumFont = (0, font_config_js_1.fontNameLiteral)("ui", "Medium", fc);
     const bgColor = wireframeMode
         ? "{ r: 0.97, g: 0.97, b: 0.97 }"
         : "{ r: 1, g: 1, b: 1 }";
@@ -541,12 +548,12 @@ function buildScreenScript(spec) {
         ? content.helperText
         : "";
     // Template-specific skeleton builders
-    const templateBody = buildTemplateBody(template, headerText, subText, ctaText, wireframeMode, imageHash, bodyText, sectionTitle, listItems, summaryItems, helperText, resolvedComponents);
+    const templateBody = buildTemplateBody(template, headerText, subText, ctaText, wireframeMode, imageHash, bodyText, sectionTitle, listItems, summaryItems, helperText, resolvedComponents, resolvedPalette, fc);
+    // Build variable binding script for CTA button and other key elements
+    const bindingScript = buildPostCreationBindings(resolvedPalette);
     return `
 (async () => {
-  await figma.loadFontAsync({ family: 'Inter', style: 'Regular' });
-  await figma.loadFontAsync({ family: 'Inter', style: 'Bold' });
-  await figma.loadFontAsync({ family: 'Inter', style: 'Medium' });
+  ${fontLoadBlock}
 
   // Create new frame
   const frame = figma.createFrame();
@@ -567,20 +574,107 @@ function buildScreenScript(spec) {
 
   ${templateBody}
 
+  ${bindingScript}
+
   return { frameId: frame.id };
 })();
 `.trim();
 }
-function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode, imageHash, bodyText, sectionTitle, listItems = [], summaryItems = [], helperText, resolvedComponents = []) {
-    // ── Centralized color palette ──
-    const palette = {
-        primary: "{ r: 0.09, g: 0.09, b: 0.09 }",
-        primaryText: "{ r: 1, g: 1, b: 1 }",
-        surface: "{ r: 0.98, g: 0.98, b: 0.99 }",
-        border: "{ r: 0.90, g: 0.91, b: 0.93 }",
-        muted: "{ r: 0.45, g: 0.45, b: 0.50 }",
-        accent: "{ r: 0.22, g: 0.35, b: 0.96 }",
+/**
+ * Generate variable binding code that runs after all elements are created.
+ * Walks the frame's children and binds matching variables to fills/strokes.
+ */
+function buildPostCreationBindings(resolvedPalette) {
+    if (!resolvedPalette)
+        return "";
+    // Collect all variable IDs we want to bind
+    const varBindings = [];
+    if (resolvedPalette.primary.variableId) {
+        varBindings.push({ namePattern: "CTA", field: "fills", variableId: resolvedPalette.primary.variableId });
+    }
+    if (resolvedPalette.border.variableId) {
+        varBindings.push({ namePattern: "InputField|SearchBar|SettingsGroup|AddressForm|CardDetails|ListItem", field: "strokes", variableId: resolvedPalette.border.variableId });
+    }
+    if (resolvedPalette.surface.variableId) {
+        varBindings.push({ namePattern: "InputField|SettingsGroup|AddressForm|CardDetails", field: "fills", variableId: resolvedPalette.surface.variableId });
+    }
+    if (varBindings.length === 0)
+        return "";
+    return `
+  // ── Bind design-system variables to generated elements ──
+  try {
+    const __bindings = ${JSON.stringify(varBindings)};
+    const __bindChildren = async (parent) => {
+      if (!parent.children) return;
+      for (const child of parent.children) {
+        for (const b of __bindings) {
+          const patterns = b.namePattern.split('|');
+          if (patterns.some(p => child.name === p || child.name.startsWith(p))) {
+            const v = await figma.variables.getVariableByIdAsync(b.variableId);
+            if (v && child[b.field] && child[b.field].length > 0) {
+              const paints = [...child[b.field]];
+              if (paints[0].type === 'SOLID') {
+                paints[0] = figma.variables.setBoundVariableForPaint(paints[0], 'color', v);
+                child[b.field] = paints;
+              }
+            }
+          }
+        }
+        await __bindChildren(child);
+      }
     };
+    await __bindChildren(frame);
+
+    // Bind CTA button label text color
+    ${resolvedPalette.primaryText.variableId ? `
+    const __ctaNode = frame.findOne(n => n.name === 'CTA');
+    if (__ctaNode && __ctaNode.children) {
+      for (const c of __ctaNode.children) {
+        if (c.type === 'TEXT' && c.fills && c.fills.length > 0) {
+          const v = await figma.variables.getVariableByIdAsync(${JSON.stringify(resolvedPalette.primaryText.variableId)});
+          if (v) {
+            const paints = [...c.fills];
+            paints[0] = figma.variables.setBoundVariableForPaint(paints[0], 'color', v);
+            c.fills = paints;
+          }
+        }
+      }
+    }` : ""}
+  } catch (e) {
+    // Token binding is best-effort — frame still renders with hardcoded values
+  }`;
+}
+function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode, imageHash, bodyText, sectionTitle, listItems = [], summaryItems = [], helperText, resolvedComponents = [], resolvedPalette, fc) {
+    // Font literals for template string interpolation
+    const _fc = fc ?? (0, font_config_js_1.resolveFontConfig)();
+    const headingBoldFont = (0, font_config_js_1.fontNameLiteral)("heading", "Bold", _fc);
+    const bodyRegularFont = (0, font_config_js_1.fontNameLiteral)("body", "Regular", _fc);
+    const uiMediumFont = (0, font_config_js_1.fontNameLiteral)("ui", "Medium", _fc);
+    // ── Centralized color palette — resolved from DS tokens when available ──
+    const palette = {
+        primary: resolvedPalette?.primary.rgb ?? "{ r: 0.09, g: 0.09, b: 0.09 }",
+        primaryText: resolvedPalette?.primaryText.rgb ?? "{ r: 1, g: 1, b: 1 }",
+        surface: resolvedPalette?.surface.rgb ?? "{ r: 0.98, g: 0.98, b: 0.99 }",
+        border: resolvedPalette?.border.rgb ?? "{ r: 0.90, g: 0.91, b: 0.93 }",
+        muted: resolvedPalette?.muted.rgb ?? "{ r: 0.45, g: 0.45, b: 0.50 }",
+        accent: resolvedPalette?.accent.rgb ?? "{ r: 0.22, g: 0.35, b: 0.96 }",
+    };
+    // Collect variable IDs for post-creation binding
+    const bindings = [];
+    if (resolvedPalette) {
+        if (resolvedPalette.primary.variableId) {
+            bindings.push({ elementName: "CTA", field: "fills", variableId: resolvedPalette.primary.variableId });
+        }
+        if (resolvedPalette.primaryText.variableId) {
+            bindings.push({ elementName: "CTA__label", field: "fills", variableId: resolvedPalette.primaryText.variableId });
+        }
+        if (resolvedPalette.surface.variableId) {
+            bindings.push({ elementName: "__surface__", field: "fills", variableId: resolvedPalette.surface.variableId });
+        }
+        if (resolvedPalette.border.variableId) {
+            bindings.push({ elementName: "__border__", field: "strokes", variableId: resolvedPalette.border.variableId });
+        }
+    }
     const rectColor = wireframeMode
         ? "{ r: 0.88, g: 0.88, b: 0.88 }"
         : "{ r: 0.94, g: 0.95, b: 1 }";
@@ -603,7 +697,7 @@ function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode
   const heading = figma.createText();
   heading.characters = ${JSON.stringify(headerText)};
   heading.fontSize = 28;
-  heading.fontName = { family: 'Inter', style: 'Bold' };
+  heading.fontName = ${headingBoldFont};
   frame.appendChild(heading);
   if ('layoutSizingHorizontal' in heading) heading.layoutSizingHorizontal = 'FILL';`;
     const addSubheading = subText
@@ -611,7 +705,7 @@ function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode
   const subheading = figma.createText();
   subheading.characters = ${JSON.stringify(subText.slice(0, 140))};
   subheading.fontSize = 16;
-  subheading.fontName = { family: 'Inter', style: 'Regular' };
+  subheading.fontName = ${bodyRegularFont};
   subheading.opacity = 0.65;
   frame.appendChild(subheading);
   if ('layoutSizingHorizontal' in subheading) subheading.layoutSizingHorizontal = 'FILL';`
@@ -621,7 +715,7 @@ function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode
   const sectionTitleNode = figma.createText();
   sectionTitleNode.characters = ${JSON.stringify(sectionTitle)};
   sectionTitleNode.fontSize = 14;
-  sectionTitleNode.fontName = { family: 'Inter', style: 'Bold' };
+  sectionTitleNode.fontName = ${headingBoldFont};
   sectionTitleNode.opacity = 0.8;
   frame.appendChild(sectionTitleNode);
   if ('layoutSizingHorizontal' in sectionTitleNode) sectionTitleNode.layoutSizingHorizontal = 'FILL';`
@@ -631,7 +725,7 @@ function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode
   const bodyNode = figma.createText();
   bodyNode.characters = ${JSON.stringify(bodyText.slice(0, 180))};
   bodyNode.fontSize = 15;
-  bodyNode.fontName = { family: 'Inter', style: 'Regular' };
+  bodyNode.fontName = ${bodyRegularFont};
   bodyNode.opacity = 0.75;
   frame.appendChild(bodyNode);
   if ('layoutSizingHorizontal' in bodyNode) bodyNode.layoutSizingHorizontal = 'FILL';`
@@ -659,7 +753,7 @@ function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode
       const t = figma.createText();
       t.characters = ${JSON.stringify(row)};
       t.fontSize = 15;
-      t.fontName = { family: 'Inter', style: 'Regular' };
+      t.fontName = ${bodyRegularFont};
       group.appendChild(t);
       if ('layoutSizingHorizontal' in t) t.layoutSizingHorizontal = 'FILL';
     }`)
@@ -673,7 +767,7 @@ function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode
   const helperNode = figma.createText();
   helperNode.characters = ${JSON.stringify(helperText.slice(0, 180))};
   helperNode.fontSize = 13;
-  helperNode.fontName = { family: 'Inter', style: 'Regular' };
+  helperNode.fontName = ${bodyRegularFont};
   helperNode.opacity = 0.6;
   frame.appendChild(helperNode);
   if ('layoutSizingHorizontal' in helperNode) helperNode.layoutSizingHorizontal = 'FILL';`
@@ -713,7 +807,7 @@ function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode
     const btnLabel = figma.createText();
     btnLabel.characters = ${JSON.stringify(ctaText)};
     btnLabel.fontSize = 16;
-    btnLabel.fontName = { family: 'Inter', style: 'Medium' };
+    btnLabel.fontName = ${uiMediumFont};
     btnLabel.fills = [{ type: 'SOLID', color: ${palette.primaryText} }];
     btn.appendChild(btnLabel);
     frame.appendChild(btn);
@@ -739,7 +833,7 @@ function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode
     const ph = figma.createText();
     ph.characters = ${JSON.stringify(placeholder)};
     ph.fontSize = 15;
-    ph.fontName = { family: 'Inter', style: 'Regular' };
+    ph.fontName = ${bodyRegularFont};
     ph.fills = [{ type: 'SOLID', color: { r: 0.63, g: 0.64, b: 0.68 } }];
     inp.appendChild(ph);
     if ('layoutSizingHorizontal' in ph) ph.layoutSizingHorizontal = 'FILL';
@@ -762,12 +856,12 @@ function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode
     const bLabel = figma.createText();
     bLabel.characters = ${JSON.stringify(brandText)};
     bLabel.fontSize = 17;
-    bLabel.fontName = { family: 'Inter', style: 'Bold' };
+    bLabel.fontName = ${headingBoldFont};
     nav.appendChild(bLabel);
     const mIcon = figma.createText();
     mIcon.characters = '\u22EF';
     mIcon.fontSize = 20;
-    mIcon.fontName = { family: 'Inter', style: 'Bold' };
+    mIcon.fontName = ${headingBoldFont};
     mIcon.opacity = 0.4;
     nav.appendChild(mIcon);
     frame.appendChild(nav);
@@ -797,10 +891,10 @@ function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode
       sc.cornerRadius = 12;
       sc.fills = [{ type: 'SOLID', color: { r: 0.96, g: 0.97, b: 1 } }];
       const sv = figma.createText(); sv.characters = ${JSON.stringify(val)};
-      sv.fontSize = 24; sv.fontName = { family: 'Inter', style: 'Bold' };
+      sv.fontSize = 24; sv.fontName = ${headingBoldFont};
       sc.appendChild(sv);
       const sl = figma.createText(); sl.characters = ${JSON.stringify(lbl)};
-      sl.fontSize = 12; sl.fontName = { family: 'Inter', style: 'Regular' }; sl.opacity = 0.55;
+      sl.fontSize = 12; sl.fontName = ${bodyRegularFont}; sl.opacity = 0.55;
       sc.appendChild(sl);
       row.appendChild(sc);
       if ('layoutSizingHorizontal' in sc) sc.layoutSizingHorizontal = 'FILL';
@@ -825,12 +919,12 @@ function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode
     sb.cornerRadius = 24;
     const sIcon = figma.createText();
     sIcon.characters = '\uD83D\uDD0D';
-    sIcon.fontSize = 14; sIcon.fontName = { family: 'Inter', style: 'Regular' };
+    sIcon.fontSize = 14; sIcon.fontName = ${bodyRegularFont};
     sIcon.opacity = 0.4;
     sb.appendChild(sIcon);
     const sph = figma.createText();
     sph.characters = 'Search\u2026';
-    sph.fontSize = 15; sph.fontName = { family: 'Inter', style: 'Regular' };
+    sph.fontSize = 15; sph.fontName = ${bodyRegularFont};
     sph.opacity = 0.45;
     sb.appendChild(sph);
     if ('layoutSizingHorizontal' in sph) sph.layoutSizingHorizontal = 'FILL';
@@ -865,18 +959,18 @@ function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode
     textCol.itemSpacing = 3; textCol.fills = [];
     const titleT = figma.createText();
     titleT.characters = ${JSON.stringify(item)};
-    titleT.fontSize = 15; titleT.fontName = { family: 'Inter', style: 'Medium' };
+    titleT.fontSize = 15; titleT.fontName = ${uiMediumFont};
     textCol.appendChild(titleT);
     const subT = figma.createText();
     subT.characters = 'Tap to view details';
-    subT.fontSize = 13; subT.fontName = { family: 'Inter', style: 'Regular' };
+    subT.fontSize = 13; subT.fontName = ${bodyRegularFont};
     subT.opacity = 0.5;
     textCol.appendChild(subT);
     row.appendChild(textCol);
     if ('layoutSizingHorizontal' in textCol) textCol.layoutSizingHorizontal = 'FILL';
     const arrowT = figma.createText();
     arrowT.characters = '\u203A';
-    arrowT.fontSize = 18; arrowT.fontName = { family: 'Inter', style: 'Regular' };
+    arrowT.fontSize = 18; arrowT.fontName = ${bodyRegularFont};
     arrowT.opacity = 0.35;
     row.appendChild(arrowT);
     frame.appendChild(row);
@@ -911,11 +1005,11 @@ function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode
       ${i > 0 ? `ri.strokes = [{ type: 'SOLID', color: { r: 0.93, g: 0.94, b: 0.96 } }]; ri.strokeWeight = 1; ri.strokeAlign = 'INSIDE';` : ""}
       const rl = figma.createText();
       rl.characters = ${JSON.stringify(item)};
-      rl.fontSize = 15; rl.fontName = { family: 'Inter', style: 'Regular' };
+      rl.fontSize = 15; rl.fontName = ${bodyRegularFont};
       ri.appendChild(rl);
       const ra = figma.createText();
       ra.characters = '\u203A';
-      ra.fontSize = 18; ra.fontName = { family: 'Inter', style: 'Regular' };
+      ra.fontSize = 18; ra.fontName = ${bodyRegularFont};
       ra.opacity = 0.35;
       ri.appendChild(ra);
       grp.appendChild(ri);
@@ -953,7 +1047,7 @@ function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode
       fi.strokeWeight = 1;
       const ft = figma.createText();
       ft.characters = lbl;
-      ft.fontSize = 14; ft.fontName = { family: 'Inter', style: 'Regular' };
+      ft.fontSize = 14; ft.fontName = ${bodyRegularFont};
       ft.opacity = 0.5;
       fi.appendChild(ft);
       form.appendChild(fi);
@@ -990,7 +1084,7 @@ function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode
       fi.strokeWeight = 1;
       const ft = figma.createText();
       ft.characters = lbl;
-      ft.fontSize = 14; ft.fontName = { family: 'Inter', style: 'Regular' };
+      ft.fontSize = 14; ft.fontName = ${bodyRegularFont};
       ft.opacity = 0.5;
       fi.appendChild(ft);
       cdf.appendChild(fi);
@@ -1152,7 +1246,9 @@ function buildPrototypeScript(fromId, toId) {
 `.trim();
 }
 // ─── Flow map page ────────────────────────────────────────────────────────────
-function buildFlowMapScript(screens) {
+function buildFlowMapScript(screens, fc) {
+    const fontLoadBlock = (0, font_config_js_1.generateFontLoadScript)(fc);
+    const headingBoldFont = (0, font_config_js_1.fontNameLiteral)("heading", "Bold", fc);
     const screenData = screens.map((s, i) => ({
         id: s.frameId,
         name: s.name,
@@ -1161,8 +1257,7 @@ function buildFlowMapScript(screens) {
     }));
     return `
 (async () => {
-  await figma.loadFontAsync({ family: 'Inter', style: 'Regular' });
-  await figma.loadFontAsync({ family: 'Inter', style: 'Bold' });
+  ${fontLoadBlock}
 
   // Create or find flow map page
   let flowPage = figma.root.children.find(p => p.name === '[Flow Map]');
@@ -1189,7 +1284,7 @@ function buildFlowMapScript(screens) {
     const label = figma.createText();
     label.characters = s.name;
     label.fontSize = 14;
-    label.fontName = { family: 'Inter', style: 'Bold' };
+    label.fontName = ${headingBoldFont};
     label.x = 16;
     label.y = 16;
     box.appendChild(label);
@@ -1223,6 +1318,7 @@ async function pageArchitectHandler(args) {
         throw new Error("pageArchitect: `flow` is required.");
     if (!productContext)
         throw new Error("pageArchitect: `productContext` is required.");
+    const fontConfig = (0, font_config_js_1.resolveFontConfig)(args.fonts);
     const bridge = await (0, figma_bridge_js_1.getBridge)();
     // 1. Parse flow into screen specs
     const screenSpecs = parseFlowToScreens(productContext, flow, contentMode);
@@ -1244,9 +1340,21 @@ async function pageArchitectHandler(args) {
             }
         }
     }
-    // 2. Load DS components for matching
+    // 2. Load DS components for matching + tokens for palette resolution
     const componentSets = await bridge.getComponentSets();
     const fuse = buildFuse(componentSets);
+    // Fetch design tokens to resolve palette colors and bind variables
+    let dsTokens = [];
+    let palette;
+    try {
+        dsTokens = await bridge.getTokens();
+        if (dsTokens.length > 0) {
+            palette = (0, token_binder_js_1.resolveDesignPalette)(dsTokens);
+        }
+    }
+    catch {
+        // Token resolution is best-effort — fall back to hardcoded palette
+    }
     // 2.5 Optionally prepare imagery for image-heavy flows
     const shouldUseStockImages = useStockImages &&
         !wireframeMode;
@@ -1301,6 +1409,8 @@ async function pageArchitectHandler(args) {
             xOffset,
             purpose: spec.purpose,
             imageHash: assignedImage?.imageHash ?? null,
+            resolvedPalette: palette,
+            fontConfig,
         };
         // Build final frame directly in a single execute call (no shimmer phase —
         // eliminates one WebSocket round-trip and prevents duplicate/overlapping frames).
@@ -1370,7 +1480,7 @@ async function pageArchitectHandler(args) {
     // 5. Optionally create flow map page
     let flowMapPageId = null;
     if (includeFlowMap && createdScreens.length > 0) {
-        const flowScript = buildFlowMapScript(primaryScreens);
+        const flowScript = buildFlowMapScript(primaryScreens, fontConfig);
         const flowResult = await bridge.execute(flowScript);
         if (flowResult.success && flowResult.result) {
             const res = flowResult.result;
@@ -1381,8 +1491,8 @@ async function pageArchitectHandler(args) {
     const logEntry = await decision_log_js_1.decisionLog.log({
         tool: "page-architect",
         nodeIds: createdScreens.map((s) => s.frameId),
-        rationale: `Built ${createdScreens.length} screen frame(s) for flow: "${flow.slice(0, 100)}". Platform: ${platform}. Content: ${contentMode}. AI content bundle: ${!!contentBundle}. Wireframe: ${wireframeMode}. Prototype connections: ${prototypeConnections.length}. Flow map: ${!!flowMapPageId}.`,
-        tokens: [],
+        rationale: `Built ${createdScreens.length} screen frame(s) for flow: "${flow.slice(0, 100)}". Platform: ${platform}. Content: ${contentMode}. AI content bundle: ${!!contentBundle}. Wireframe: ${wireframeMode}. Prototype connections: ${prototypeConnections.length}. Flow map: ${!!flowMapPageId}. Token binding: ${palette ? "active" : "none"} (${dsTokens.length} tokens resolved).`,
+        tokens: dsTokens.slice(0, 20).map((t) => t.name),
         reversible: true,
         metadata: {
             productContext,

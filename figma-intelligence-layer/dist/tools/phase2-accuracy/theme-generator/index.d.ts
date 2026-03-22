@@ -1,3 +1,4 @@
+import { FontConfig } from "../../../shared/font-config.js";
 export type ThemeStrategy = "dark" | "high-contrast" | "brand-shift" | "custom";
 export type WCAGLevel = "AA" | "AAA";
 export interface ThemeGeneratorArgs {
@@ -7,6 +8,7 @@ export interface ThemeGeneratorArgs {
     brandDirection?: string;
     wcagTarget: WCAGLevel;
     previewBeforeApply: boolean;
+    fonts?: Partial<FontConfig>;
 }
 export interface ColorDelta {
     tokenName: string;

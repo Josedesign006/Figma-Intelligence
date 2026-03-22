@@ -13,6 +13,7 @@ exports.intentTranslatorHandler = intentTranslatorHandler;
 const fuse_js_1 = __importDefault(require("fuse.js"));
 const figma_bridge_js_1 = require("../../../shared/figma-bridge.js");
 const decision_log_js_1 = require("../../../shared/decision-log.js");
+const token_binder_js_1 = require("../../../shared/token-binder.js");
 // ─── NLP prompt sent to Claude ────────────────────────────────────────────────
 const PARSE_SYSTEM_PROMPT = `You are a design-system intent parser.
 Given a natural-language UI description, extract structured information.
@@ -147,17 +148,32 @@ async function intentTranslatorHandler(args) {
     }
     // 1. Parse the prompt into components using keyword matching
     const parsedIntent = parseFromKeywords(prompt, context);
-    // 2. Fetch DS component sets via the bridge (graceful fallback on timeout)
+    // 2. Fetch DS component sets and tokens via the bridge (graceful fallback on timeout)
     const bridge = await (0, figma_bridge_js_1.getBridge)();
     let componentSets = [];
+    let tokens = [];
     try {
         componentSets = await bridge.getComponentSets();
     }
     catch {
         // If scanning times out, continue with keyword-only results
     }
+    try {
+        tokens = await bridge.getTokens();
+    }
+    catch {
+        // If token fetch fails, tokenRefs will remain empty
+    }
     // 3. Fuzzy match parsed component names against DS sets
     const allMatches = matchComponents(parsedIntent.componentTypes, componentSets, parsedIntent.variants);
+    // 3b. Populate tokenRefs for each match by resolving semantic token mappings
+    if (tokens.length > 0) {
+        for (const match of allMatches) {
+            // Use the DS component name to infer which tokens are relevant
+            const componentType = match.dsName.split("/").pop()?.trim() ?? match.dsName;
+            match.tokenRefs = (0, token_binder_js_1.resolveTokenRefsForComponent)(componentType, tokens);
+        }
+    }
     // 4. Determine overall confidence from the best match
     const bestScore = allMatches.length > 0 ? allMatches[0].score : 0;
     // In strictMode any ambiguity below 0.75 is treated as low-confidence

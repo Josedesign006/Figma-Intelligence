@@ -1,3 +1,4 @@
+import { FontConfig } from "../../../shared/font-config.js";
 export interface PageArchitectArgs {
     productContext: string;
     flow: string;
@@ -8,6 +9,7 @@ export interface PageArchitectArgs {
     contentMode: "placeholder" | "realistic";
     useStockImages?: boolean;
     imageQuery?: string;
+    fonts?: Partial<FontConfig>;
 }
 export interface ScreenSpec {
     name: string;
