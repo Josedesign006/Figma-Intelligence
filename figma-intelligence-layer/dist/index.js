@@ -169,6 +169,7 @@ const TOOLS = [
                 spacingTokenSet: { type: "string" },
                 responsiveHints: { type: "boolean" },
                 reportDiff: { type: "boolean" },
+                recursive: { type: "boolean", description: "Validate entire subtree for auto-layout parent-child sizing compatibility (FILL/HUG safety). Fixes invalid combinations automatically." },
             },
             required: ["nodeId", "applyChanges"],
         },
@@ -676,7 +677,7 @@ const TOOLS = [
     },
     {
         name: "figma_component_doc",
-        description: "Generate comprehensive design system documentation for a selected component — Uber uSpec / Carbon Design System quality. Produces 18 sections: overview, purpose, anatomy, variants, states, sizes, spacing, color tokens, typography, usage (do's/don'ts), behaviour, interaction rules, content guidance, responsive, accessibility (semantic role, ARIA, keyboard, focus, screen reader, touch targets, contrast), implementation notes, QA checklist, and API/props table. TWO-PHASE WORKFLOW: First call with outputFormat 'json' to extract raw data, then generate rich content and call again with outputFormat 'figma-page' + contentOverrides.",
+        description: "Generate production-grade, enterprise-quality design system specification for a selected component. Produces a 19-section handoff-ready spec covering: (1) overview, (2) when to use, (3) when not to use, (4) variants, (5) hierarchy & emphasis, (6) anatomy, (7) properties, (8) structure & spacing with token bindings, (9) sizes with dimensions, (10) states & behaviour with token overrides, (11) interaction rules (keyboard/pointer/focus), (12) content guidance, (13) responsive behaviour, (14) accessibility (8 deep subsections: semantic element, keyboard, focus, screen reader, labels, state announcements, contrast, touch targets), (15) developer notes, (16) QA acceptance criteria, (17) do's & don'ts, (18) related components, plus color tokens, typography, and spacing data. Leverages component blueprints, semantic token catalog, and token override maps for specific, actionable content. TWO-PHASE WORKFLOW: First call with outputFormat 'json' to extract raw data, then optionally call again with outputFormat 'figma-page' + contentOverrides for AI-enhanced content.",
         inputSchema: {
             type: "object",
             properties: {
@@ -687,10 +688,11 @@ const TOOLS = [
                     items: {
                         type: "string",
                         enum: [
-                            "overview", "purpose", "anatomy", "variants", "states", "sizes",
-                            "spacing", "color-tokens", "typography", "usage", "behaviour",
+                            "overview", "purpose", "anatomy", "variants", "hierarchy", "states", "sizes",
+                            "spacing", "structure", "color-tokens", "typography", "usage", "behaviour",
                             "interaction-rules", "content-guidance", "responsive",
                             "accessibility", "props", "implementation-notes", "qa-checklist",
+                            "related-components",
                         ],
                     },
                     description: "Optional subset of sections to generate. If omitted, all sections are generated.",
@@ -731,6 +733,9 @@ const TOOLS = [
                         dosAndDonts: { type: "object", properties: { dos: { type: "array", items: { type: "string" } }, donts: { type: "array", items: { type: "string" } } } },
                         implementationNotes: { type: "string" },
                         qaChecklist: { type: "array", items: { type: "string" } },
+                        hierarchy: { type: "string", description: "Hierarchy and emphasis section — type variant ordering and visual weight rules." },
+                        structureAndSpacing: { type: "string", description: "Detailed structure section — layout, padding, spacing, token bindings." },
+                        relatedComponents: { type: "array", items: { type: "object", properties: { name: { type: "string" }, relationship: { type: "string" }, whenToPrefer: { type: "string" } } }, description: "Related components with relationship and preference guidance." },
                     },
                 },
             },

@@ -16,6 +16,7 @@ const decision_log_js_1 = require("../../../shared/decision-log.js");
 const token_binder_js_1 = require("../../../shared/token-binder.js");
 const unsplash_js_1 = require("../../../shared/unsplash.js");
 const font_config_js_1 = require("../../../shared/font-config.js");
+const auto_layout_validator_js_1 = require("../../../shared/auto-layout-validator.js");
 const SCREEN_TEMPLATES = [
     {
         template: "auth",
@@ -88,6 +89,12 @@ const SCREEN_TEMPLATES = [
         keywords: ["success", "confirmation", "complete", "thank you"],
         components: ["Illustration", "Heading", "OrderSummary", "Button"],
         layoutPattern: "Confirmation state with receipt summary and next steps",
+    },
+    {
+        template: "document",
+        keywords: ["document", "documentation", "spec", "specification", "guidelines", "style guide", "reference", "wiki", "readme", "changelog", "api doc", "design doc"],
+        components: ["Heading", "Body", "Divider", "Table", "Badge"],
+        layoutPattern: "Full-width document page with header, TOC, and content sections",
     },
 ];
 // ─── Platform widths ──────────────────────────────────────────────────────────
@@ -219,6 +226,14 @@ function buildRealisticContent(template, name, productContext, index) {
                 heading: name,
                 subheading: "Thoughtful product details, benefits, and a clear path to continue.",
                 ctaLabel: "Continue",
+            };
+        case "document":
+            return {
+                heading: name,
+                subheading: `Comprehensive documentation for ${productContext}.`,
+                sectionTitle: "Table of Contents",
+                listItems: ["1. Overview & Purpose", "2. Usage Guidelines", "3. Properties & API", "4. Accessibility", "5. Examples"],
+                bodyText: "This document provides detailed specifications, usage patterns, and implementation guidance.",
             };
         default:
             return {
@@ -551,22 +566,28 @@ function buildScreenScript(spec) {
     const templateBody = buildTemplateBody(template, headerText, subText, ctaText, wireframeMode, imageHash, bodyText, sectionTitle, listItems, summaryItems, helperText, resolvedComponents, resolvedPalette, fc);
     // Build variable binding script for CTA button and other key elements
     const bindingScript = buildPostCreationBindings(resolvedPalette);
+    // Document template uses wider frame, larger padding/gap, semantic naming
+    const isDocTemplate = template === "document";
+    const frameWidth = isDocTemplate ? 1200 : width;
+    const framePadding = isDocTemplate ? 56 : 24;
+    const frameGap = isDocTemplate ? 48 : 16;
+    const frameName = isDocTemplate ? `Document Page - ${name}` : name;
     return `
 (async () => {
   ${fontLoadBlock}
 
   // Create new frame
   const frame = figma.createFrame();
-  frame.name = ${JSON.stringify(name)};
-  frame.resize(${width}, 900);
+  frame.name = ${JSON.stringify(frameName)};
+  frame.resize(${frameWidth}, 900);
   frame.layoutMode = 'VERTICAL';
   frame.primaryAxisSizingMode = 'AUTO';
   frame.counterAxisSizingMode = 'FIXED';
-  frame.itemSpacing = 16;
-  frame.paddingLeft = 24;
-  frame.paddingRight = 24;
-  frame.paddingTop = 24;
-  frame.paddingBottom = 32;
+  frame.itemSpacing = ${frameGap};
+  frame.paddingLeft = ${framePadding};
+  frame.paddingRight = ${framePadding};
+  frame.paddingTop = ${framePadding};
+  frame.paddingBottom = ${isDocTemplate ? 72 : 32};
   frame.fills = [{ type: 'SOLID', color: ${bgColor} }];
   frame.x = ${xOffset};
   frame.y = 0;
@@ -575,6 +596,14 @@ function buildScreenScript(spec) {
   ${templateBody}
 
   ${bindingScript}
+
+  // ── Auto-Layout Safety Validator (inline, zero extra bridge calls) ──
+  ${(0, auto_layout_validator_js_1.generateValidatorScript)()}
+  ${(0, auto_layout_validator_js_1.generateValidatorCall)('frame')}
+
+  // ── Document Repair Pass (runs only on document-type pages) ──
+  ${(0, auto_layout_validator_js_1.generateDocumentRepairScript)()}
+  ${(0, auto_layout_validator_js_1.generateDocumentRepairCall)('frame')}
 
   return { frameId: frame.id };
 })();
@@ -1205,6 +1234,128 @@ function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode
   ${addTextRows(summaryItems, "Support")}
   ${addCTA}
   `;
+        case "document": {
+            // Document-style page with proper auto-layout structure
+            const tocItems = listItems.length > 0 ? listItems : ["1. Overview", "2. Usage", "3. API", "4. Accessibility"];
+            const addTocSection = `
+  {
+    // ── TOC Section ──
+    const tocSection = figma.createFrame();
+    tocSection.name = 'Section Block - Table of Contents';
+    tocSection.layoutMode = 'VERTICAL';
+    tocSection.primaryAxisSizingMode = 'AUTO';
+    tocSection.counterAxisSizingMode = 'AUTO';
+    tocSection.itemSpacing = 20;
+    tocSection.fills = [];
+    frame.appendChild(tocSection);
+    if ('layoutSizingHorizontal' in tocSection) tocSection.layoutSizingHorizontal = 'FILL';
+    if ('layoutAlign' in tocSection) tocSection.layoutAlign = 'STRETCH';
+
+    ${sectionTitle ? `
+    const tocTitle = figma.createText();
+    tocTitle.characters = ${JSON.stringify(sectionTitle)};
+    tocTitle.fontSize = 20;
+    tocTitle.fontName = ${headingBoldFont};
+    tocSection.appendChild(tocTitle);
+    if ('layoutSizingHorizontal' in tocTitle) tocTitle.layoutSizingHorizontal = 'FILL';
+    ` : ''}
+
+    ${tocItems.map((item, idx) => `
+    {
+      const tocRow = figma.createFrame();
+      tocRow.name = 'TOC Row';
+      tocRow.layoutMode = 'HORIZONTAL';
+      tocRow.primaryAxisSizingMode = 'AUTO';
+      tocRow.counterAxisSizingMode = 'AUTO';
+      tocRow.itemSpacing = 12;
+      tocRow.fills = [];
+      frame.children.length; // force layout
+      tocSection.appendChild(tocRow);
+      if ('layoutSizingHorizontal' in tocRow) tocRow.layoutSizingHorizontal = 'FILL';
+
+      const tocLabel = figma.createText();
+      tocLabel.characters = ${JSON.stringify(item)};
+      tocLabel.fontSize = 16;
+      tocLabel.fontName = ${bodyRegularFont};
+      tocRow.appendChild(tocLabel);
+      if ('layoutSizingHorizontal' in tocLabel) tocLabel.layoutSizingHorizontal = 'FILL';
+    }`).join('\n')}
+  }`;
+            const addDivider = `
+  {
+    const div = figma.createFrame();
+    div.name = 'Divider';
+    div.resize(frame.width - 112, 1);
+    div.fills = [{ type: 'SOLID', color: { r: 0.88, g: 0.88, b: 0.9 } }];
+    frame.appendChild(div);
+    if ('layoutSizingHorizontal' in div) div.layoutSizingHorizontal = 'FILL';
+    if ('layoutAlign' in div) div.layoutAlign = 'STRETCH';
+  }`;
+            const addDocBody = bodyText ? `
+  {
+    const bodySection = figma.createFrame();
+    bodySection.name = 'Section Block - Overview';
+    bodySection.layoutMode = 'VERTICAL';
+    bodySection.primaryAxisSizingMode = 'AUTO';
+    bodySection.counterAxisSizingMode = 'AUTO';
+    bodySection.itemSpacing = 16;
+    bodySection.fills = [];
+    frame.appendChild(bodySection);
+    if ('layoutSizingHorizontal' in bodySection) bodySection.layoutSizingHorizontal = 'FILL';
+    if ('layoutAlign' in bodySection) bodySection.layoutAlign = 'STRETCH';
+
+    const overviewTitle = figma.createText();
+    overviewTitle.characters = 'Overview';
+    overviewTitle.fontSize = 24;
+    overviewTitle.fontName = ${headingBoldFont};
+    bodySection.appendChild(overviewTitle);
+    if ('layoutSizingHorizontal' in overviewTitle) overviewTitle.layoutSizingHorizontal = 'FILL';
+
+    const bodyNode = figma.createText();
+    bodyNode.characters = ${JSON.stringify(bodyText.slice(0, 300))};
+    bodyNode.fontSize = 15;
+    bodyNode.fontName = ${bodyRegularFont};
+    bodyNode.opacity = 0.75;
+    bodySection.appendChild(bodyNode);
+    if ('layoutSizingHorizontal' in bodyNode) bodyNode.layoutSizingHorizontal = 'FILL';
+  }` : '';
+            return `
+  // ── Document Header Block ──
+  {
+    const headerBlock = figma.createFrame();
+    headerBlock.name = 'Header Block';
+    headerBlock.layoutMode = 'VERTICAL';
+    headerBlock.primaryAxisSizingMode = 'AUTO';
+    headerBlock.counterAxisSizingMode = 'AUTO';
+    headerBlock.itemSpacing = 8;
+    headerBlock.fills = [];
+    frame.appendChild(headerBlock);
+    if ('layoutSizingHorizontal' in headerBlock) headerBlock.layoutSizingHorizontal = 'FILL';
+    if ('layoutAlign' in headerBlock) headerBlock.layoutAlign = 'STRETCH';
+
+    const hTitle = figma.createText();
+    hTitle.characters = ${JSON.stringify(headerText)};
+    hTitle.fontSize = 40;
+    hTitle.fontName = ${headingBoldFont};
+    headerBlock.appendChild(hTitle);
+    if ('layoutSizingHorizontal' in hTitle) hTitle.layoutSizingHorizontal = 'FILL';
+
+    ${subText ? `
+    const hSub = figma.createText();
+    hSub.characters = ${JSON.stringify(subText.slice(0, 140))};
+    hSub.fontSize = 16;
+    hSub.fontName = ${bodyRegularFont};
+    hSub.opacity = 0.6;
+    headerBlock.appendChild(hSub);
+    if ('layoutSizingHorizontal' in hSub) hSub.layoutSizingHorizontal = 'FILL';
+    ` : ''}
+  }
+  ${addDivider}
+  ${addTocSection}
+  ${addDivider}
+  ${addDocBody}
+  `;
+        }
         default:
             return `
   ${addHeading}

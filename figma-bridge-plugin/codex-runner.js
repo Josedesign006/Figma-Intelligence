@@ -43,6 +43,7 @@ const {
   SYSTEM_PROMPT,
   buildSystemPrompt,
   buildChatPrompt,
+  buildSkillAddendum,
   detectActiveSkills,
 } = require("./shared-prompt-config");
 
@@ -290,9 +291,11 @@ function runCodex({ message, attachments, conversation, requestId, model, design
 
   const openAIModel = MODEL_MAP[model] || "gpt-5";
 
+  // Detect active skills (hoisted so it's available for system prompt injection)
+  const skills = sessionMode === "code" ? detectActiveSkills(rawText) : [];
+
   // Emit phase_start events (parity with Claude runner)
   if (sessionMode === "code") {
-    const skills = detectActiveSkills(rawText);
     if (skills.length > 0) {
       onEvent({ type: "phase_start", id: requestId, phase: `Skills: ${skills.join(" · ")}` });
     }
@@ -302,7 +305,8 @@ function runCodex({ message, attachments, conversation, requestId, model, design
   }
 
   const activeSessionId = activeSessionIds[sessionMode];
-  const systemPrompt = sessionMode === "chat" ? buildChatPrompt() : buildSystemPrompt(designSystemId);
+  const basePrompt = sessionMode === "chat" ? buildChatPrompt() : buildSystemPrompt(designSystemId);
+  const systemPrompt = sessionMode === "code" ? basePrompt + buildSkillAddendum(skills) : basePrompt;
 
   let args;
   if (!activeSessionId) {

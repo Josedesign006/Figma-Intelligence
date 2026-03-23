@@ -15,6 +15,20 @@ export interface ContentOverrides {
         whenNotToUse: string[];
     };
     typesAndVariants?: string;
+    variants?: Array<{
+        name: string;
+        purpose: string;
+        emphasis: string;
+        whenToUse: string;
+        whenNotToUse: string;
+        misuse?: string;
+    }>;
+    supportedCompositions?: Array<{
+        name: string;
+        parts: string[];
+        whenToUse: string;
+        constraints?: string;
+    }>;
     anatomy?: Array<{
         index: number;
         name: string;
@@ -63,7 +77,18 @@ export interface ContentOverrides {
         donts: string[];
     };
     implementationNotes?: string;
-    qaChecklist?: string[];
+    qaChecklist?: string[] | Array<{
+        area: string;
+        verify: string;
+        expected: string;
+    }>;
+    hierarchy?: string;
+    structureAndSpacing?: string;
+    relatedComponents?: Array<{
+        name: string;
+        relationship: string;
+        whenToPrefer: string;
+    }>;
 }
 export interface ComponentDocArgs {
     nodeId?: string;
@@ -111,6 +136,32 @@ export interface PropsEntry {
     defaultValue: string;
     description: string;
 }
+export interface DetailedState {
+    name: string;
+    visualTreatment: string;
+    behaviourChange: string;
+    trigger: string;
+    tokenOverride: string;
+    a11yImplication: string;
+}
+export interface AccessibilityDeep {
+    semanticElement: string;
+    keyboard: Array<{
+        key: string;
+        action: string;
+    }>;
+    focus: string;
+    screenReader: string;
+    labels: string;
+    stateAnnouncements: string;
+    contrast: string;
+    touchTargets: string;
+}
+export interface RelatedComponent {
+    name: string;
+    relationship: string;
+    whenToPrefer: string;
+}
 export interface DesignSystemSpec {
     componentName: string;
     nodeId: string;
@@ -132,7 +183,22 @@ export interface DesignSystemSpec {
         values: string[];
         defaultValue: string;
     }>;
+    variantsDetailed?: Array<{
+        name: string;
+        purpose: string;
+        emphasis: string;
+        whenToUse: string;
+        whenNotToUse: string;
+        misuse?: string;
+    }>;
+    supportedCompositions?: Array<{
+        name: string;
+        parts: string[];
+        whenToUse: string;
+        constraints?: string;
+    }>;
     states: string[];
+    statesDetailed: DetailedState[];
     sizes: Array<{
         name: string;
         useCase: string;
@@ -146,14 +212,18 @@ export interface DesignSystemSpec {
         dos: string[];
         donts: string[];
     };
+    hierarchy: string;
+    structureAndSpacing: string;
     behaviour: string;
     interactionRules: string;
     contentGuidance: string;
     responsive: string;
     accessibility: GeneratedDocumentSection[];
+    accessibilityDeep: AccessibilityDeep;
     implementationNotes: string;
     qaChecklist: string[];
     props: PropsEntry[];
+    relatedComponents: RelatedComponent[];
 }
 export interface ComponentDocResult {
     spec: DesignSystemSpec;

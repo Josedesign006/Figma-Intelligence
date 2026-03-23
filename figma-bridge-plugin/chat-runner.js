@@ -19,6 +19,7 @@ const {
   SYSTEM_PROMPT,
   buildSystemPrompt,
   buildChatPrompt,
+  buildSkillAddendum,
   detectActiveSkills,
   REPO_DIR,
 } = require("./shared-prompt-config");
@@ -196,9 +197,11 @@ function runClaude({ message, attachments, conversation, requestId, model, desig
   // Session persistence handles conversation context natively
   const userMessage = `${userText}${extraText}`;
 
+  // Detect active skills (hoisted so it's available for system prompt injection)
+  const skills = sessionMode === "code" ? detectActiveSkills(userText) : [];
+
   // Emit pre-flight progress
   if (sessionMode === "code") {
-    const skills = detectActiveSkills(userText);
     if (skills.length > 0) {
       onEvent({ type: "phase_start", id: requestId, phase: `Skills: ${skills.join(" · ")}` });
     }
@@ -210,7 +213,8 @@ function runClaude({ message, attachments, conversation, requestId, model, desig
   let args;
   if (isFirstMessage) {
     // First message: create session with full config
-    const fullSystemPrompt = sessionMode === "chat" ? buildChatPrompt() : buildSystemPrompt(designSystemId);
+    const baseSystemPrompt = sessionMode === "chat" ? buildChatPrompt() : buildSystemPrompt(designSystemId);
+    const fullSystemPrompt = sessionMode === "code" ? baseSystemPrompt + buildSkillAddendum(skills) : baseSystemPrompt;
     args = [
       "--model", resolvedModel,
       "--system-prompt", fullSystemPrompt,

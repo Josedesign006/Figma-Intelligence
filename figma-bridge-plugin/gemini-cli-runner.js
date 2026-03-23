@@ -45,6 +45,8 @@ const {
   SYSTEM_PROMPT,
   buildSystemPrompt,
   buildChatPrompt,
+  buildSkillAddendum,
+  detectActiveSkills,
 } = require("./shared-prompt-config");
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -191,7 +193,9 @@ function runGeminiCli({ message, attachments, conversation, requestId, model, de
 
   // Slimmed prompt: system prompt + user message (no task guidance, no history, no AGENTS.md)
   const sessionMode = mode || "code";
-  const systemPrompt = sessionMode === "chat" ? buildChatPrompt() : buildSystemPrompt(designSystemId);
+  const basePrompt = sessionMode === "chat" ? buildChatPrompt() : buildSystemPrompt(designSystemId);
+  const skills = detectActiveSkills(userText);
+  const systemPrompt = sessionMode === "code" ? basePrompt + buildSkillAddendum(skills) : basePrompt;
   const fullMessage = `${systemPrompt}\n\n---\n\n${userText}${extraText}`;
   const geminiModel = MODEL_MAP[model] || "gemini-2.0-flash";
 

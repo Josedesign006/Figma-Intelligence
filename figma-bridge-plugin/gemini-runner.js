@@ -6,7 +6,7 @@
 
 const https = require("https");
 const { EventEmitter } = require("events");
-const { buildSystemPrompt, buildChatPrompt } = require("./shared-prompt-config");
+const { buildSystemPrompt, buildChatPrompt, buildSkillAddendum, detectActiveSkills } = require("./shared-prompt-config");
 
 // Map the plugin's Opus/Sonnet/Haiku tier names to Gemini model IDs
 const MODEL_MAP = {
@@ -52,7 +52,7 @@ function runGemini({ message, attachments, conversation, requestId, apiKey, mode
   const geminiModel = MODEL_MAP[model] || "gemini-2.0-flash";
 
   const bodyObj = {
-    system_instruction: { parts: [{ text: (mode || "code") === "chat" ? buildChatPrompt() : buildSystemPrompt(designSystemId) }] },
+    system_instruction: { parts: [{ text: (() => { const sm = (mode || "code"); const base = sm === "chat" ? buildChatPrompt() : buildSystemPrompt(designSystemId); return sm === "code" ? base + buildSkillAddendum(detectActiveSkills(userText)) : base; })() }] },
     contents: [{ role: "user", parts: [{ text: fullMessage }] }],
     generationConfig: { maxOutputTokens: 4096 },
   };

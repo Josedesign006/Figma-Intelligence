@@ -4,8 +4,9 @@ export interface LayoutIntelligenceArgs {
     spacingTokenSet?: string;
     responsiveHints?: boolean;
     reportDiff?: boolean;
+    recursive?: boolean;
 }
-export type ContainerKind = "navigation bar" | "card" | "form" | "button" | "grid" | "list item" | "modal" | "section";
+export type ContainerKind = "navigation bar" | "card" | "form" | "button" | "grid" | "list item" | "modal" | "section" | "document_page" | "header_block" | "section_block" | "toc_row" | "paragraph_group" | "divider" | "footer_block" | "table_block";
 export interface AutoLayoutSpec {
     direction: "HORIZONTAL" | "VERTICAL" | "WRAP";
     primaryAxisSizingMode: "FIXED" | "AUTO";
@@ -30,6 +31,7 @@ export interface LayoutIntelligenceResult {
     applied: boolean;
     responsiveHints?: string[];
     logEntryId: string;
+    validationFixes?: number;
 }
 export declare function layoutIntelligenceHandler(args: LayoutIntelligenceArgs): Promise<LayoutIntelligenceResult>;
 //# sourceMappingURL=index.d.ts.map

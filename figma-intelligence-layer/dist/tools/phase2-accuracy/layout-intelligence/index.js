@@ -10,6 +10,7 @@ exports.layoutIntelligenceHandler = layoutIntelligenceHandler;
 const figma_bridge_js_1 = require("../../../shared/figma-bridge.js");
 const decision_log_js_1 = require("../../../shared/decision-log.js");
 const token_utils_js_1 = require("../../../shared/token-utils.js");
+const auto_layout_validator_js_1 = require("../../../shared/auto-layout-validator.js");
 // ─── Spacing token name → px value ───────────────────────────────────────────
 const SPACE = {
     "--space-xs": 4,
@@ -18,6 +19,8 @@ const SPACE = {
     "--space-lg": 24,
     "--space-xl": 32,
     "--space-2xl": 48,
+    "--space-3xl": 56,
+    "--space-4xl": 64,
 };
 // ─── Container → Auto-Layout mapping table ────────────────────────────────────
 // direction          / primaryAxis (W) / counterAxis (H) / padding token    / gap token
@@ -94,6 +97,79 @@ const CONTAINER_SPECS = {
         paddingValue: SPACE["--space-2xl"],
         gapValue: SPACE["--space-2xl"],
     },
+    // ─── Document layout primitives ───────────────────────────────────────────
+    document_page: {
+        direction: "VERTICAL",
+        primaryAxisSizingMode: "AUTO", // Hug H (page grows with content)
+        counterAxisSizingMode: "FIXED", // Fixed W (document width)
+        paddingToken: "--space-3xl",
+        gapToken: "--space-2xl",
+        paddingValue: SPACE["--space-3xl"],
+        gapValue: SPACE["--space-2xl"],
+    },
+    header_block: {
+        direction: "VERTICAL",
+        primaryAxisSizingMode: "AUTO",
+        counterAxisSizingMode: "AUTO",
+        paddingToken: "--space-xs",
+        gapToken: "--space-sm",
+        paddingValue: 0,
+        gapValue: SPACE["--space-sm"],
+    },
+    section_block: {
+        direction: "VERTICAL",
+        primaryAxisSizingMode: "AUTO",
+        counterAxisSizingMode: "AUTO",
+        paddingToken: "--space-xs",
+        gapToken: "--space-lg",
+        paddingValue: 0,
+        gapValue: SPACE["--space-lg"],
+    },
+    toc_row: {
+        direction: "HORIZONTAL",
+        primaryAxisSizingMode: "AUTO",
+        counterAxisSizingMode: "AUTO",
+        paddingToken: "--space-xs",
+        gapToken: "--space-sm",
+        paddingValue: 0,
+        gapValue: SPACE["--space-sm"],
+    },
+    paragraph_group: {
+        direction: "VERTICAL",
+        primaryAxisSizingMode: "AUTO",
+        counterAxisSizingMode: "AUTO",
+        paddingToken: "--space-xs",
+        gapToken: "--space-sm",
+        paddingValue: 0,
+        gapValue: SPACE["--space-sm"],
+    },
+    divider: {
+        direction: "HORIZONTAL",
+        primaryAxisSizingMode: "FIXED",
+        counterAxisSizingMode: "FIXED",
+        paddingToken: "--space-xs",
+        gapToken: "--space-xs",
+        paddingValue: 0,
+        gapValue: 0,
+    },
+    footer_block: {
+        direction: "HORIZONTAL",
+        primaryAxisSizingMode: "AUTO",
+        counterAxisSizingMode: "AUTO",
+        paddingToken: "--space-xs",
+        gapToken: "--space-md",
+        paddingValue: 0,
+        gapValue: SPACE["--space-md"],
+    },
+    table_block: {
+        direction: "VERTICAL",
+        primaryAxisSizingMode: "AUTO",
+        counterAxisSizingMode: "AUTO",
+        paddingToken: "--space-xs",
+        gapToken: "--space-xs",
+        paddingValue: 0,
+        gapValue: 0,
+    },
 };
 // ─── Container-kind detection heuristics ─────────────────────────────────────
 function detectContainerKind(node) {
@@ -102,7 +178,24 @@ function detectContainerKind(node) {
     const w = node.absoluteBoundingBox?.width ?? 0;
     const h = node.absoluteBoundingBox?.height ?? 0;
     const aspectRatio = h > 0 ? w / h : 1;
-    // Name-based detection (highest priority)
+    // Document layout primitives (highest priority — checked first)
+    if (/doc(ument)?[\s_-]?page|spec[\s_-]?page|guide(line)?[\s_-]?page/.test(name))
+        return "document_page";
+    if (/header[\s_-]?block|doc[\s_-]?header|page[\s_-]?title[\s_-]?block/.test(name))
+        return "header_block";
+    if (/section[\s_-]?block|content[\s_-]?section/.test(name))
+        return "section_block";
+    if (/toc[\s_-]?row|table[\s_-]?of[\s_-]?contents/.test(name))
+        return "toc_row";
+    if (/paragraph[\s_-]?group|body[\s_-]?text[\s_-]?block|text[\s_-]?block/.test(name))
+        return "paragraph_group";
+    if (/\bdivider\b|\bseparator\b|\bhr\b/.test(name))
+        return "divider";
+    if (/footer[\s_-]?block|doc[\s_-]?footer/.test(name))
+        return "footer_block";
+    if (/table[\s_-]?block|spec[\s_-]?table|data[\s_-]?table/.test(name))
+        return "table_block";
+    // Name-based detection for UI containers
     if (/nav(igation)?\s*(bar)?|navbar|top\s*bar|header\s*bar/.test(name))
         return "navigation bar";
     if (/\bmodal\b|\bdialog\b|\bdrawer\b|\bpopup\b/.test(name))
@@ -119,7 +212,10 @@ function detectContainerKind(node) {
         return "list item";
     if (/\bsection\b|\bhero\b|\bfooter\b|\bpage\b/.test(name))
         return "section";
-    // Geometry-based fallback
+    // Geometry-based fallback: document page (wide, vertical, many children)
+    if (w >= 1000 && w <= 1400 && node.layoutMode === "VERTICAL" && childCount > 5)
+        return "document_page";
+    // Geometry-based fallback for UI containers
     if (w > 0 && h <= 80 && aspectRatio > 5)
         return "navigation bar"; // very wide & short
     if (w <= 120 && h <= 60 && childCount <= 3)
@@ -296,6 +392,13 @@ function generateResponsiveHints(kind, spec) {
     else if (kind === "section") {
         hints.push("Reduce padding from --space-2xl to --space-xl on tablet and --space-lg on mobile.");
     }
+    else if (kind === "document_page") {
+        hints.push("On mobile: reduce page width to 100vw, padding to --space-lg, section gap to --space-xl.");
+        hints.push("Consider collapsible TOC on narrow viewports.");
+    }
+    else if (kind === "section_block" || kind === "paragraph_group") {
+        hints.push("Keep FILL width at all breakpoints for readable line lengths.");
+    }
     if (spec.direction === "HORIZONTAL") {
         hints.push("If children need to wrap at narrow viewports, enable layoutWrap = WRAP.");
     }
@@ -344,6 +447,23 @@ async function layoutIntelligenceHandler(args) {
         reversible: applied,
         metadata: { detectedKind, resolvedKind, spec, diffCount: diff.length },
     });
+    // 8. Recursive auto-layout validation (if requested)
+    let validationFixes = 0;
+    if (args.recursive) {
+        const validatorScript = `
+(async () => {
+  ${(0, auto_layout_validator_js_1.generateValidatorScript)()}
+  const node = await figma.getNodeByIdAsync(${JSON.stringify(nodeId)});
+  if (!node) throw new Error('Node not found: ${nodeId}');
+  const result = validateAutoLayout(node);
+  return result;
+})();
+    `.trim();
+        const valResult = await bridge.execute(validatorScript);
+        if (valResult.success && valResult.result) {
+            validationFixes = valResult.result.fixes;
+        }
+    }
     const result = {
         nodeId,
         nodeName: node.name,
@@ -352,6 +472,7 @@ async function layoutIntelligenceHandler(args) {
         diff,
         applied,
         logEntryId: logEntry.id,
+        ...(args.recursive ? { validationFixes } : {}),
     };
     if (responsiveHints) {
         result.responsiveHints = generateResponsiveHints(detectedKind, spec);

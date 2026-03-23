@@ -49,7 +49,7 @@ export interface PageArchitectResult {
     prototypeConnectionCount: number;
     logEntryId: string;
 }
-type ScreenTemplate = "auth" | "dashboard" | "list" | "detail" | "settings" | "onboarding" | "checkout-cart" | "checkout-address" | "checkout-shipping" | "checkout-payment" | "checkout-review" | "checkout-success" | "generic";
+type ScreenTemplate = "auth" | "dashboard" | "list" | "detail" | "settings" | "onboarding" | "checkout-cart" | "checkout-address" | "checkout-shipping" | "checkout-payment" | "checkout-review" | "checkout-success" | "document" | "generic";
 export declare function pageArchitectHandler(args: PageArchitectArgs): Promise<PageArchitectResult>;
 export {};
 //# sourceMappingURL=index.d.ts.map

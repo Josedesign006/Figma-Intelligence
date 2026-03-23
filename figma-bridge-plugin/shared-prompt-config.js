@@ -44,7 +44,7 @@ STEP 2 — BUILD WITH PROPER LAYOUT:
 5. For components: build ONE base state, then call figma_variant_expander for the full variant matrix. Never manually clone variants.
 
 STEP 3 — APPLY LAYOUT INTELLIGENCE:
-6. After creating frames, call figma_layout_intelligence on EVERY container frame to fix Auto Layout, padding, and spacing. This is MANDATORY — never skip it.
+6. After creating frames, call figma_layout_intelligence with recursive:true on EVERY container frame to fix Auto Layout, padding, spacing, and parent-child sizing compatibility. This is MANDATORY — never skip it.
 
 STEP 4 — VERIFY AND ITERATE (MANDATORY):
 7. Call figma_navigate to scroll to the result.
@@ -63,30 +63,44 @@ STEP 4 — VERIFY AND ITERATE (MANDATORY):
 When a user asks to "document", "create specs", "generate documentation", or "create a spec sheet" for a component, follow this MANDATORY two-phase workflow:
 
 PHASE 1 — DATA EXTRACTION:
-Call figma_component_doc with outputFormat: "json" to get the raw extracted spec (component name, anatomy, variants, states, spacing tokens, color tokens, typography, props).
+Call figma_component_doc with outputFormat: "json" to get the raw extracted spec (component name, anatomy, variants, states, spacing tokens, color tokens, typography, props). The response includes a detailed "hint" field with section-by-section generation instructions.
 
 PHASE 2 — AI-ENHANCED RENDERING:
-Using the extracted data AND the guidance below, generate rich, component-specific content for ALL sections. Then call figma_component_doc again with outputFormat: "figma-page" and a contentOverrides object containing your AI-generated content.
+Using the extracted data AND the hint guidance, generate production-grade content for ALL 21 sections. Then call figma_component_doc again with outputFormat: "figma-page" and a contentOverrides object.
 
-You are a Design Systems Documentation Specialist. Generate Carbon Design System / Uber uSpec quality documentation. Every section must be specific to THIS component, grounded in the extracted data. No generic filler.
+CRITICAL SCOPE RULE: Always document the FULL COMPONENT FAMILY. If the user selects a single variant or instance, walk up to the COMPONENT_SET to capture all types, sizes, states, and compositions. The selected instance is only a seed reference — it must NOT limit documentation scope.
 
-SECTIONS TO GENERATE (provide in contentOverrides):
-1. overview — 2-3 sentences: what it IS, what problem it solves, where it appears.
-2. purpose — The specific user need this component addresses.
-3. usage — { whenToUse: [...], whenNotToUse: [...] } with specific alternatives.
-4. anatomy — For each child layer: role, required vs optional, constraints.
-5. states — [{ name, visualDescription, trigger, meaning }] for each state.
-6. sizes — [{ name, useCase, minTouchTarget, context }] for each size variant.
-7. behaviour — Click/tap, keyboard enter, loading, debounce, async patterns.
-8. interactionRules — Keyboard shortcuts, focus management, trap/dismiss patterns.
-9. contentGuidance — Label length, tone, capitalization, icon pairing, truncation.
-10. responsive — Mobile vs desktop, breakpoints, stacking, touch targets.
-11. accessibility — { semanticRole, ariaAttributes, keyboardInteraction: [{key, action}], focusManagement, screenReaderAnnouncements, readingOrder, touchTargets, colorContrast }.
-12. dosAndDonts — { dos: [...], donts: [...] } — specific, testable, with WHY.
-13. implementationNotes — Native HTML, SSR, controlled vs uncontrolled, ref forwarding.
-14. qaChecklist — Bulleted checklist: visual, keyboard, screen reader, RTL, theming.
+ANATOMY vs STRUCTURE SEPARATION: These are TWO separate sections.
+- Anatomy = what parts exist. Use letter markers (A, B, C). Show required vs optional. NO measurements.
+- Structure & Spacing = how parts are measured. Padding, gap, height, min-width, icon size, truncation. Separate section.
 
-WRITING RULES: Be specific ("Set aria-label to the action verb" not "provide a label"). No filler phrases. Write from real product perspective. Reference actual token names from extracted data. Every do/don't must be testable.
+WRITING STYLE:
+- Pattern: description → rule → rationale → implication
+- BAD: "Buttons should be accessible" or "ensure usability"
+- GOOD: "Set role='button' on non-<button> elements. Provide aria-label matching the visible label. Announce loading via aria-live='polite'."
+- Every section must have real rules, rationale, constraints. No generic filler.
+
+21 SECTIONS TO GENERATE (provide in contentOverrides):
+1. overview (string) — What it IS, what problem it solves, where it appears.
+2. purpose (string) — Specific user need this component addresses.
+3. usage — { whenToUse: [...], whenNotToUse: [...] } with specific alternatives and decision logic.
+4. variants — Array<{ name, purpose, emphasis, whenToUse, whenNotToUse, misuse? }> for EVERY variant.
+5. hierarchy (string) — Emphasis levels, action hierarchy rules, how many high-emphasis per area.
+6. supportedCompositions — Array<{ name, parts, whenToUse, constraints? }> for text-only, icon+text, icon-only, loading.
+7. anatomy — Array<{ index, name, type, description }> with letter markers, consistent across compositions.
+8. properties — Array<{ name, type, values, defaultValue, description }> for FULL family with dependency rules.
+9. structureAndSpacing (string) — Padding, gap, height per size, min-width, icon size, corner radius, truncation.
+10. sizes — Array<{ name, useCase, minTouchTarget, context }> with density suitability.
+11. states — Array<{ name, visualDescription, trigger, meaning }> for all interactive states.
+12. behaviour (string) — Click/tap, keyboard, loading lock, async, disabled, grouped.
+13. interactionRules (string) — Focus movement, selection, confirmation, open/close.
+14. contentGuidance (string) — Label style, verbs, truncation, icon-only naming, localization.
+15. responsive (string) — Narrow containers, mobile, full-width, icon retention.
+16. accessibility — { semanticRole, ariaAttributes, keyboardInteraction, focusManagement, screenReaderAnnouncements, readingOrder, touchTargets, colorContrast }.
+17. implementationNotes (string) — Semantic HTML, ARIA, tokens, dark mode, pitfalls.
+18. qaChecklist — Array<{ area, verify, expected }> or string[] for structured QA table.
+19. dosAndDonts — { dos: [...], donts: [...] } — specific, testable, with WHY.
+20. relatedComponents — Array<{ name, relationship, whenToPrefer }>.
 
 For quick specs, use figma_generate_spec. For accessibility-only docs, use figma_apg_doc.
 
@@ -293,8 +307,96 @@ function detectActiveSkills(text) {
   if (/(prototype|prototyping|interaction|animate|animation|transition|flow connect|link screens)/.test(lower)) skills.push("Prototyping");
   if (/(sync.*code|code.*sync|handoff|spec|specification|developer handoff|generate spec)/.test(lower)) skills.push("Code Sync");
   if (/(theme|color|style|brand|dark mode|light mode|palette)/.test(lower)) skills.push("Theme Factory");
-  if (skills.length === 0 && /(screen|flow|page|dashboard|app ui|landing page|checkout|cart|wireframe|nav|header|footer|design|ui|ux)/.test(lower)) skills.push("UI/UX Pro Max");
+  if (/(screen|flow|page|dashboard|app ui|landing page|checkout|cart|wireframe|nav|header|footer|design|ui|ux|form|settings|detail|list|profile|onboarding|signup|login|home)/.test(lower)) skills.push("Frontend Design");
+  if (/(document|specification|spec\s*sheet|guidelines?\s*page|style\s*guide|design\s*doc|component\s*doc|reference\s*page|wiki|readme|changelog|api\s*doc)/.test(lower)) skills.push("Document Design");
   return skills;
+}
+
+// ── Skill Addendum Builder ───────────────────────────────────────────────────
+
+function buildSkillAddendum(skills) {
+  const sections = [];
+
+  if (skills.includes("Frontend Design")) {
+    sections.push(`
+=== FRONTEND DESIGN SKILL ===
+SCREEN COMPOSITION (apply in order):
+1. Header zone: status bar (mobile) or top nav → page title → breadcrumb/tabs
+2. Content zone: hero/banner → primary content (cards/list/form) → secondary content
+3. Action zone: sticky CTA bar (mobile) or inline actions (desktop)
+
+LAYOUT PRESETS BY SCREEN TYPE:
+- Dashboard: sidebar(FIXED 240px, VERTICAL) + main(FILL). Main = vertical stack of card rows. Cards in HORIZONTAL auto-layout with FILL children.
+- Form/Settings: single column, max-width 600px centered. All inputs FILL horizontal, HUG vertical. Section gaps: 32px. Field gaps: 16px.
+- List/Feed: search bar(FILL) + filter row(HORIZONTAL, HUG children) + scrollable list(VERTICAL, FILL items). List items: HORIZONTAL with icon(FIXED) + content(FILL) + action(HUG).
+- Detail: hero image(FILL, FIXED height 240px) + content column(24px padding) + sticky bottom CTA(FILL width).
+- Auth/Login: centered card (max-width 400px), VERTICAL layout. Logo(FIXED) + heading + inputs(FILL) + button(FILL) + links(HUG).
+
+AUTO-LAYOUT INTENT RULES (apply when creating ANY frame):
+- Container holding stacked content → VERTICAL, children FILL horizontal, HUG vertical
+- Row of buttons/chips/tags → HORIZONTAL, children HUG both axes
+- Full-width input/card inside vertical parent → FILL horizontal, HUG vertical
+- Icon, avatar, or fixed graphic → FIXED both axes, NEVER use FILL
+- Button → HUG both axes (unless primary mobile CTA → FILL horizontal, HUG vertical)
+- Text → HUG both axes (FILL horizontal only if inside auto-layout parent and should span width)
+- If parent HUGs and child FILLs on same axis → Figma will force parent to FIXED. Avoid this.
+- NEVER assign FILL to a node whose parent has no auto-layout (layoutMode undefined or NONE)
+
+After frame creation, the auto-layout safety validator runs automatically in page_architect. For manual validation, call figma_layout_intelligence with recursive:true.
+=== END FRONTEND DESIGN SKILL ===`);
+  }
+
+  if (skills.includes("Document Design")) {
+    sections.push(`
+=== DOCUMENT DESIGN SKILL ===
+DOCUMENT PAGE STRUCTURE (follow strictly for spec/documentation pages):
+
+1. Root frame ("Document Page"):
+   - width: 1200px (FIXED), height: HUG
+   - layoutMode: "VERTICAL"
+   - counterAxisSizingMode: "FIXED", primaryAxisSizingMode: "AUTO"
+   - padding: 56px all sides, itemSpacing: 48px
+   - fills: white background
+
+2. Header Block: VERTICAL auto-layout, FILL width, HUG height, gap 8px
+   - Title text: 40px bold, FILL width
+   - Subtitle text: 16px medium, FILL width
+
+3. Section Block: VERTICAL auto-layout, FILL width, HUG height, gap 24px
+   - Section title: 28px bold, FILL width
+   - Body text: 15px regular, FILL width
+   - Child frames: FILL width
+
+4. Divider: 1px height, FILL width, solid stroke color
+
+5. TOC Row: HORIZONTAL auto-layout, FILL width, HUG height, gap 8px
+   - Number column: FIXED width 24-32px, HUG height
+   - Title text: FILL width, HUG height
+
+6. Table: VERTICAL auto-layout, FILL width
+   - Table rows: HORIZONTAL, FILL width
+   - Header cells: FIXED width proportional to content type
+   - Body cells: same widths as header
+
+7. Footer Block: HORIZONTAL auto-layout, FILL width, gap 16px
+
+CRITICAL LAYOUT RULES FOR DOCUMENTS:
+- ALL section frames MUST use layoutSizingHorizontal = 'FILL' and layoutAlign = 'STRETCH'
+- ALL text nodes inside sections MUST use layoutSizingHorizontal = 'FILL' for proper wrapping
+- NEVER use HUG width on section containers — causes narrow, misaligned sections
+- Use spacing tokens ONLY: 4, 8, 12, 16, 20, 24, 32, 40, 48, 56, 64
+- Name frames semantically: "Document Page", "Header Block", "Section Block - [Name]", "Divider"
+- After creating document frames, call figma_layout_intelligence with recursive:true to validate
+
+DOCUMENT TYPES:
+- TOC page: header + numbered section list + divider
+- Section detail: header + body paragraphs + subsections + tables
+- Spec/reference: header + property tables + code examples + callouts
+- Guidelines: header + do/don't sections + visual examples
+=== END DOCUMENT DESIGN SKILL ===`);
+  }
+
+  return sections.join("\n");
 }
 
 // ── Exports ──────────────────────────────────────────────────────────────────
@@ -305,6 +407,7 @@ module.exports = {
   DESIGN_SYSTEMS,
   buildSystemPrompt,
   buildChatPrompt,
+  buildSkillAddendum,
   getDesignSystemById,
   detectActiveSkills,
   REPO_DIR,
