@@ -252,6 +252,65 @@ function buildApplyScript(nodeId: string, spec: AutoLayoutSpec, paddingPx: numbe
     ? `node.layoutWrap = 'WRAP';`
     : `node.layoutWrap = 'NO_WRAP';`;
 
+  // Child types that should always fill the parent width (STRETCH)
+  // in a VERTICAL Auto Layout container.
+  const childFillScript = spec.direction === "VERTICAL" || spec.direction === "WRAP" ? `
+    // Make children fill the container width (STRETCH / FILL)
+    if ('children' in node) {
+      for (const child of node.children) {
+        if (!('layoutAlign' in child)) continue;
+        const cName = (child.name || '').toLowerCase();
+        const cType = child.type;
+
+        // Skip children that are explicitly small/icon-like
+        const isSmallFixed = child.width && child.height && child.width <= 48 && child.height <= 48;
+        if (isSmallFixed && !/input|field|button|btn|bar|card|container|wrapper|form|section/.test(cName)) continue;
+
+        // In VERTICAL layout: frames, rectangles (inputs/buttons), groups → fill width
+        if (cType === 'FRAME' || cType === 'COMPONENT' || cType === 'INSTANCE' ||
+            cType === 'RECTANGLE' || cType === 'GROUP') {
+          child.layoutAlign = 'STRETCH';
+          if ('layoutSizingHorizontal' in child) child.layoutSizingHorizontal = 'FILL';
+        }
+
+        // Text nodes: fill width to prevent clipping
+        if (cType === 'TEXT') {
+          child.layoutAlign = 'STRETCH';
+          if ('layoutSizingHorizontal' in child) child.layoutSizingHorizontal = 'FILL';
+        }
+
+        // Recurse one level into child frames to stretch their interactive children too
+        if ('children' in child && ('layoutMode' in child) && child.layoutMode === 'VERTICAL') {
+          for (const grandchild of child.children) {
+            if (!('layoutAlign' in grandchild)) continue;
+            const gcType = grandchild.type;
+            if (gcType === 'FRAME' || gcType === 'COMPONENT' || gcType === 'INSTANCE' ||
+                gcType === 'RECTANGLE' || gcType === 'TEXT') {
+              grandchild.layoutAlign = 'STRETCH';
+              if ('layoutSizingHorizontal' in grandchild) grandchild.layoutSizingHorizontal = 'FILL';
+            }
+          }
+        }
+      }
+    }
+  ` : `
+    // HORIZONTAL layout: stretch children vertically (cross-axis fill)
+    if ('children' in node) {
+      for (const child of node.children) {
+        if (!('layoutAlign' in child)) continue;
+        // Let children that need vertical stretch (e.g. dividers, equal-height columns) fill
+        if (child.type === 'FRAME' || child.type === 'COMPONENT' || child.type === 'INSTANCE') {
+          // For horizontal containers, set layoutGrow=1 on frames that should expand
+          // (e.g. search bar in a nav, main content area)
+          const cName = (child.name || '').toLowerCase();
+          if (/input|field|search|content|main|body|spacer/.test(cName)) {
+            child.layoutGrow = 1;
+          }
+        }
+      }
+    }
+  `;
+
   return `
     const node = await figma.getNodeByIdAsync(${JSON.stringify(nodeId)});
     if (!node) throw new Error('Node not found: ${nodeId}');
@@ -265,6 +324,7 @@ function buildApplyScript(nodeId: string, spec: AutoLayoutSpec, paddingPx: numbe
     node.paddingTop    = ${paddingPx};
     node.paddingBottom = ${paddingPx};
     node.itemSpacing   = ${gapPx};
+    ${childFillScript}
     return { success: true };
   `.trim();
 }

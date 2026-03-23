@@ -157,40 +157,31 @@ async function ensureRelayServer() {
     if (relayStartupPromise)
         return relayStartupPromise;
     relayStartupPromise = new Promise((resolve, reject) => {
-        let attempt = 0;
-        function tryPort(port) {
-            const wss = new ws_1.WebSocketServer({ port });
-            let settled = false;
-            const finish = (callback) => {
-                if (settled)
-                    return;
-                settled = true;
-                callback();
-            };
-            setupRelayRouting(wss);
-            wss.on("listening", () => {
-                relayServer = wss;
-                process.stderr.write(`Figma bridge relay listening on ws://localhost:${port}\n`);
+        // Try to create our own relay server on the configured port
+        const wss = new ws_1.WebSocketServer({ port: WS_PORT });
+        let settled = false;
+        const finish = (callback) => {
+            if (settled)
+                return;
+            settled = true;
+            callback();
+        };
+        setupRelayRouting(wss);
+        wss.on("listening", () => {
+            relayServer = wss;
+            process.stderr.write(`Figma bridge relay listening on ws://localhost:${WS_PORT}\n`);
+            finish(() => resolve());
+        });
+        wss.on("error", (error) => {
+            if (error.code === "EADDRINUSE") {
+                // Port in use — bridge-relay is already running externally.
+                // Don't try other ports; just connect as a client to the existing relay.
+                process.stderr.write(`Figma bridge relay already running on ws://localhost:${WS_PORT} — connecting as client\n`);
                 finish(() => resolve());
-            });
-            wss.on("error", (error) => {
-                if (error.code === "EADDRINUSE") {
-                    if (attempt < PORT_FALLBACK_RANGE - 1) {
-                        attempt++;
-                        process.stderr.write(`Port ${port} in use, trying ${port + 1}…\n`);
-                        tryPort(port + 1);
-                    }
-                    else {
-                        // All ports exhausted — assume relay is already running externally
-                        process.stderr.write(`Figma bridge relay already running on ws://localhost:${WS_PORT}\n`);
-                        finish(() => resolve());
-                    }
-                    return;
-                }
-                finish(() => reject(error));
-            });
-        }
-        tryPort(WS_PORT);
+                return;
+            }
+            finish(() => reject(error));
+        });
     }).finally(() => {
         relayStartupPromise = null;
     });

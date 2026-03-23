@@ -6,7 +6,7 @@
 
 const https = require("https");
 const { EventEmitter } = require("events");
-const { buildSystemPrompt } = require("./shared-prompt-config");
+const { buildSystemPrompt, buildChatPrompt } = require("./shared-prompt-config");
 
 // Map the plugin's Opus/Sonnet/Haiku tier names to Gemini model IDs
 const MODEL_MAP = {
@@ -29,7 +29,7 @@ function formatConversationHistory(conversation) {
  * Spawn a Gemini streaming generate request.
  * Returns an EventEmitter-like object with a .kill() method.
  */
-function runGemini({ message, attachments, conversation, requestId, apiKey, model, designSystemId, onEvent }) {
+function runGemini({ message, attachments, conversation, requestId, apiKey, model, designSystemId, mode, onEvent }) {
   const emitter = new EventEmitter();
 
   // Process text attachments inline
@@ -52,7 +52,7 @@ function runGemini({ message, attachments, conversation, requestId, apiKey, mode
   const geminiModel = MODEL_MAP[model] || "gemini-2.0-flash";
 
   const bodyObj = {
-    system_instruction: { parts: [{ text: buildSystemPrompt(designSystemId) }] },
+    system_instruction: { parts: [{ text: (mode || "code") === "chat" ? buildChatPrompt() : buildSystemPrompt(designSystemId) }] },
     contents: [{ role: "user", parts: [{ text: fullMessage }] }],
     generationConfig: { maxOutputTokens: 4096 },
   };

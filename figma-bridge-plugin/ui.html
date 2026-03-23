@@ -104,6 +104,38 @@
     .conn-dot.online  { background: #4d8f5f; }
     .conn-dot.offline { background: #8f4d4d; }
 
+    /* ── Mode tabs (Chat / Code) ─────────────────────────────── */
+    .mode-tabs {
+      display: flex;
+      gap: 2px;
+      padding: 4px 12px;
+      background: var(--bg-header);
+      border-bottom: 1px solid var(--border-header);
+      flex-shrink: 0;
+    }
+    .mode-tab {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 5px 0;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background 0.13s, color 0.13s;
+      font-family: var(--font-sans);
+    }
+    .mode-tab:hover { background: rgba(255,255,255,0.05); color: var(--text-secondary); }
+    .mode-tab.active {
+      background: rgba(255,255,255,0.08);
+      color: var(--text-primary);
+    }
+
     /* ── Auth strip ──────────────────────────────────────────── */
     .auth-strip {
       padding: 4px 12px;
@@ -356,6 +388,19 @@
       margin-bottom: 4px;
       font-family: var(--font-sans);
     }
+    .citations-section { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); }
+    .citations-label { font-size: 10.5px; color: var(--text-muted); margin-bottom: 4px; font-family: var(--font-sans); }
+    .citation-link {
+      display: block;
+      font-size: 11px;
+      color: var(--accent);
+      text-decoration: none;
+      padding: 2px 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .citation-link:hover { text-decoration: underline; }
     .tool-pill {
       display: inline-flex;
       align-items: center;
@@ -701,6 +746,7 @@
     .pc-openai { background: rgba(25,195,125,0.12); }
     .pc-gemini { background: rgba(66,133,244,0.12); }
     .pc-bridge { background: rgba(160,132,232,0.12); }
+    .pc-perplexity { background: rgba(32,191,187,0.12); }
     .provider-info { flex: 1; min-width: 0; }
     .provider-name {
       font-size: 12.5px;
@@ -830,6 +876,7 @@
     .prov-dot.openai { background: #19c37d; }
     .prov-dot.gemini { background: #4285f4; }
     .prov-dot.bridge { background: #a084e8; }
+    .prov-dot.perplexity { background: #20bfbb; }
 
     /* Bridge mode home state */
     .bridge-home {
@@ -1129,6 +1176,22 @@
         <div class="provider-check">&#10003;</div>
       </div>
 
+      <!-- Perplexity (Research) -->
+      <div class="provider-card" id="pc-perplexity" onclick="selectLoginProvider('perplexity')">
+        <div class="provider-icon pc-perplexity" id="perplexity-logo-slot">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="#20bfbb" stroke-width="1.5"/>
+            <path d="M12 7v5l3.5 3.5" stroke="#20bfbb" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="12" cy="12" r="1.5" fill="#20bfbb"/>
+          </svg>
+        </div>
+        <div class="provider-info">
+          <div class="provider-name">Perplexity</div>
+          <div class="provider-desc" id="pd-perplexity">Research AI &middot; API key required</div>
+        </div>
+        <div class="provider-check">&#10003;</div>
+      </div>
+
       <!-- External Tool / Bridge -->
       <div class="provider-card" id="pc-bridge" onclick="selectLoginProvider('bridge')">
         <div class="provider-icon pc-bridge">
@@ -1207,6 +1270,18 @@
     <span id="auth-text">Checking provider subscriptions…</span>
   </div>
 
+  <!-- Mode tabs (Chat / Code) -->
+  <div class="mode-tabs" id="mode-tabs">
+    <button class="mode-tab" id="mode-tab-chat" onclick="switchMode('chat')">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Chat
+    </button>
+    <button class="mode-tab active" id="mode-tab-code" onclick="switchMode('code')">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      Code
+    </button>
+  </div>
+
   <!-- Thread -->
   <div class="thread" id="thread">
     <!-- Bridge mode home (shown instead of chat home when provider = bridge) -->
@@ -1227,6 +1302,7 @@
         Use VS Code Copilot, Cursor, Antigravity, or any<br>MCP-compatible tool to control your Figma designs.
       </div>
     </div>
+    <!-- Code mode home -->
     <div class="home-state" id="home-state">
       <div class="home-heading">
         <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
@@ -1250,6 +1326,33 @@
         <div class="chip" onclick="useChip(this)">
           <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/><circle cx="6" cy="6" r="1.5" fill="currentColor"/></svg>
           Set up a color system
+        </div>
+      </div>
+    </div>
+    <!-- Chat mode home (hidden, captured as template) -->
+    <div class="home-state" id="chat-home" style="display:none">
+      <div class="home-heading">
+        <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+          <path d="M14 3V11M14 17V25M3 14H11M17 14H25M5.757 5.757L11.314 11.314M16.686 16.686L22.243 22.243M5.757 22.243L11.314 16.686M16.686 11.314L22.243 5.757" stroke="#da7756" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <div class="home-heading-text">What would you like to know?</div>
+      </div>
+      <div class="chips">
+        <div class="chip" onclick="useChip(this)">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 4.5C4.5 3.7 5.2 3 6 3s1.5.7 1.5 1.5c0 .8-.6 1.1-1 1.3-.2.1-.5.3-.5.7" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><circle cx="6" cy="8.5" r=".6" fill="currentColor"/></svg>
+          What are design tokens?
+        </div>
+        <div class="chip" onclick="useChip(this)">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 4.5C4.5 3.7 5.2 3 6 3s1.5.7 1.5 1.5c0 .8-.6 1.1-1 1.3-.2.1-.5.3-.5.7" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><circle cx="6" cy="8.5" r=".6" fill="currentColor"/></svg>
+          How should I structure my variables?
+        </div>
+        <div class="chip" onclick="useChip(this)">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 4.5C4.5 3.7 5.2 3 6 3s1.5.7 1.5 1.5c0 .8-.6 1.1-1 1.3-.2.1-.5.3-.5.7" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><circle cx="6" cy="8.5" r=".6" fill="currentColor"/></svg>
+          Best practices for auto layout
+        </div>
+        <div class="chip" onclick="useChip(this)">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 4.5C4.5 3.7 5.2 3 6 3s1.5.7 1.5 1.5c0 .8-.6 1.1-1 1.3-.2.1-.5.3-.5.7" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><circle cx="6" cy="8.5" r=".6" fill="currentColor"/></svg>
+          Explain component variants
         </div>
       </div>
     </div>
@@ -1562,12 +1665,19 @@
       { id: "gemini-1.5-flash-8b", label: "Gemini 1.5 Flash 8B", desc: "Fastest" },
     ],
     bridge: [],
+    perplexity: [
+      { id: "sonar-pro",           label: "Sonar Pro",           desc: "Thorough research" },
+      { id: "sonar",               label: "Sonar",               desc: "Fast search answers" },
+      { id: "sonar-reasoning-pro", label: "Sonar Reasoning Pro", desc: "Best reasoning" },
+      { id: "sonar-reasoning",     label: "Sonar Reasoning",     desc: "Step-by-step analysis" },
+    ],
   };
   var selectedModelByProvider = {
     claude: "claude-opus-4-6",
     openai: "gpt-5.4",
     gemini: "gemini-2.5-pro",
     bridge: null,
+    perplexity: "sonar-pro",
   };
   var modelDropdownOpen = false;
 
@@ -1855,6 +1965,7 @@
     openai:  { label: "OpenAI",  dotClass: "openai",  btnText: "Continue with OpenAI" },
     gemini:  { label: "Gemini",  dotClass: "gemini",  btnText: "Continue with Gemini" },
     bridge:  { label: "Bridge",  dotClass: "bridge",  btnText: "Activate Bridge Mode" },
+    perplexity: { label: "Perplexity", dotClass: "perplexity", btnText: "Continue with Perplexity" },
   };
 
   var PROVIDER_HINTS = {
@@ -1862,11 +1973,13 @@
     openai:  'Uses the OpenAI account currently signed in to Codex. Setup also registers Codex for MCP so switching stays restart-free.',
     gemini:  '',
     bridge:  'Your AI tool (VS Code Copilot, Cursor, etc.) controls Figma via MCP.',
+    perplexity: 'Uses your Perplexity API key for research-focused conversations. Get a key at perplexity.ai/settings.',
   };
 
   var PROVIDER_API_LINKS = {
     openai: "Get key at platform.openai.com",
     gemini: "Get key at aistudio.google.com",
+    perplexity: "Get key at perplexity.ai/settings",
   };
 
   function geminiNeedsApiKey() {
@@ -1876,7 +1989,7 @@
 
   function selectLoginProvider(id) {
     selectedLoginProvider = id;
-    ["claude","openai","gemini","bridge"].forEach(function(p) {
+    ["claude","openai","gemini","perplexity","bridge"].forEach(function(p) {
       var card = document.getElementById("pc-" + p);
       if (card) card.className = "provider-card" + (p === id ? " selected" : "");
     });
@@ -1890,6 +2003,11 @@
       apiExpand.style.display = "block";
       bridgeExpand.style.display = "none";
       apiInput.placeholder = "AIza\u2026 (Google AI Studio key)";
+      if (apiLink) apiLink.textContent = PROVIDER_API_LINKS[id] || "";
+    } else if (id === "perplexity") {
+      apiExpand.style.display = "block";
+      bridgeExpand.style.display = "none";
+      apiInput.placeholder = "pplx-\u2026 (Perplexity API key)";
       if (apiLink) apiLink.textContent = PROVIDER_API_LINKS[id] || "";
     } else if (id === "bridge") {
       apiExpand.style.display = "none";
@@ -1910,7 +2028,7 @@
     if (!btn) return;
     if (!selectedLoginProvider) { btn.disabled = true; return; }
 
-    var needsKey = selectedLoginProvider === "gemini" && geminiNeedsApiKey();
+    var needsKey = (selectedLoginProvider === "gemini" && geminiNeedsApiKey()) || selectedLoginProvider === "perplexity";
     var keyVal   = needsKey ? (document.getElementById("login-api-key").value || "").trim() : "";
     btn.disabled = needsKey && keyVal.length < 8;
 
@@ -1920,13 +2038,22 @@
 
   function continueWithProvider() {
     if (!selectedLoginProvider) return;
-    var needsKey = selectedLoginProvider === "gemini" && geminiNeedsApiKey();
+    var needsKey = (selectedLoginProvider === "gemini" && geminiNeedsApiKey()) || selectedLoginProvider === "perplexity";
     loginApiKey = needsKey ? (document.getElementById("login-api-key").value || "").trim() : null;
 
     try { localStorage.setItem("figma-intelligence-provider", selectedLoginProvider); } catch(e) {}
 
     hideLoginScreen();
     updateProviderBadge();
+    updateModeTabsVisibility();
+    // Force chat mode for Perplexity (research-only, no Code mode)
+    if (selectedLoginProvider === "perplexity" && activeMode !== "chat") {
+      switchMode("chat");
+    }
+    // Set Perplexity-specific placeholder
+    if (selectedLoginProvider === "perplexity" && input) {
+      input.placeholder = "Research any topic...";
+    }
     renderThreadForProvider(selectedLoginProvider);
     updateStatus();
 
@@ -1993,11 +2120,77 @@
       showLoginScreen();
     }
     syncModelBadge();
+    updateModeTabsVisibility();
     renderThreadForProvider(selectedLoginProvider || "claude");
+
+    // Apply chat mode UI if restored
+    if (activeMode === "chat") {
+      var dsBtn = document.getElementById("style-guide-btn");
+      if (dsBtn) dsBtn.style.display = "none";
+      if (input) input.placeholder = "Ask me anything...";
+    }
   }
 
   function isBridgeMode() {
     return selectedLoginProvider === "bridge";
+  }
+
+  /* ── Mode tabs (Chat / Code) ─────────────────────────────────────────── */
+  var activeMode = "code";
+  var MODE_STORAGE_KEY = "figma-intelligence-mode";
+  try {
+    var savedMode = localStorage.getItem(MODE_STORAGE_KEY);
+    if (savedMode === "chat" || savedMode === "code") activeMode = savedMode;
+  } catch(e) {}
+
+  // Apply initial tab state
+  (function() {
+    var codeTab = document.getElementById("mode-tab-code");
+    var chatTab = document.getElementById("mode-tab-chat");
+    if (codeTab) codeTab.className = "mode-tab" + (activeMode === "code" ? " active" : "");
+    if (chatTab) chatTab.className = "mode-tab" + (activeMode === "chat" ? " active" : "");
+  })();
+
+  window.switchMode = function(mode) {
+    if (mode === activeMode) return;
+    if (isStreaming) return; // prevent switching mid-stream
+
+    activeMode = mode;
+    try { localStorage.setItem(MODE_STORAGE_KEY, mode); } catch(e) {}
+
+    // Update tab UI
+    document.getElementById("mode-tab-code").className = "mode-tab" + (mode === "code" ? " active" : "");
+    document.getElementById("mode-tab-chat").className = "mode-tab" + (mode === "chat" ? " active" : "");
+
+    // Swap home state template based on mode
+    homeStateTemplate = mode === "chat" ? chatHomeTemplate : codeHomeTemplate;
+
+    // Re-render thread for current provider + new mode
+    renderThreadForProvider(getActiveProvider());
+
+    // Update placeholder text
+    if (input) {
+      if (selectedLoginProvider === "perplexity") {
+        input.placeholder = "Research any topic...";
+      } else {
+        input.placeholder = mode === "chat"
+          ? "Ask me anything..."
+          : "How can I help you today?";
+      }
+    }
+
+    // Hide design-system picker in chat mode
+    var dsBtn = document.getElementById("style-guide-btn");
+    if (dsBtn) dsBtn.style.display = (mode === "chat") ? "none" : "";
+  };
+
+  function isChatOnlyProvider() {
+    return selectedLoginProvider === "bridge" || selectedLoginProvider === "perplexity";
+  }
+
+  function updateModeTabsVisibility() {
+    var modeTabs = document.getElementById("mode-tabs");
+    if (modeTabs) modeTabs.style.display = isChatOnlyProvider() ? "none" : "flex";
   }
 
   /* ── State ────────────────────────────────────────────────────────────── */
@@ -2024,6 +2217,7 @@
   var currentToolStepsEl = null;
   var currentToolPills = {};
   var currentToolsUsed = []; // ordered list of tools called this turn
+  var pendingCitations = null; // Perplexity source URLs
 
   /* ── UI refs ──────────────────────────────────────────────────────────── */
   var thread = document.getElementById("thread");
@@ -2035,17 +2229,38 @@
   var authStrip = document.getElementById("auth-strip");
   var authText = document.getElementById("auth-text");
   var footer = document.getElementById("input-footer");
-  var homeStateTemplate = document.getElementById("home-state").outerHTML;
+  var codeHomeTemplate = document.getElementById("home-state").outerHTML;
+  var chatHomeTemplate = document.getElementById("chat-home").outerHTML.replace('id="chat-home"', 'id="home-state"').replace('style="display:none"', '');
+  var homeStateTemplate = activeMode === "chat" ? chatHomeTemplate : codeHomeTemplate;
   var bridgeHomeTemplate = document.getElementById("bridge-home").outerHTML;
+  // Remove the hidden chat-home div from the DOM (it was only needed for template capture)
+  var chatHomeEl = document.getElementById("chat-home");
+  if (chatHomeEl) chatHomeEl.parentNode.removeChild(chatHomeEl);
 
   function loadChatThreads() {
-    var defaults = { claude: [], openai: [], gemini: [], bridge: [] };
+    var defaults = {
+      claude_code: [], claude_chat: [],
+      openai_code: [], openai_chat: [],
+      gemini_code: [], gemini_chat: [],
+      perplexity_chat: [],
+      bridge: []
+    };
     try {
       var raw = localStorage.getItem(THREAD_STORAGE_KEY);
       if (!raw) return defaults;
       var parsed = JSON.parse(raw);
-      Object.keys(defaults).forEach(function(provider) {
-        if (!Array.isArray(parsed[provider])) parsed[provider] = [];
+
+      // Migrate old format: { claude: [], openai: [], gemini: [] } → { claude_code: [], ... }
+      var oldProviders = ["claude", "openai", "gemini"];
+      oldProviders.forEach(function(p) {
+        if (Array.isArray(parsed[p]) && parsed[p].length > 0 && !parsed[p + "_code"]) {
+          parsed[p + "_code"] = parsed[p];
+        }
+        delete parsed[p];
+      });
+
+      Object.keys(defaults).forEach(function(key) {
+        if (!Array.isArray(parsed[key])) parsed[key] = [];
       });
       return parsed;
     } catch (e) {
@@ -2059,10 +2274,17 @@
     } catch (e) {}
   }
 
+  function getThreadKey(provider) {
+    var p = provider || getActiveProvider();
+    if (p === "bridge") return "bridge";
+    if (p === "perplexity") return "perplexity_chat";
+    return p + "_" + activeMode;
+  }
+
   function getThreadEntries(provider) {
-    var activeProvider = provider || getActiveProvider();
-    if (!Array.isArray(chatThreads[activeProvider])) chatThreads[activeProvider] = [];
-    return chatThreads[activeProvider];
+    var key = getThreadKey(provider);
+    if (!Array.isArray(chatThreads[key])) chatThreads[key] = [];
+    return chatThreads[key];
   }
 
   function pushThreadEntry(provider, entry) {
@@ -2147,6 +2369,8 @@
       hasAuth = isOpenAILoggedIn;
     } else if (prov === "gemini") {
       hasAuth = geminiCliLoggedIn || !!loginApiKey;
+    } else if (prov === "perplexity") {
+      hasAuth = !!loginApiKey;
     } else {
       hasAuth = isClaudeLoggedIn;
     }
@@ -2556,6 +2780,31 @@
       currentTextEl.appendChild(summaryWrap);
     }
 
+    // Append Perplexity citations if present
+    if (pendingCitations && pendingCitations.length > 0 && currentTextEl) {
+      var citationWrap = document.createElement("div");
+      citationWrap.className = "citations-section";
+      var citationLabel = document.createElement("div");
+      citationLabel.className = "citations-label";
+      citationLabel.textContent = pendingCitations.length + " source" + (pendingCitations.length > 1 ? "s" : "");
+      citationWrap.appendChild(citationLabel);
+      pendingCitations.forEach(function(url, i) {
+        var link = document.createElement("a");
+        link.className = "citation-link";
+        link.href = url;
+        link.target = "_blank";
+        link.rel = "noopener";
+        try {
+          link.textContent = "[" + (i + 1) + "] " + url.replace(/^https?:\/\/(www\.)?/, "").split("/")[0];
+        } catch(e) {
+          link.textContent = "[" + (i + 1) + "] " + url;
+        }
+        citationWrap.appendChild(link);
+      });
+      currentTextEl.appendChild(citationWrap);
+      pendingCitations = null;
+    }
+
     // Spacer between turns
     var sp = document.createElement("div");
     sp.style.height = "14px";
@@ -2568,6 +2817,7 @@
     currentToolStepsEl = null;
     currentToolPills = {};
     currentToolsUsed = [];
+    pendingCitations = null;
     scrollBottom();
   }
 
@@ -2630,6 +2880,7 @@
       message: messageText,
       model: getSelectedModel(activeProvider),
       conversation: conversation,
+      mode: activeMode,
     };
 
     if (attachedFiles.length > 0) {
@@ -2664,18 +2915,18 @@
   window.startNewConversation = function() {
     if (isStreaming) stopStreaming();
 
-    // Clear thread entries for the active provider
-    var activeProvider = getActiveProvider();
-    chatThreads[activeProvider] = [];
+    // Clear thread entries for the active provider + mode
+    var key = getThreadKey(getActiveProvider());
+    chatThreads[key] = [];
     saveChatThreads();
 
     // Reset DOM to home state
     thread.innerHTML = homeStateTemplate;
     homeState = document.getElementById("home-state");
 
-    // Tell the relay to reset the Claude session
+    // Tell the relay to reset the session for this mode
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "new-conversation" }));
+      ws.send(JSON.stringify({ type: "new-conversation", mode: activeMode }));
     }
 
     // Focus the input
@@ -2875,6 +3126,13 @@
 
       if (msg.type === "tool_done") {
         resolveToolPill(msg.tool, !!msg.isError);
+        return;
+      }
+
+      if (msg.type === "citations") {
+        if (msg.urls && msg.urls.length > 0) {
+          pendingCitations = msg.urls;
+        }
         return;
       }
 

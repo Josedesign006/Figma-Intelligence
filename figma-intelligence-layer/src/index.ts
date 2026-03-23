@@ -61,6 +61,7 @@ import { figmaApgDocHandler } from "./tools/phase5-governance/apg-doc/index.js";
 import { dsPrimitivesHandler } from "./tools/phase5-governance/ds-primitives/index.js";
 import { tokenNamingHandler } from "./tools/phase5-governance/token-naming/index.js";
 import { tokenMigrateHandler } from "./tools/phase5-governance/token-migrate/index.js";
+import { componentDocHandler } from "./tools/phase5-governance/component-doc/index.js";
 
 // ─── Bridge (for direct execute) ────────────────────────────────────────────
 import { ensureRelayServer, getBridge } from "./shared/figma-bridge.js";
@@ -719,11 +720,75 @@ const TOOLS: Tool[] = [
       required: ["outputFormat"],
     },
   },
+  {
+    name: "figma_component_doc",
+    description:
+      "Generate comprehensive design system documentation for a selected component — Uber uSpec / Carbon Design System quality. Produces 18 sections: overview, purpose, anatomy, variants, states, sizes, spacing, color tokens, typography, usage (do's/don'ts), behaviour, interaction rules, content guidance, responsive, accessibility (semantic role, ARIA, keyboard, focus, screen reader, touch targets, contrast), implementation notes, QA checklist, and API/props table. TWO-PHASE WORKFLOW: First call with outputFormat 'json' to extract raw data, then generate rich content and call again with outputFormat 'figma-page' + contentOverrides.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Optional target node. If omitted, the current Figma selection is used." },
+        outputFormat: { type: "string", enum: ["json", "report", "figma-page", "all"] },
+        sections: {
+          type: "array",
+          items: {
+            type: "string",
+            enum: [
+              "overview", "purpose", "anatomy", "variants", "states", "sizes",
+              "spacing", "color-tokens", "typography", "usage", "behaviour",
+              "interaction-rules", "content-guidance", "responsive",
+              "accessibility", "props", "implementation-notes", "qa-checklist",
+            ],
+          },
+          description: "Optional subset of sections to generate. If omitted, all sections are generated.",
+        },
+        includeVisualExamples: { type: "boolean", description: "Include variant grid as actual component instances (default true)." },
+        framework: { type: "string", enum: ["html", "react", "vue", "angular"], description: "Framework for accessibility code examples." },
+        pageName: { type: "string", description: "Optional custom Figma page name for the documentation." },
+        contentOverrides: {
+          type: "object",
+          description: "AI-generated content overrides for each documentation section. Use with the two-phase workflow: first call with outputFormat 'json' to extract data, then call with 'figma-page' and this parameter.",
+          properties: {
+            overview: { type: "string", description: "Rich component overview description." },
+            purpose: { type: "string", description: "The specific user need this component addresses." },
+            usage: { type: "object", properties: { whenToUse: { type: "array", items: { type: "string" } }, whenNotToUse: { type: "array", items: { type: "string" } } } },
+            typesAndVariants: { type: "string", description: "Variant descriptions with when to pick each." },
+            anatomy: { type: "array", items: { type: "object", properties: { index: { type: "number" }, name: { type: "string" }, type: { type: "string" }, description: { type: "string" } } } },
+            properties: { type: "array", items: { type: "object", properties: { name: { type: "string" }, type: { type: "string" }, values: { type: "array", items: { type: "string" } }, defaultValue: { type: "string" }, description: { type: "string" } } } },
+            states: { type: "array", items: { type: "object", properties: { name: { type: "string" }, visualDescription: { type: "string" }, trigger: { type: "string" }, meaning: { type: "string" } } } },
+            sizes: { type: "array", items: { type: "object", properties: { name: { type: "string" }, useCase: { type: "string" }, minTouchTarget: { type: "string" }, context: { type: "string" } } } },
+            behaviour: { type: "string" },
+            interactionRules: { type: "string" },
+            contentGuidance: { type: "string" },
+            spacingAndLayout: { type: "string" },
+            responsive: { type: "string" },
+            accessibility: {
+              type: "object",
+              properties: {
+                semanticRole: { type: "string" },
+                ariaAttributes: { type: "string" },
+                keyboardInteraction: { type: "array", items: { type: "object", properties: { key: { type: "string" }, action: { type: "string" } } } },
+                focusManagement: { type: "string" },
+                screenReaderAnnouncements: { type: "string" },
+                readingOrder: { type: "string" },
+                touchTargets: { type: "string" },
+                colorContrast: { type: "string" },
+              },
+            },
+            dosAndDonts: { type: "object", properties: { dos: { type: "array", items: { type: "string" } }, donts: { type: "array", items: { type: "string" } } } },
+            implementationNotes: { type: "string" },
+            qaChecklist: { type: "array", items: { type: "string" } },
+          },
+        },
+      },
+      required: ["outputFormat"],
+    },
+  },
   // ── Direct Execute ───────────────────────────────────────────────────────
   {
     name: "figma_execute",
     description:
-      "Execute Figma Plugin API code directly in the connected Figma file. The code runs inside the plugin sandbox with full access to the Figma Plugin API. Use `return` to return a value. All Figma API calls must use async methods (e.g. getNodeByIdAsync, findAllAsync). IMPORTANT: (1) Frames are created at (0,0) by default which causes overlaps. Before creating top-level frames, find empty space: `const maxX = figma.currentPage.children.filter(n => n.type === 'FRAME').reduce((m,f) => Math.max(m, f.x+f.width), 0);` then position new frames at x = maxX + 100. (2) Always apply Auto Layout on container frames with proper padding (16-24px) and itemSpacing (8-16px). After building, call figma_layout_intelligence for production-quality layout. (3) For multi-screen flows, prefer figma_page_architect which handles positioning and layout automatically.",
+      "Execute Figma Plugin API code directly in the connected Figma file. The code runs inside the plugin sandbox with full access to the Figma Plugin API. Use `return` to return a value. All Figma API calls must use async methods (e.g. getNodeByIdAsync, findAllAsync). CRITICAL POSITIONING RULE: NEVER create root frames at (0,0) — this overlaps existing work. ALWAYS start your code with: `const _frames = figma.currentPage.children.filter(n => n.type === 'FRAME'); const _startX = _frames.length > 0 ? _frames.reduce((m,f) => Math.max(m, f.x+f.width), 0) + 200 : 0;` then set every new root frame's x = _startX. If the page has >10 frames, create a new page first: `const pg = figma.createPage(); pg.name = 'Design Name'; figma.currentPage = pg;`. Other rules: (1) Always apply Auto Layout on container frames with proper padding (16-24px) and itemSpacing (8-16px). After building, call figma_layout_intelligence for production-quality layout. (2) For multi-screen flows, prefer figma_page_architect which handles positioning and layout automatically.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1199,6 +1264,7 @@ async function dispatch(name: string, args: AnyArgs): Promise<unknown> {
     case "figma_health_report":        return healthReportHandler(args as never);
     case "figma_generate_spec":        return generateSpecHandler(args as never);
     case "figma_apg_doc":              return figmaApgDocHandler(args as never);
+    case "figma_component_doc":        return componentDocHandler(args as never);
     // Direct execute
     case "figma_execute": {
       const bridge = await getBridge();
@@ -1452,6 +1518,11 @@ export function createMcpServer() {
 
 async function main() {
   await ensureRelayServer();
+
+  // Connect the bridge eagerly so the relay immediately sees an MCP socket
+  // and reports "Connected" instead of "Relay only" in the plugin UI.
+  getBridge().catch(() => {});
+
   const server = createMcpServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);

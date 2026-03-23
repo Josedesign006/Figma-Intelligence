@@ -18,6 +18,7 @@ const crypto = require("crypto");
 const {
   SYSTEM_PROMPT,
   buildSystemPrompt,
+  buildChatPrompt,
   detectActiveSkills,
   REPO_DIR,
 } = require("./shared-prompt-config");
@@ -33,11 +34,16 @@ const CLAUDE_BIN = process.env.CLAUDE_BIN_PATH || "claude";
 // First message uses --session-id <uuid> (creates a new session).
 // Subsequent messages use --resume <uuid> (reloads full conversation context).
 // No need to re-send system prompt, MCP config, or conversation history on resume.
-let activeSessionId = null;
+let activeSessionIds = { code: null, chat: null };
 
-function resetSession() {
-  activeSessionId = null;
-  console.log("[chat-runner] Session reset — next message starts a new session.");
+function resetSession(mode) {
+  if (mode) {
+    activeSessionIds[mode] = null;
+    console.log(`[chat-runner] ${mode} session reset — next message starts a new session.`);
+  } else {
+    activeSessionIds = { code: null, chat: null };
+    console.log("[chat-runner] All sessions reset — next message starts a new session.");
+  }
 }
 
 // ── MCP Config (written once at startup) ─────────────────────────────────────
@@ -61,7 +67,8 @@ function getClaudeSettings() {
   return {};
 }
 
-function writeMcpConfig() {
+function writeMcpConfig(bridgePort) {
+  const port = String(bridgePort || process.env.BRIDGE_PORT || "9001");
   const figmaToken = getFigmaToken();
   const settings = getClaudeSettings();
   const existingServers =
@@ -83,7 +90,6 @@ function writeMcpConfig() {
 
   const config = {
     mcpServers: {
-      ...existingServers,
       "figma-intelligence-layer": {
         type: "stdio",
         command: "node",
@@ -97,7 +103,7 @@ function writeMcpConfig() {
           ...(process.env.UNSPLASH_ACCESS_KEY ? { UNSPLASH_ACCESS_KEY: process.env.UNSPLASH_ACCESS_KEY } : {}),
           ...existingFigmaEnv,
           FIGMA_ACCESS_TOKEN: figmaToken,
-          FIGMA_BRIDGE_PORT: "9001",
+          FIGMA_BRIDGE_PORT: port,
           ENABLE_DECISION_LOG: "true",
         },
       },
@@ -105,9 +111,10 @@ function writeMcpConfig() {
   };
   mkdirSync(tmpdir(), { recursive: true });
   writeFileSync(MCP_CONFIG_PATH, JSON.stringify(config, null, 2));
+  console.log(`[chat-runner] MCP config written with FIGMA_BRIDGE_PORT=${port}`);
 }
 
-// Write config once at startup
+// Write initial config (will be rewritten with actual port once relay starts)
 writeMcpConfig();
 
 function getCleanEnv() {
@@ -166,59 +173,75 @@ function processAttachments(attachments) {
 const CLAUDE_DEFAULT_MODEL = "claude-opus-4-6";
 const CLAUDE_VALID_MODELS = new Set(["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]);
 
-function runClaude({ message, attachments, conversation, requestId, model, designSystemId, onEvent }) {
+function runClaude({ message, attachments, conversation, requestId, model, designSystemId, mode, onEvent }) {
   const { imageArgs, extraText, tempFiles } = processAttachments(attachments);
 
   const resolvedModel = CLAUDE_VALID_MODELS.has(model) ? model : CLAUDE_DEFAULT_MODEL;
+  const sessionMode = mode || "code";
 
   const rawText = (message || "").trim() || (extraText ? "Please analyse the attached image(s) and help me create a Figma design based on them." : "");
   const userText = rawText; // No more expandShortPrompt — Claude handles short prompts natively
 
-  const isFirstMessage = !activeSessionId;
+  const isFirstMessage = !activeSessionIds[sessionMode];
 
   // Generate session ID on first message
   if (isFirstMessage) {
-    activeSessionId = crypto.randomUUID();
-    console.log(`[chat-runner] New session: ${activeSessionId}`);
+    activeSessionIds[sessionMode] = crypto.randomUUID();
+    console.log(`[chat-runner] New ${sessionMode} session: ${activeSessionIds[sessionMode]}`);
   }
+
+  const currentSessionId = activeSessionIds[sessionMode];
 
   // Build user message — no more conversation history, task guidance, or AGENTS.md injection
   // Session persistence handles conversation context natively
   const userMessage = `${userText}${extraText}`;
 
   // Emit pre-flight progress
-  const skills = detectActiveSkills(userText);
-  if (skills.length > 0) {
-    onEvent({ type: "phase_start", id: requestId, phase: `Skills: ${skills.join(" · ")}` });
+  if (sessionMode === "code") {
+    const skills = detectActiveSkills(userText);
+    if (skills.length > 0) {
+      onEvent({ type: "phase_start", id: requestId, phase: `Skills: ${skills.join(" · ")}` });
+    }
+    onEvent({ type: "phase_start", id: requestId, phase: `Model: ${resolvedModel} · MCP: figma-intelligence-layer` });
+  } else {
+    onEvent({ type: "phase_start", id: requestId, phase: `Chat · ${resolvedModel}` });
   }
-  onEvent({ type: "phase_start", id: requestId, phase: `Model: ${resolvedModel} · MCP: figma-intelligence-layer` });
 
   let args;
   if (isFirstMessage) {
     // First message: create session with full config
-    const fullSystemPrompt = buildSystemPrompt(designSystemId);
+    const fullSystemPrompt = sessionMode === "chat" ? buildChatPrompt() : buildSystemPrompt(designSystemId);
     args = [
       "--model", resolvedModel,
       "--system-prompt", fullSystemPrompt,
       "--print", userMessage,
       "--output-format", "stream-json",
       "--verbose",
-      "--mcp-config", MCP_CONFIG_PATH,
       "--dangerously-skip-permissions",
-      "--session-id", activeSessionId,
-      "--cwd", REPO_DIR,
+      "--session-id", currentSessionId,
     ];
+    // In code mode, load ONLY the figma-intelligence-layer MCP server.
+    // --strict-mcp-config ensures ONLY servers from --mcp-config are used,
+    // ignoring Pencil, design-bridge, and any other MCP servers from
+    // ~/.claude/settings.json or .vscode/mcp.json.
+    if (sessionMode === "code") {
+      args.push("--mcp-config", MCP_CONFIG_PATH, "--strict-mcp-config");
+    }
   } else {
-    // Subsequent messages: resume session — context already loaded
-    // No system prompt, no MCP config needed (session remembers them)
+    // Subsequent messages: resume session — context already loaded.
+    // MUST re-pass --mcp-config and --strict-mcp-config on resume too,
+    // otherwise Claude re-discovers Pencil and other MCP servers.
     args = [
       "--print", userMessage,
       "--output-format", "stream-json",
       "--verbose",
       "--dangerously-skip-permissions",
-      "--resume", activeSessionId,
+      "--resume", currentSessionId,
     ];
-    console.log(`[chat-runner] Resuming session: ${activeSessionId}`);
+    if (sessionMode === "code") {
+      args.push("--mcp-config", MCP_CONFIG_PATH, "--strict-mcp-config");
+    }
+    console.log(`[chat-runner] Resuming ${sessionMode} session: ${currentSessionId}`);
   }
 
   const proc = spawn(CLAUDE_BIN, args, {
@@ -283,8 +306,8 @@ function runClaude({ message, attachments, conversation, requestId, model, desig
       const detail = stderrOutput.trim() || `exit code ${code}`;
       // If session resume failed, reset and let next message start fresh
       if (detail.includes("session") || detail.includes("resume")) {
-        console.error("[chat-runner] Session resume failed, resetting session.");
-        resetSession();
+        console.error(`[chat-runner] Session resume failed, resetting ${sessionMode} session.`);
+        resetSession(sessionMode);
       }
       onEvent({
         type: "error",
@@ -411,4 +434,4 @@ function getClaudeAuthInfo() {
   });
 }
 
-module.exports = { runClaude, resetSession, isClaudeAvailable, getClaudeAuthInfo };
+module.exports = { runClaude, resetSession, isClaudeAvailable, getClaudeAuthInfo, writeMcpConfig };

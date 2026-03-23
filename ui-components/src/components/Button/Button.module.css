@@ -1,0 +1,162 @@
+/* ==========================================================================
+   Button Component — pixel-matched to Figma spec
+   Variants: Primary, Secondary, Destructive
+   Sizes:    Small (sm), Medium (md), Large (lg)
+   States:   Default, Hover, Pressed (active), Disabled
+   ========================================================================== */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+/* ── Base ─────────────────────────────────────────────────────────────── */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.button:focus-visible {
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px #595ced;
+}
+
+/* ── Sizes ────────────────────────────────────────────────────────────── */
+
+.sm {
+  padding: 6px 12px;
+  gap: 6px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.md {
+  padding: 10px 16px;
+  gap: 8px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.lg {
+  padding: 14px 24px;
+  gap: 8px;
+  border-radius: 10px;
+  font-size: 16px;
+}
+
+/* ── Primary ──────────────────────────────────────────────────────────── */
+
+.primary {
+  background-color: #595ced;
+  color: #ffffff;
+}
+
+.primary:hover:not(:disabled) {
+  background-color: #474ad1;
+}
+
+.primary:active:not(:disabled) {
+  background-color: #383bb8;
+}
+
+.primary:disabled {
+  background-color: #e3e3e8;
+  color: #a1a1ab;
+  cursor: not-allowed;
+}
+
+/* ── Secondary ────────────────────────────────────────────────────────── */
+
+.secondary {
+  background-color: #ffffff;
+  color: #0a0a0a;
+  border: 1px solid #d4d4d9;
+}
+
+.secondary:hover:not(:disabled) {
+  background-color: #f7f7f7;
+  border-color: #d4d4d9;
+}
+
+.secondary:active:not(:disabled) {
+  background-color: #ededf0;
+  border-color: #bfbfc7;
+}
+
+.secondary:disabled {
+  background-color: #f7f7f7;
+  border-color: #e3e3e8;
+  color: #a1a1ab;
+  cursor: not-allowed;
+}
+
+/* ── Destructive ──────────────────────────────────────────────────────── */
+
+.destructive {
+  background-color: #f04545;
+  color: #ffffff;
+}
+
+.destructive:hover:not(:disabled) {
+  background-color: #db3333;
+}
+
+.destructive:active:not(:disabled) {
+  background-color: #bf2626;
+}
+
+.destructive:disabled {
+  background-color: #e3e3e8;
+  color: #a1a1ab;
+  cursor: not-allowed;
+}
+
+/* ── Icon slots ───────────────────────────────────────────────────────── */
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sm .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.md .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.lg .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.icon > svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Label ────────────────────────────────────────────────────────────── */
+
+.label {
+  display: inline-flex;
+  align-items: center;
+}

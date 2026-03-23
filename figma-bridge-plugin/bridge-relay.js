@@ -18,10 +18,11 @@ const { spawn } = require("child_process");
 const { readFileSync, writeFileSync, existsSync } = require("fs");
 const { homedir } = require("os");
 const { join, resolve } = require("path");
-const { runClaude, resetSession, isClaudeAvailable, getClaudeAuthInfo } = require("./chat-runner");
+const { runClaude, resetSession, isClaudeAvailable, getClaudeAuthInfo, writeMcpConfig } = require("./chat-runner");
 const { runCodex, isCodexAvailable, getCodexAuthInfo, resetCodexSession } = require("./codex-runner");
 const { runGemini } = require("./gemini-runner");
 const { runGeminiCli, isGeminiCliAvailable, getGeminiCliAuthInfo } = require("./gemini-cli-runner");
+const { runPerplexity } = require("./perplexity-runner");
 
 // P3: Port fallback — try PORT, then PORT+1 through PORT+9
 const BASE_PORT = parseInt(process.argv[2] || process.env.BRIDGE_PORT || "9001", 10);
@@ -322,6 +323,9 @@ console.log(`   MCP server   → connects to ws://localhost:${PORT}`);
 console.log(`   Figma plugin → connects to ws://localhost:${PORT}/plugin`);
 console.log(`   Waiting for connections…\n`);
 
+// Rewrite MCP config with the actual port (chat-runner wrote initial config with default port)
+writeMcpConfig(PORT);
+
 // Start heartbeat monitoring
 setupHeartbeat(wss);
 
@@ -393,7 +397,8 @@ wss.on("connection", (ws, req) => {
       if (msg.type === "chat") {
         const requestId = msg.id;
         const prov = providerConfig.provider || "claude";
-        console.log(`  💬 chat [${prov}] (id: ${requestId}): ${(msg.message || "").slice(0, 60)}…`);
+        const chatMode = msg.mode || "code";
+        console.log(`  💬 chat [${prov}/${chatMode}] (id: ${requestId}): ${(msg.message || "").slice(0, 60)}…`);
 
         const onEvent = (event) => {
           sendToPlugin(event);
@@ -416,6 +421,7 @@ wss.on("connection", (ws, req) => {
             requestId,
             model: msg.model,
             designSystemId: activeDesignSystemId,
+            mode: chatMode,
             onEvent,
           });
         } else if (prov === "gemini") {
@@ -428,6 +434,7 @@ wss.on("connection", (ws, req) => {
               requestId,
               model: msg.model,
               designSystemId: activeDesignSystemId,
+              mode: chatMode,
               onEvent,
             });
           } else {
@@ -440,9 +447,21 @@ wss.on("connection", (ws, req) => {
               apiKey: providerConfig.apiKey,
               model: msg.model,
               designSystemId: activeDesignSystemId,
+              mode: chatMode,
               onEvent,
             });
           }
+        } else if (prov === "perplexity") {
+          proc = runPerplexity({
+            message: msg.message,
+            attachments: msg.attachments,
+            conversation: msg.conversation,
+            requestId,
+            apiKey: providerConfig.apiKey,
+            model: msg.model,
+            mode: "chat",
+            onEvent,
+          });
         } else if (prov === "bridge") {
           // Bridge-only mode: no built-in AI — tell the plugin immediately
           sendToPlugin({
@@ -461,6 +480,7 @@ wss.on("connection", (ws, req) => {
             requestId,
             model: msg.model,
             designSystemId: activeDesignSystemId,
+            mode: chatMode,
             onEvent,
           });
         }
@@ -483,9 +503,10 @@ wss.on("connection", (ws, req) => {
 
       // Reset conversation session (user clicked "New Chat" in plugin UI)
       if (msg.type === "new-conversation" || msg.type === "clear-history") {
-        resetSession();
-        resetCodexSession();
-        console.log(`  🔄 conversation session reset`);
+        const resetMode = msg.mode || null; // null = reset all modes
+        resetSession(resetMode);
+        resetCodexSession(resetMode);
+        console.log(`  🔄 conversation session reset${resetMode ? ` (${resetMode})` : " (all)"}`);
         return;
       }
 

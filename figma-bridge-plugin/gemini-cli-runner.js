@@ -44,6 +44,7 @@ const MODEL_MAP = {
 const {
   SYSTEM_PROMPT,
   buildSystemPrompt,
+  buildChatPrompt,
 } = require("./shared-prompt-config");
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -172,7 +173,7 @@ async function getGeminiCliAuthInfo() {
 
 // ── Chat Runner ─────────────────────────────────────────────────────────────
 
-function runGeminiCli({ message, attachments, conversation, requestId, model, designSystemId, onEvent }) {
+function runGeminiCli({ message, attachments, conversation, requestId, model, designSystemId, mode, onEvent }) {
   const rawText = (message || "").trim() || "Please help with the Figma design.";
   const userText = rawText; // No more expandShortPrompt
 
@@ -189,7 +190,9 @@ function runGeminiCli({ message, attachments, conversation, requestId, model, de
   }
 
   // Slimmed prompt: system prompt + user message (no task guidance, no history, no AGENTS.md)
-  const fullMessage = `${buildSystemPrompt(designSystemId)}\n\n---\n\n${userText}${extraText}`;
+  const sessionMode = mode || "code";
+  const systemPrompt = sessionMode === "chat" ? buildChatPrompt() : buildSystemPrompt(designSystemId);
+  const fullMessage = `${systemPrompt}\n\n---\n\n${userText}${extraText}`;
   const geminiModel = MODEL_MAP[model] || "gemini-2.0-flash";
 
   const args = [

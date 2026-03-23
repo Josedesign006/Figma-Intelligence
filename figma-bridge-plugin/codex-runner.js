@@ -42,14 +42,19 @@ const MODEL_MAP = {
 const {
   SYSTEM_PROMPT,
   buildSystemPrompt,
+  buildChatPrompt,
   detectActiveSkills,
 } = require("./shared-prompt-config");
 
 // Session persistence — reuse across messages (like Claude runner's --session-id / --resume)
-let activeSessionId = null;
+let activeSessionIds = { code: null, chat: null };
 
-function resetCodexSession() {
-  activeSessionId = null;
+function resetCodexSession(mode) {
+  if (mode) {
+    activeSessionIds[mode] = null;
+  } else {
+    activeSessionIds = { code: null, chat: null };
+  }
 }
 
 function readFileIfExists(filePath) {
@@ -276,8 +281,9 @@ function processAttachments(attachments) {
  * Streams text back via onEvent({ type: "text_delta", delta, id }).
  * Returns the ChildProcess so the caller can kill it for abort.
  */
-function runCodex({ message, attachments, conversation, requestId, model, designSystemId, onEvent }) {
+function runCodex({ message, attachments, conversation, requestId, model, designSystemId, mode, onEvent }) {
   const { imageArgs, extraText, tempFiles } = processAttachments(attachments);
+  const sessionMode = mode || "code";
 
   const rawText = (message || "").trim() || "Please help with the Figma design.";
   const userMessage = `${rawText}${extraText}`;
@@ -285,11 +291,18 @@ function runCodex({ message, attachments, conversation, requestId, model, design
   const openAIModel = MODEL_MAP[model] || "gpt-5";
 
   // Emit phase_start events (parity with Claude runner)
-  const skills = detectActiveSkills(rawText);
-  if (skills.length > 0) {
-    onEvent({ type: "phase_start", id: requestId, phase: `Skills: ${skills.join(" · ")}` });
+  if (sessionMode === "code") {
+    const skills = detectActiveSkills(rawText);
+    if (skills.length > 0) {
+      onEvent({ type: "phase_start", id: requestId, phase: `Skills: ${skills.join(" · ")}` });
+    }
+    onEvent({ type: "phase_start", id: requestId, phase: `Model: ${openAIModel} · MCP: figma-intelligence-layer` });
+  } else {
+    onEvent({ type: "phase_start", id: requestId, phase: `Chat · ${openAIModel}` });
   }
-  onEvent({ type: "phase_start", id: requestId, phase: `Model: ${openAIModel} · MCP: figma-intelligence-layer` });
+
+  const activeSessionId = activeSessionIds[sessionMode];
+  const systemPrompt = sessionMode === "chat" ? buildChatPrompt() : buildSystemPrompt(designSystemId);
 
   let args;
   if (!activeSessionId) {
@@ -299,24 +312,30 @@ function runCodex({ message, attachments, conversation, requestId, model, design
       "--json",
       "--skip-git-repo-check",
       "--color", "never",
-      "--dangerously-bypass-approvals-and-sandbox",
       "--model", openAIModel,
-      "-c", `instructions=${JSON.stringify(buildSystemPrompt(designSystemId))}`,
+      "-c", `instructions=${JSON.stringify(systemPrompt)}`,
       ...imageArgs,
     ];
+    // Only enable full agent mode (sandbox bypass) in code mode
+    // Chat mode stays restricted — no tool execution, no MCP calls
+    if (sessionMode === "code") {
+      args.push("--dangerously-bypass-approvals-and-sandbox");
+    }
   } else {
     // Subsequent messages — resume existing session
     // Note: resume subcommand has fewer valid flags (no --color, no -C)
-    console.log(`[codex-runner] Resuming session: ${activeSessionId}`);
+    console.log(`[codex-runner] Resuming ${sessionMode} session: ${activeSessionId}`);
     args = [
       "exec", "resume",
       activeSessionId,
       "--json",
       "--skip-git-repo-check",
-      "--dangerously-bypass-approvals-and-sandbox",
       "--model", openAIModel,
       ...imageArgs,
     ];
+    if (sessionMode === "code") {
+      args.push("--dangerously-bypass-approvals-and-sandbox");
+    }
   }
 
   const proc = spawn(CODEX_BIN, args, {
@@ -357,9 +376,9 @@ function runCodex({ message, attachments, conversation, requestId, model, design
 
       // Capture session ID from thread.started event
       if (event.type === "thread.started" && event.thread_id) {
-        if (!activeSessionId) {
-          activeSessionId = event.thread_id;
-          console.log(`[codex-runner] Session started: ${activeSessionId}`);
+        if (!activeSessionIds[sessionMode]) {
+          activeSessionIds[sessionMode] = event.thread_id;
+          console.log(`[codex-runner] ${sessionMode} session started: ${event.thread_id}`);
         }
         return;
       }
