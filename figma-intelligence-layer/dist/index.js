@@ -39,22 +39,23 @@ const index_js_16 = require("./tools/phase3-generation/unsplash-search/index.js"
 const index_js_17 = require("./tools/phase3-generation/url-to-frame/index.js");
 const index_js_18 = require("./tools/phase3-generation/system-drift/index.js");
 const index_js_19 = require("./tools/phase3-generation/prototype-map/index.js");
+const index_js_20 = require("./tools/phase3-generation/prototype-wire/index.js");
 const figma_animated_build_js_1 = require("./tools/phase3-generation/figma-animated-build.js");
 // ─── Phase 4: Sync & Bidirectionality ───────────────────────────────────────
-const index_js_20 = require("./tools/phase4-sync/animation-specifier/index.js");
-const index_js_21 = require("./tools/phase4-sync/sync-from-code/index.js");
-const index_js_22 = require("./tools/phase4-sync/webhook-listener/index.js");
+const index_js_21 = require("./tools/phase4-sync/animation-specifier/index.js");
+const index_js_22 = require("./tools/phase4-sync/sync-from-code/index.js");
+const index_js_23 = require("./tools/phase4-sync/webhook-listener/index.js");
 // ─── Phase 5: Memory, Governance & Health ───────────────────────────────────
-const index_js_23 = require("./tools/phase5-governance/ds-scaffolder/index.js");
-const index_js_24 = require("./tools/phase5-governance/ds-variables/index.js");
-const index_js_25 = require("./tools/phase5-governance/decision-log/index.js");
-const index_js_26 = require("./tools/phase5-governance/health-report/index.js");
-const index_js_27 = require("./tools/phase5-governance/spec-generator/index.js");
-const index_js_28 = require("./tools/phase5-governance/apg-doc/index.js");
-const index_js_29 = require("./tools/phase5-governance/ds-primitives/index.js");
-const index_js_30 = require("./tools/phase5-governance/token-naming/index.js");
-const index_js_31 = require("./tools/phase5-governance/token-migrate/index.js");
-const index_js_32 = require("./tools/phase5-governance/component-doc/index.js");
+const index_js_24 = require("./tools/phase5-governance/ds-scaffolder/index.js");
+const index_js_25 = require("./tools/phase5-governance/ds-variables/index.js");
+const index_js_26 = require("./tools/phase5-governance/decision-log/index.js");
+const index_js_27 = require("./tools/phase5-governance/health-report/index.js");
+const index_js_28 = require("./tools/phase5-governance/spec-generator/index.js");
+const index_js_29 = require("./tools/phase5-governance/apg-doc/index.js");
+const index_js_30 = require("./tools/phase5-governance/ds-primitives/index.js");
+const index_js_31 = require("./tools/phase5-governance/token-naming/index.js");
+const index_js_32 = require("./tools/phase5-governance/token-migrate/index.js");
+const index_js_33 = require("./tools/phase5-governance/component-doc/index.js");
 // ─── Bridge (for direct execute) ────────────────────────────────────────────
 const figma_bridge_js_1 = require("./shared/figma-bridge.js");
 // ─── P0: Response compression ───────────────────────────────────────────────
@@ -160,7 +161,7 @@ const TOOLS = [
     },
     {
         name: "figma_layout_intelligence",
-        description: "Analyze any frame and apply production-ready Auto Layout settings with design token binding in one command. Detects container type (card, form, nav, modal, list, grid, section) and applies the optimal layout pattern. Call this on every container frame created by figma_execute to ensure professional spacing and padding.",
+        description: "Analyze any frame and apply production-ready Auto Layout settings with design token binding in one command. Detects container type (card, form, nav, modal, list, grid, section, document page, header/section/footer/table blocks) and applies the optimal layout pattern. For document pages, automatically recurses into all nested containers, applies per-container specs, runs validation, and repairs FILL/HUG issues. Call this on every container frame created by figma_execute to ensure professional spacing and padding.",
         inputSchema: {
             type: "object",
             properties: {
@@ -358,6 +359,74 @@ const TOOLS = [
                 outputFormat: { type: "string", enum: ["json", "mermaid", "both"] },
             },
             required: ["outputFormat"],
+        },
+    },
+    {
+        name: "figma_prototype_scan",
+        description: "Scan Figma frames to discover all interactive elements (buttons, links, nav items, icons) with confidence scoring. Returns an inventory of wireable elements per screen. Use BEFORE figma_prototype_wire to understand what can be connected. Supports auto-discovery of all top-level frames or targeting specific frame IDs. The AI should use the scan results plus the user's journey description to plan which elements to wire to which destinations.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                frameIds: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Specific frame IDs to scan. Omit to auto-discover all top-level frames on the current page.",
+                },
+                journeyDescription: {
+                    type: "string",
+                    description: "Optional user journey text — echoed back for AI context when planning wiring.",
+                },
+                maxDepth: {
+                    type: "number",
+                    description: "Max node tree recursion depth (default 5, max 8).",
+                },
+            },
+        },
+    },
+    {
+        name: "figma_prototype_wire",
+        description: "Create prototype connections between interactive elements and destination frames. Supports all Figma trigger types (ON_CLICK, ON_DRAG, ON_HOVER, AFTER_DELAY, MOUSE_ENTER, MOUSE_LEAVE) and animation types (SMART_ANIMATE, DISSOLVE, SLIDE_IN, SLIDE_OUT, PUSH, MOVE_IN, MOVE_OUT, INSTANT) with configurable duration, easing, and direction. Best used after figma_prototype_scan. Supports dry-run mode and clearing existing reactions. If only journeyDescription is provided (no connections), returns a scan for the AI to plan wiring.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                connections: {
+                    type: "array",
+                    description: "Explicit wiring instructions. Each entry wires one interactive element to a destination frame.",
+                    items: {
+                        type: "object",
+                        properties: {
+                            fromElementId: { type: "string", description: "Node ID of the interactive element (button, link, etc.)" },
+                            toFrameId: { type: "string", description: "Destination frame ID" },
+                            trigger: { type: "string", enum: ["ON_CLICK", "ON_DRAG", "ON_HOVER", "AFTER_DELAY", "MOUSE_ENTER", "MOUSE_LEAVE"] },
+                            animation: {
+                                type: "object",
+                                properties: {
+                                    type: { type: "string", enum: ["SMART_ANIMATE", "DISSOLVE", "SLIDE_IN", "SLIDE_OUT", "PUSH", "MOVE_IN", "MOVE_OUT", "INSTANT"] },
+                                    direction: { type: "string", enum: ["LEFT", "RIGHT", "TOP", "BOTTOM"] },
+                                    duration: { type: "number", description: "Duration in seconds (default 0.3)" },
+                                    easing: { type: "string", enum: ["EASE_IN", "EASE_OUT", "EASE_IN_AND_OUT", "LINEAR"] },
+                                },
+                            },
+                            navigation: { type: "string", enum: ["NAVIGATE", "OVERLAY", "SWAP", "SCROLL_TO", "BACK", "CLOSE"] },
+                        },
+                        required: ["fromElementId", "toFrameId"],
+                    },
+                },
+                journeyDescription: { type: "string", description: "User journey text. Without connections, triggers scan mode — returns interactive element inventory for AI to plan wiring." },
+                frameIds: { type: "array", items: { type: "string" }, description: "Frames to scan/wire (omit for auto-discover)." },
+                defaultTrigger: { type: "string", enum: ["ON_CLICK", "ON_DRAG", "ON_HOVER", "AFTER_DELAY"] },
+                defaultAnimation: {
+                    type: "object",
+                    properties: {
+                        type: { type: "string", enum: ["SMART_ANIMATE", "DISSOLVE", "SLIDE_IN", "SLIDE_OUT", "PUSH", "MOVE_IN", "MOVE_OUT", "INSTANT"] },
+                        direction: { type: "string", enum: ["LEFT", "RIGHT", "TOP", "BOTTOM"] },
+                        duration: { type: "number" },
+                        easing: { type: "string", enum: ["EASE_IN", "EASE_OUT", "EASE_IN_AND_OUT", "LINEAR"] },
+                    },
+                },
+                clearExisting: { type: "boolean", description: "Remove existing reactions before wiring (default false)." },
+                dryRun: { type: "boolean", description: "Return plan without executing (default false)." },
+            },
         },
     },
     {
@@ -1194,22 +1263,24 @@ async function dispatch(name, args) {
         case "figma_url_to_frame": return (0, index_js_17.urlToFrameHandler)(args);
         case "figma_system_drift": return (0, index_js_18.systemDriftHandler)(args);
         case "figma_prototype_map": return (0, index_js_19.prototypeMapHandler)(args);
+        case "figma_prototype_scan": return (0, index_js_20.prototypeScanHandler)(args);
+        case "figma_prototype_wire": return (0, index_js_20.prototypeWireHandler)(args);
         case "figma_animated_build": return (0, figma_animated_build_js_1.animatedBuildHandler)(args);
         // Phase 4
-        case "figma_animation_specifier": return (0, index_js_20.animationSpecifierHandler)(args);
-        case "figma_sync_from_code": return (0, index_js_21.syncFromCodeHandler)(args);
-        case "figma_webhook_listener": return (0, index_js_22.webhookListenerHandler)(args);
+        case "figma_animation_specifier": return (0, index_js_21.animationSpecifierHandler)(args);
+        case "figma_sync_from_code": return (0, index_js_22.syncFromCodeHandler)(args);
+        case "figma_webhook_listener": return (0, index_js_23.webhookListenerHandler)(args);
         // Phase 5
-        case "figma_design_system_scaffolder": return (0, index_js_23.dsScaffolderHandler)(args);
-        case "figma_design_system_primitives": return (0, index_js_29.dsPrimitivesHandler)(args);
-        case "figma_design_system_variables": return (0, index_js_24.dsVariablesHandler)(args);
-        case "figma_token_naming_convention": return (0, index_js_30.tokenNamingHandler)(args);
-        case "figma_token_migrate": return (0, index_js_31.tokenMigrateHandler)(args);
-        case "figma_decision_log": return (0, index_js_25.decisionLogToolHandler)(args);
-        case "figma_health_report": return (0, index_js_26.healthReportHandler)(args);
-        case "figma_generate_spec": return (0, index_js_27.generateSpecHandler)(args);
-        case "figma_apg_doc": return (0, index_js_28.figmaApgDocHandler)(args);
-        case "figma_component_doc": return (0, index_js_32.componentDocHandler)(args);
+        case "figma_design_system_scaffolder": return (0, index_js_24.dsScaffolderHandler)(args);
+        case "figma_design_system_primitives": return (0, index_js_30.dsPrimitivesHandler)(args);
+        case "figma_design_system_variables": return (0, index_js_25.dsVariablesHandler)(args);
+        case "figma_token_naming_convention": return (0, index_js_31.tokenNamingHandler)(args);
+        case "figma_token_migrate": return (0, index_js_32.tokenMigrateHandler)(args);
+        case "figma_decision_log": return (0, index_js_26.decisionLogToolHandler)(args);
+        case "figma_health_report": return (0, index_js_27.healthReportHandler)(args);
+        case "figma_generate_spec": return (0, index_js_28.generateSpecHandler)(args);
+        case "figma_apg_doc": return (0, index_js_29.figmaApgDocHandler)(args);
+        case "figma_component_doc": return (0, index_js_33.componentDocHandler)(args);
         // Direct execute
         case "figma_execute": {
             const bridge = await (0, figma_bridge_js_1.getBridge)();

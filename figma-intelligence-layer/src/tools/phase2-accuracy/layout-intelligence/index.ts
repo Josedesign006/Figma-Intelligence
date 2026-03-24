@@ -9,7 +9,7 @@ import { getBridge } from "../../../shared/figma-bridge.js";
 import { decisionLog } from "../../../shared/decision-log.js";
 import { snapToSpacingToken } from "../../../shared/token-utils.js";
 import { FigmaNode } from "../../../shared/types.js";
-import { generateValidatorScript } from "../../../shared/auto-layout-validator.js";
+import { generateValidatorScript, generateDocumentRepairScript, generateDocumentRepairCall } from "../../../shared/auto-layout-validator.js";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -352,65 +352,6 @@ function buildApplyScript(nodeId: string, spec: AutoLayoutSpec, paddingPx: numbe
     ? `node.layoutWrap = 'WRAP';`
     : `node.layoutWrap = 'NO_WRAP';`;
 
-  // Child types that should always fill the parent width (STRETCH)
-  // in a VERTICAL Auto Layout container.
-  const childFillScript = spec.direction === "VERTICAL" || spec.direction === "WRAP" ? `
-    // Make children fill the container width (STRETCH / FILL)
-    if ('children' in node) {
-      for (const child of node.children) {
-        if (!('layoutAlign' in child)) continue;
-        const cName = (child.name || '').toLowerCase();
-        const cType = child.type;
-
-        // Skip children that are explicitly small/icon-like
-        const isSmallFixed = child.width && child.height && child.width <= 48 && child.height <= 48;
-        if (isSmallFixed && !/input|field|button|btn|bar|card|container|wrapper|form|section/.test(cName)) continue;
-
-        // In VERTICAL layout: frames, rectangles (inputs/buttons), groups → fill width
-        if (cType === 'FRAME' || cType === 'COMPONENT' || cType === 'INSTANCE' ||
-            cType === 'RECTANGLE' || cType === 'GROUP') {
-          child.layoutAlign = 'STRETCH';
-          if ('layoutSizingHorizontal' in child) child.layoutSizingHorizontal = 'FILL';
-        }
-
-        // Text nodes: fill width to prevent clipping
-        if (cType === 'TEXT') {
-          child.layoutAlign = 'STRETCH';
-          if ('layoutSizingHorizontal' in child) child.layoutSizingHorizontal = 'FILL';
-        }
-
-        // Recurse one level into child frames to stretch their interactive children too
-        if ('children' in child && ('layoutMode' in child) && child.layoutMode === 'VERTICAL') {
-          for (const grandchild of child.children) {
-            if (!('layoutAlign' in grandchild)) continue;
-            const gcType = grandchild.type;
-            if (gcType === 'FRAME' || gcType === 'COMPONENT' || gcType === 'INSTANCE' ||
-                gcType === 'RECTANGLE' || gcType === 'TEXT') {
-              grandchild.layoutAlign = 'STRETCH';
-              if ('layoutSizingHorizontal' in grandchild) grandchild.layoutSizingHorizontal = 'FILL';
-            }
-          }
-        }
-      }
-    }
-  ` : `
-    // HORIZONTAL layout: stretch children vertically (cross-axis fill)
-    if ('children' in node) {
-      for (const child of node.children) {
-        if (!('layoutAlign' in child)) continue;
-        // Let children that need vertical stretch (e.g. dividers, equal-height columns) fill
-        if (child.type === 'FRAME' || child.type === 'COMPONENT' || child.type === 'INSTANCE') {
-          // For horizontal containers, set layoutGrow=1 on frames that should expand
-          // (e.g. search bar in a nav, main content area)
-          const cName = (child.name || '').toLowerCase();
-          if (/input|field|search|content|main|body|spacer/.test(cName)) {
-            child.layoutGrow = 1;
-          }
-        }
-      }
-    }
-  `;
-
   return `
     const node = await figma.getNodeByIdAsync(${JSON.stringify(nodeId)});
     if (!node) throw new Error('Node not found: ${nodeId}');
@@ -424,7 +365,54 @@ function buildApplyScript(nodeId: string, spec: AutoLayoutSpec, paddingPx: numbe
     node.paddingTop    = ${paddingPx};
     node.paddingBottom = ${paddingPx};
     node.itemSpacing   = ${gapPx};
-    ${childFillScript}
+
+    // ── Deep recursive FILL enforcement ──
+    function isAL(n) { return n.layoutMode === 'HORIZONTAL' || n.layoutMode === 'VERTICAL'; }
+    function isDocContainer(name) {
+      return /section|header|footer|table|paragraph|toc|block|overview|anatomy|content|divider/i.test(name);
+    }
+    function enforceChildFill(parent, depth) {
+      if (depth > 20 || !('children' in parent)) return;
+      const dir = parent.layoutMode;
+      const parentIsAL = isAL(parent);
+      if (!parentIsAL) return;
+
+      for (const child of parent.children) {
+        if (!('layoutAlign' in child)) continue;
+        const cName = (child.name || '').toLowerCase();
+        const cType = child.type;
+
+        // Skip small fixed elements (icons ≤48px) unless they're semantic containers
+        const isSmallFixed = child.width && child.height && child.width <= 48 && child.height <= 48;
+        if (isSmallFixed && !isDocContainer(cName) &&
+            !/input|field|button|btn|bar|card|container|wrapper|form/.test(cName)) {
+          continue;
+        }
+
+        if (dir === 'VERTICAL') {
+          // VERTICAL parent → children fill width
+          if (cType === 'FRAME' || cType === 'COMPONENT' || cType === 'INSTANCE' ||
+              cType === 'RECTANGLE' || cType === 'GROUP' || cType === 'TEXT') {
+            child.layoutAlign = 'STRETCH';
+            if ('layoutSizingHorizontal' in child) child.layoutSizingHorizontal = 'FILL';
+          }
+        } else if (dir === 'HORIZONTAL') {
+          // HORIZONTAL parent → grow content children, fill height on frames
+          if (cType === 'FRAME' || cType === 'COMPONENT' || cType === 'INSTANCE') {
+            if (/input|field|search|content|main|body|spacer/.test(cName) || isDocContainer(cName)) {
+              child.layoutGrow = 1;
+            }
+          }
+        }
+
+        // Recurse into child frames
+        if ('children' in child && isAL(child)) {
+          enforceChildFill(child, depth + 1);
+        }
+      }
+    }
+    enforceChildFill(node, 0);
+
     return { success: true };
   `.trim();
 }
@@ -462,6 +450,108 @@ function generateResponsiveHints(kind: ContainerKind | "unknown", spec: AutoLayo
   }
 
   return hints;
+}
+
+// ─── Document container kinds (used to auto-enable recursive validation) ─────
+
+const DOCUMENT_KINDS: Set<ContainerKind | "unknown"> = new Set([
+  "document_page", "header_block", "section_block", "toc_row",
+  "paragraph_group", "divider", "footer_block", "table_block",
+]);
+
+function isDocumentKind(kind: ContainerKind | "unknown"): boolean {
+  return DOCUMENT_KINDS.has(kind);
+}
+
+// ─── Recursive spec application for nested document containers ───────────────
+
+function buildRecursiveSpecScript(nodeId: string): string {
+  // Serialize the detection patterns and specs as inline JS so they run inside
+  // the Figma Plugin API context (bridge.execute).
+  return `
+(async () => {
+  const root = await figma.getNodeByIdAsync(${JSON.stringify(nodeId)});
+  if (!root) throw new Error('Node not found');
+
+  const SPECS = {
+    document_page:   { dir: 'VERTICAL',   pw: 'AUTO',  cw: 'FIXED', pad: 56, gap: 48 },
+    header_block:    { dir: 'VERTICAL',   pw: 'AUTO',  cw: 'AUTO',  pad: 0,  gap: 8  },
+    section_block:   { dir: 'VERTICAL',   pw: 'AUTO',  cw: 'AUTO',  pad: 0,  gap: 24 },
+    toc_row:         { dir: 'HORIZONTAL', pw: 'AUTO',  cw: 'AUTO',  pad: 0,  gap: 8  },
+    paragraph_group: { dir: 'VERTICAL',   pw: 'AUTO',  cw: 'AUTO',  pad: 0,  gap: 8  },
+    divider:         { dir: 'HORIZONTAL', pw: 'FIXED', cw: 'FIXED', pad: 0,  gap: 0  },
+    footer_block:    { dir: 'HORIZONTAL', pw: 'AUTO',  cw: 'AUTO',  pad: 0,  gap: 16 },
+    table_block:     { dir: 'VERTICAL',   pw: 'AUTO',  cw: 'AUTO',  pad: 0,  gap: 0  },
+  };
+
+  const DETECT = [
+    [/doc(ument)?[\\s_-]?page|spec[\\s_-]?page|guide(line)?[\\s_-]?page/i, 'document_page'],
+    [/header[\\s_-]?block|doc[\\s_-]?header|page[\\s_-]?title[\\s_-]?block/i, 'header_block'],
+    [/section[\\s_-]?block|content[\\s_-]?section/i, 'section_block'],
+    [/toc[\\s_-]?row|table[\\s_-]?of[\\s_-]?contents/i, 'toc_row'],
+    [/paragraph[\\s_-]?group|body[\\s_-]?text[\\s_-]?block|text[\\s_-]?block/i, 'paragraph_group'],
+    [/\\bdivider\\b|\\bseparator\\b|\\bhr\\b/i, 'divider'],
+    [/footer[\\s_-]?block|doc[\\s_-]?footer/i, 'footer_block'],
+    [/table[\\s_-]?block|spec[\\s_-]?table|data[\\s_-]?table/i, 'table_block'],
+  ];
+
+  function detectKind(node) {
+    const n = (node.name || '').toLowerCase();
+    for (const [re, kind] of DETECT) {
+      if (re.test(n)) return kind;
+    }
+    return null;
+  }
+
+  function isAL(n) { return n.layoutMode === 'HORIZONTAL' || n.layoutMode === 'VERTICAL'; }
+
+  let applied = 0;
+
+  function applySpec(node, spec) {
+    if (!('layoutMode' in node)) return;
+    node.layoutMode = spec.dir;
+    node.layoutWrap = 'NO_WRAP';
+    node.primaryAxisSizingMode = spec.pw;
+    node.counterAxisSizingMode = spec.cw;
+    node.paddingLeft = spec.pad;
+    node.paddingRight = spec.pad;
+    node.paddingTop = spec.pad;
+    node.paddingBottom = spec.pad;
+    node.itemSpacing = spec.gap;
+    applied++;
+  }
+
+  function walkAndApply(node, depth) {
+    if (depth > 20 || !('children' in node)) return;
+    for (const child of node.children) {
+      const kind = detectKind(child);
+      if (kind && SPECS[kind]) {
+        applySpec(child, SPECS[kind]);
+      }
+
+      // Enforce FILL on children of VERTICAL auto-layout containers
+      if (isAL(node) && node.layoutMode === 'VERTICAL' && 'layoutAlign' in child) {
+        const cType = child.type;
+        if (cType === 'FRAME' || cType === 'COMPONENT' || cType === 'INSTANCE' ||
+            cType === 'RECTANGLE' || cType === 'GROUP' || cType === 'TEXT') {
+          // Skip small icons
+          const isSmall = child.width && child.height && child.width <= 48 && child.height <= 48;
+          if (!isSmall) {
+            child.layoutAlign = 'STRETCH';
+            if ('layoutSizingHorizontal' in child) child.layoutSizingHorizontal = 'FILL';
+          }
+        }
+      }
+
+      walkAndApply(child, depth + 1);
+    }
+  }
+
+  // Don't re-apply to root (already done by buildApplyScript), only children
+  walkAndApply(root, 0);
+  return { applied: applied };
+})();
+  `.trim();
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
@@ -513,6 +603,12 @@ export async function layoutIntelligenceHandler(
       throw new Error(`layoutIntelligence: Failed to apply changes — ${execResult.error}`);
     }
     applied = true;
+
+    // 6b. For document containers: recursively apply specs to nested children
+    if (isDocumentKind(detectedKind)) {
+      const recursiveScript = buildRecursiveSpecScript(nodeId);
+      await bridge.execute(recursiveScript);
+    }
   }
 
   // 7. Log the decision
@@ -525,16 +621,21 @@ export async function layoutIntelligenceHandler(
     metadata: { detectedKind, resolvedKind, spec, diffCount: diff.length },
   });
 
-  // 8. Recursive auto-layout validation (if requested)
+  // 8. Auto-layout validation + document repair
+  //    Auto-enabled for document containers; also runs when recursive=true
+  const shouldValidate = args.recursive || isDocumentKind(detectedKind);
   let validationFixes = 0;
-  if (args.recursive) {
+  if (shouldValidate && applied) {
     const validatorScript = `
 (async () => {
   ${generateValidatorScript()}
+  ${generateDocumentRepairScript()}
   const node = await figma.getNodeByIdAsync(${JSON.stringify(nodeId)});
   if (!node) throw new Error('Node not found: ${nodeId}');
-  const result = validateAutoLayout(node);
-  return result;
+  const valResult = validateAutoLayout(node);
+  ${generateDocumentRepairCall('node')}
+  const totalFixes = valResult.fixes + (_docRepair ? _docRepair.repairs : 0);
+  return { fixes: totalFixes, valDetails: valResult.details, repairDetails: _docRepair ? _docRepair.details : [] };
 })();
     `.trim();
     const valResult = await bridge.execute(validatorScript);
@@ -551,7 +652,7 @@ export async function layoutIntelligenceHandler(
     diff,
     applied,
     logEntryId: logEntry.id,
-    ...(args.recursive ? { validationFixes } : {}),
+    ...(shouldValidate ? { validationFixes } : {}),
   };
 
   if (responsiveHints) {

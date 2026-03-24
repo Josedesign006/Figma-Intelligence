@@ -9,6 +9,7 @@ import Fuse from "fuse.js";
 import { getBridge } from "../../../shared/figma-bridge.js";
 import { decisionLog } from "../../../shared/decision-log.js";
 import { ComponentSet, Token } from "../../../shared/types.js";
+import { buildWireScript } from "../../../shared/prototype-script-builder.js";
 import {
   resolveDesignPalette,
   resolveFloatToken,
@@ -1684,36 +1685,15 @@ function buildTemplateBody(
   }
 }
 
-// ─── Prototype connection script ─────────────────────────────────────────────
+// ─── Prototype connection script (uses shared builder) ──────────────────────
 
 function buildPrototypeScript(fromId: string, toId: string): string {
-  return `
-(async () => {
-  const from = await figma.getNodeByIdAsync(${JSON.stringify(fromId)});
-  const to = await figma.getNodeByIdAsync(${JSON.stringify(toId)});
-  if (!from || !to) return { success: false };
-
-  const existing = from.reactions || [];
-  from.reactions = [
-    ...existing,
-    {
-      trigger: { type: 'ON_CLICK' },
-      action: {
-        type: 'NODE',
-        destinationId: ${JSON.stringify(toId)},
-        navigation: 'NAVIGATE',
-        transition: {
-          type: 'SMART_ANIMATE',
-          easing: { type: 'EASE_IN_AND_OUT' },
-          duration: 0.3,
-        },
-        preserveScrollPosition: false,
-      },
-    },
-  ];
-  return { success: true };
-})();
-`.trim();
+  return buildWireScript([{
+    fromNodeId: fromId,
+    toNodeId: toId,
+    trigger: { type: "ON_CLICK" },
+    animation: { type: "SMART_ANIMATE", duration: 0.3, easing: "EASE_IN_AND_OUT" },
+  }]);
 }
 
 // ─── Flow map page ────────────────────────────────────────────────────────────

@@ -15,7 +15,7 @@ exports.generateHighContrastColor = generateHighContrastColor;
 // ─────────────────────────────────────────────────────────────────────────────
 // Spacing token snapping
 // ─────────────────────────────────────────────────────────────────────────────
-const SPACING_SCALE = [0, 2, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 48, 64, 80, 96, 128];
+const SPACING_SCALE = [0, 2, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 48, 56, 64, 80, 96, 128];
 function snapToSpacingToken(px) {
     const rounded = Math.round(px / 4) * 4;
     const nearest = SPACING_SCALE.reduce((prev, curr) => Math.abs(curr - rounded) < Math.abs(prev - rounded) ? curr : prev);

@@ -396,10 +396,53 @@ DOCUMENT TYPES:
 === END DOCUMENT DESIGN SKILL ===`);
   }
 
+  if (skills.includes("Prototyping")) {
+    sections.push(`
+=== PROTOTYPING SKILL ===
+PROTOTYPE WIRING WORKFLOW (two-step scan-then-wire):
+
+Step 1 — SCAN: Call figma_prototype_scan to discover interactive elements in the selected/target frames.
+  - Pass frameIds (from user selection) or omit to auto-discover all top-level frames
+  - Pass journeyDescription if the user described a user flow
+  - Returns: per-frame inventory of buttons, links, nav items, icons with confidence scores and node IDs
+
+Step 2 — REASON: Analyze the scan results against the user's journey description.
+  - Map each journey step to a source element (button/link) and destination frame
+  - Choose appropriate trigger types: ON_CLICK (default), ON_HOVER (tooltips/menus), AFTER_DELAY (splash screens), ON_DRAG (swipeable)
+  - Choose appropriate animations: SLIDE_IN/SLIDE_OUT (forward/back navigation), SMART_ANIMATE (in-place transitions), DISSOLVE (overlays), PUSH (tab switches)
+  - For "back" actions use SLIDE_IN with direction RIGHT; for forward use LEFT
+
+Step 3 — WIRE: Call figma_prototype_wire with explicit connections array.
+  - Each connection: { fromElementId, toFrameId, trigger, animation: { type, direction, duration, easing } }
+  - Use dryRun: true first if unsure, to preview without executing
+  - Use clearExisting: true to re-wire from scratch
+
+READING EXISTING PROTOTYPES:
+  - figma_prototype_map: extracts all existing connections as a state machine / Mermaid diagram
+  - figma_animation_specifier: generates dev-ready animation code from existing prototype transitions
+
+TIPS:
+  - Always scan before wiring — never guess node IDs
+  - For multi-screen flows, wire both forward and back connections
+  - Use SMART_ANIMATE when source and destination share similar layouts (Figma morphs matching layers)
+  - Default duration: 0.3s with EASE_IN_AND_OUT easing
+=== END PROTOTYPING SKILL ===`);
+  }
+
   return sections.join("\n");
 }
 
 // ── Exports ──────────────────────────────────────────────────────────────────
+
+/**
+ * Build a notebook grounding addendum for the system prompt.
+ * Called by bridge-relay when notebooks are active, this wraps
+ * the grounding context with instructions for the AI provider.
+ */
+function buildContentGroundingAddendum(groundingContext) {
+  if (!groundingContext) return "";
+  return `\n\n${groundingContext}\nWhen the user's question relates to topics in the notebook context above, prioritize information from those sources. Cite the notebook and source name when referencing specific material.`;
+}
 
 module.exports = {
   SYSTEM_PROMPT,
@@ -408,6 +451,7 @@ module.exports = {
   buildSystemPrompt,
   buildChatPrompt,
   buildSkillAddendum,
+  buildContentGroundingAddendum,
   getDesignSystemById,
   detectActiveSkills,
   REPO_DIR,

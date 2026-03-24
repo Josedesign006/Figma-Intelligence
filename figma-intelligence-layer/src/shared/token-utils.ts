@@ -3,7 +3,7 @@ import { Token, TokenRef } from "./types.js";
 // ─────────────────────────────────────────────────────────────────────────────
 // Spacing token snapping
 // ─────────────────────────────────────────────────────────────────────────────
-const SPACING_SCALE = [0, 2, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 48, 64, 80, 96, 128];
+const SPACING_SCALE = [0, 2, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 48, 56, 64, 80, 96, 128];
 
 export function snapToSpacingToken(px: number): TokenRef {
   const rounded = Math.round(px / 4) * 4;

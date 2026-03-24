@@ -13,6 +13,7 @@ exports.pageArchitectHandler = pageArchitectHandler;
 const fuse_js_1 = __importDefault(require("fuse.js"));
 const figma_bridge_js_1 = require("../../../shared/figma-bridge.js");
 const decision_log_js_1 = require("../../../shared/decision-log.js");
+const prototype_script_builder_js_1 = require("../../../shared/prototype-script-builder.js");
 const token_binder_js_1 = require("../../../shared/token-binder.js");
 const unsplash_js_1 = require("../../../shared/unsplash.js");
 const font_config_js_1 = require("../../../shared/font-config.js");
@@ -1366,35 +1367,14 @@ function buildTemplateBody(template, headerText, subText, ctaText, wireframeMode
   `;
     }
 }
-// ─── Prototype connection script ─────────────────────────────────────────────
+// ─── Prototype connection script (uses shared builder) ──────────────────────
 function buildPrototypeScript(fromId, toId) {
-    return `
-(async () => {
-  const from = await figma.getNodeByIdAsync(${JSON.stringify(fromId)});
-  const to = await figma.getNodeByIdAsync(${JSON.stringify(toId)});
-  if (!from || !to) return { success: false };
-
-  const existing = from.reactions || [];
-  from.reactions = [
-    ...existing,
-    {
-      trigger: { type: 'ON_CLICK' },
-      action: {
-        type: 'NODE',
-        destinationId: ${JSON.stringify(toId)},
-        navigation: 'NAVIGATE',
-        transition: {
-          type: 'SMART_ANIMATE',
-          easing: { type: 'EASE_IN_AND_OUT' },
-          duration: 0.3,
-        },
-        preserveScrollPosition: false,
-      },
-    },
-  ];
-  return { success: true };
-})();
-`.trim();
+    return (0, prototype_script_builder_js_1.buildWireScript)([{
+            fromNodeId: fromId,
+            toNodeId: toId,
+            trigger: { type: "ON_CLICK" },
+            animation: { type: "SMART_ANIMATE", duration: 0.3, easing: "EASE_IN_AND_OUT" },
+        }]);
 }
 // ─── Flow map page ────────────────────────────────────────────────────────────
 function buildFlowMapScript(screens, fc) {

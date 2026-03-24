@@ -23,6 +23,7 @@ const { runCodex, isCodexAvailable, getCodexAuthInfo, resetCodexSession } = requ
 const { runGemini } = require("./gemini-runner");
 const { runGeminiCli, isGeminiCliAvailable, getGeminiCliAuthInfo } = require("./gemini-cli-runner");
 const { runPerplexity } = require("./perplexity-runner");
+const { parsePdfBuffer, parseDocxBuffer, fetchUrlContent, createContentSource, buildGroundingContext, scanKnowledgeHub, loadHubFile, searchHub } = require("./content-context");
 
 // P3: Port fallback — try PORT, then PORT+1 through PORT+9
 const BASE_PORT = parseInt(process.argv[2] || process.env.BRIDGE_PORT || "9001", 10);
@@ -146,6 +147,9 @@ function saveProviderConfig() {
 
 loadProviderConfig();
 
+// ── Knowledge sources grounding context ─────────────────────────────────────
+const activeContentSources = new Map(); // sourceId → { id, title, sources, meta, extractedAt }
+
 async function refreshAuthState({ log = false, force = false } = {}) {
   // Return cached auth if within TTL (unless forced or startup log)
   const now = Date.now();
@@ -237,6 +241,9 @@ function sendRelayStatus(ws, mcpConnected) {
     geminiLoggedIn: geminiCliAuthInfo.loggedIn,
     geminiEmail: geminiCliAuthInfo.email,
     activeDesignSystemId,
+    knowledgeSources: Array.from(activeContentSources.values()).map(s => ({
+      id: s.id, title: s.title, sourceCount: s.sources.length, meta: s.meta || {}, extractedAt: s.extractedAt,
+    })),
   }));
 }
 
@@ -393,12 +400,264 @@ wss.on("connection", (ws, req) => {
         return;
       }
 
+      // ── Knowledge source management ──────────────────────────────────
+      if (msg.type === "add-content-file") {
+        const fileName = msg.name || "file";
+        const dataUrl = msg.data || "";
+        console.log(`  📄 Adding file: ${fileName}`);
+
+        (async () => {
+          try {
+            // Decode base64 DataURL to buffer
+            const b64Match = dataUrl.match(/^data:[^;]*;base64,(.+)$/);
+            if (!b64Match) throw new Error("Invalid file data");
+            const buffer = Buffer.from(b64Match[1], "base64");
+
+            const ext = (fileName.match(/\.(\w+)$/)?.[1] || "").toLowerCase();
+            let title, text, meta = { fileName, fileType: ext };
+
+            if (ext === "pdf") {
+              const result = await parsePdfBuffer(buffer);
+              title = result.title || fileName.replace(/\.\w+$/, "");
+              text = result.text;
+              meta.pages = result.pages;
+            } else if (ext === "docx" || ext === "doc") {
+              const result = await parseDocxBuffer(buffer);
+              title = result.title || fileName.replace(/\.\w+$/, "");
+              text = result.text;
+            } else {
+              // Plain text formats (txt, md, csv, json, etc.)
+              title = fileName.replace(/\.\w+$/, "");
+              text = buffer.toString("utf-8");
+            }
+
+            if (!text || text.trim().length === 0) {
+              throw new Error("No text content could be extracted from this file");
+            }
+
+            const source = createContentSource(title, text, meta);
+            activeContentSources.set(source.id, source);
+            console.log(`  ✅ File added: "${title}" (${text.length} chars${meta.pages ? `, ${meta.pages} pages` : ""})`);
+            sendToPlugin({
+              type: "content-added",
+              source: {
+                id: source.id, title: source.title, sourceCount: source.sources.length,
+                meta: source.meta, extractedAt: source.extractedAt,
+                charCount: text.length,
+                preview: text.slice(0, 500).replace(/\s+/g, " ").trim(),
+              },
+            });
+            sendRelayStatus(pluginSocket, hasConnectedMcpSocket());
+          } catch (err) {
+            console.log(`  ⚠ File error: ${err.message}`);
+            sendToPlugin({ type: "content-error", error: err.message, fileName });
+          }
+        })();
+        return;
+      }
+
+      if (msg.type === "add-content-url") {
+        const url = (msg.url || "").trim();
+        console.log(`  🔗 Fetching URL: ${url.slice(0, 60)}…`);
+
+        (async () => {
+          try {
+            if (!url || !/^https?:\/\//i.test(url)) throw new Error("Invalid URL");
+            const result = await fetchUrlContent(url);
+            if (!result.text || result.text.trim().length < 20) {
+              throw new Error("Could not extract meaningful content from this URL");
+            }
+            const source = createContentSource(
+              result.title || url,
+              result.text,
+              { url, fileType: "url" }
+            );
+            activeContentSources.set(source.id, source);
+            console.log(`  ✅ URL added: "${source.title}" (${result.text.length} chars)`);
+            sendToPlugin({
+              type: "content-added",
+              source: {
+                id: source.id, title: source.title, sourceCount: source.sources.length,
+                meta: source.meta, extractedAt: source.extractedAt,
+                charCount: result.text.length,
+                preview: result.text.slice(0, 500).replace(/\s+/g, " ").trim(),
+              },
+            });
+            sendRelayStatus(pluginSocket, hasConnectedMcpSocket());
+          } catch (err) {
+            console.log(`  ⚠ URL error: ${err.message}`);
+            sendToPlugin({ type: "content-error", error: err.message, url });
+          }
+        })();
+        return;
+      }
+
+      if (msg.type === "add-content-text") {
+        const title = msg.title || "Pasted Content";
+        const content = msg.content || "";
+        if (!content.trim()) {
+          sendToPlugin({ type: "content-error", error: "No content provided" });
+          return;
+        }
+        const source = createContentSource(title, content, { fileType: "text" });
+        activeContentSources.set(source.id, source);
+        console.log(`  ✅ Text pasted: "${title}" (${content.length} chars)`);
+        sendToPlugin({
+          type: "content-added",
+          source: {
+            id: source.id, title: source.title, sourceCount: source.sources.length,
+            meta: source.meta, extractedAt: source.extractedAt,
+            charCount: content.length,
+            preview: content.slice(0, 500).replace(/\s+/g, " ").trim(),
+          },
+        });
+        sendRelayStatus(pluginSocket, hasConnectedMcpSocket());
+        return;
+      }
+
+      if (msg.type === "remove-content") {
+        const id = msg.sourceId;
+        if (activeContentSources.has(id)) {
+          const title = activeContentSources.get(id).title;
+          activeContentSources.delete(id);
+          console.log(`  📄 Source removed: "${title}"`);
+          sendToPlugin({ type: "content-removed", sourceId: id });
+          sendRelayStatus(pluginSocket, hasConnectedMcpSocket());
+        }
+        return;
+      }
+
+      if (msg.type === "list-content") {
+        sendToPlugin({
+          type: "content-list",
+          sources: Array.from(activeContentSources.values()).map(s => ({
+            id: s.id, title: s.title, sourceCount: s.sources.length, meta: s.meta || {}, extractedAt: s.extractedAt,
+          })),
+        });
+        return;
+      }
+
+      // ── Knowledge Hub ────────────────────────────────────────────────
+      if (msg.type === "hub-scan") {
+        const catalog = scanKnowledgeHub();
+        console.log(`  📚 Knowledge Hub: ${catalog.length} file(s) found`);
+        sendToPlugin({ type: "hub-catalog", files: catalog });
+        return;
+      }
+
+      if (msg.type === "hub-load") {
+        const fileName = msg.fileName;
+        console.log(`  📚 Loading hub file: ${fileName}`);
+        (async () => {
+          try {
+            const source = await loadHubFile(fileName);
+            activeContentSources.set(source.id, source);
+            const text = source.sources[0]?.content || "";
+            console.log(`  ✅ Hub file loaded: "${source.title}" (${text.length} chars)`);
+            sendToPlugin({
+              type: "content-added",
+              source: {
+                id: source.id, title: source.title, sourceCount: source.sources.length,
+                meta: source.meta, extractedAt: source.extractedAt,
+                charCount: text.length,
+                preview: text.slice(0, 500).replace(/\s+/g, " ").trim(),
+              },
+            });
+            sendRelayStatus(pluginSocket, hasConnectedMcpSocket());
+          } catch (err) {
+            console.log(`  ⚠ Hub error: ${err.message}`);
+            sendToPlugin({ type: "content-error", error: err.message, fileName });
+          }
+        })();
+        return;
+      }
+
+      if (msg.type === "hub-search") {
+        const results = searchHub(msg.query || "");
+        sendToPlugin({ type: "hub-search-results", files: results, query: msg.query });
+        return;
+      }
+
       // Chat message → route to the configured AI runner
       if (msg.type === "chat") {
         const requestId = msg.id;
         const prov = providerConfig.provider || "claude";
         const chatMode = msg.mode || "code";
-        console.log(`  💬 chat [${prov}/${chatMode}] (id: ${requestId}): ${(msg.message || "").slice(0, 60)}…`);
+        let chatMessage = msg.message || "";
+
+        // /knowledge command — intercept and handle via knowledge hub
+        if (/^\s*\/knowledge\b/i.test(chatMessage)) {
+          const query = chatMessage.replace(/^\s*\/knowledge\s*/i, "").trim();
+          const catalog = scanKnowledgeHub();
+          console.log(`  📚 /knowledge command: ${catalog.length} files in hub${query ? `, searching: "${query}"` : ""}`);
+
+          if (query) {
+            // Auto-search and load matching hub files
+            const matches = searchHub(query);
+            if (matches.length > 0) {
+              (async () => {
+                try {
+                  const source = await loadHubFile(matches[0].fileName);
+                  activeContentSources.set(source.id, source);
+                  const text = source.sources[0]?.content || "";
+                  sendToPlugin({
+                    type: "content-added",
+                    source: {
+                      id: source.id, title: source.title, sourceCount: source.sources.length,
+                      meta: source.meta, extractedAt: source.extractedAt,
+                      charCount: text.length,
+                      preview: text.slice(0, 500).replace(/\s+/g, " ").trim(),
+                    },
+                  });
+                  // Send a visible chat response
+                  const otherNames = matches.slice(1, 4).map(m => `"${m.title}"`).join(", ");
+                  let responseText = `📚 **Loaded "${source.title}"** from Knowledge Hub (${text.length.toLocaleString()} chars).\n\nYou can now ask me questions about this source — I'll ground my answers in its content.`;
+                  if (matches.length > 1) responseText += `\n\n_${matches.length - 1} other match(es): ${otherNames}_`;
+                  sendToPlugin({ type: "text_delta", id: requestId, delta: responseText });
+                  sendToPlugin({ type: "done", id: requestId, fullText: responseText });
+                  sendRelayStatus(pluginSocket, hasConnectedMcpSocket());
+                } catch (err) {
+                  sendToPlugin({ type: "text_delta", id: requestId, delta: `⚠️ Could not load: ${err.message}` });
+                  sendToPlugin({ type: "done", id: requestId, fullText: err.message });
+                }
+              })();
+            } else {
+              // No matches — show what's available
+              const fileList = catalog.map(f => `• ${f.title} (${f.fileType.toUpperCase()})`).join("\n");
+              const responseText = `📚 No files matching "${query}" found in the Knowledge Hub.\n\n**Available files (${catalog.length}):**\n${fileList || "(empty)"}\n\n_Try: \`/knowledge <keyword>\` to search, or click the 📖 icon to browse._`;
+              sendToPlugin({ type: "text_delta", id: requestId, delta: responseText });
+              sendToPlugin({ type: "done", id: requestId, fullText: responseText });
+              sendToPlugin({ type: "hub-catalog", files: catalog, query });
+            }
+          } else {
+            // Just "/knowledge" — show catalog as chat response + open panel
+            const fileList = catalog.map(f => `• **${f.title}** (${f.fileType.toUpperCase()}, ${(f.sizeBytes / 1024).toFixed(0)} KB)`).join("\n");
+            const activeList = Array.from(activeContentSources.values()).map(s => `• ✅ ${s.title}`).join("\n");
+            let responseText = `📚 **Knowledge Hub** — ${catalog.length} file(s) available\n\n`;
+            if (catalog.length > 0) {
+              responseText += `**Library:**\n${fileList}\n\n`;
+              responseText += `_Use \`/knowledge <keyword>\` to load a specific file, or click the 📖 icon to browse and activate._`;
+            } else {
+              responseText += `No files yet. Add PDFs, DOCX, or TXT files to:\n\`figma-bridge-plugin/knowledge-hub/\``;
+            }
+            if (activeList) responseText += `\n\n**Currently active sources:**\n${activeList}`;
+            sendToPlugin({ type: "text_delta", id: requestId, delta: responseText });
+            sendToPlugin({ type: "done", id: requestId, fullText: responseText });
+            sendToPlugin({ type: "hub-catalog", files: catalog });
+          }
+          return;
+        }
+
+        // Inject knowledge source grounding context if sources are active
+        if (activeContentSources.size > 0) {
+          const groundingCtx = buildGroundingContext(activeContentSources);
+          if (groundingCtx) {
+            chatMessage = groundingCtx + "\n---\n\nUser question: " + chatMessage;
+            console.log(`  📄 Injected ${activeContentSources.size} knowledge source(s) as grounding context`);
+          }
+        }
+
+        console.log(`  💬 chat [${prov}/${chatMode}] (id: ${requestId}): ${(chatMessage).slice(0, 60)}…`);
 
         const onEvent = (event) => {
           sendToPlugin(event);
@@ -415,7 +674,7 @@ wss.on("connection", (ws, req) => {
         if (prov === "openai") {
           // Use Codex CLI (subscription-based) — no API key needed
           proc = runCodex({
-            message: msg.message,
+            message: chatMessage,
             attachments: msg.attachments,
             conversation: msg.conversation,
             requestId,
@@ -428,7 +687,7 @@ wss.on("connection", (ws, req) => {
           if (geminiCliAuthInfo.loggedIn) {
             // Subscription mode — use Gemini CLI (Google One AI Premium / Gemini Advanced)
             proc = runGeminiCli({
-              message: msg.message,
+              message: chatMessage,
               attachments: msg.attachments,
               conversation: msg.conversation,
               requestId,
@@ -440,7 +699,7 @@ wss.on("connection", (ws, req) => {
           } else {
             // API key mode — fallback for users without subscription CLI auth
             proc = runGemini({
-              message: msg.message,
+              message: chatMessage,
               attachments: msg.attachments,
               conversation: msg.conversation,
               requestId,
@@ -453,7 +712,7 @@ wss.on("connection", (ws, req) => {
           }
         } else if (prov === "perplexity") {
           proc = runPerplexity({
-            message: msg.message,
+            message: chatMessage,
             attachments: msg.attachments,
             conversation: msg.conversation,
             requestId,
@@ -474,7 +733,7 @@ wss.on("connection", (ws, req) => {
         } else {
           // Default: Claude
           proc = runClaude({
-            message: msg.message,
+            message: chatMessage,
             attachments: msg.attachments,
             conversation: msg.conversation,
             requestId,

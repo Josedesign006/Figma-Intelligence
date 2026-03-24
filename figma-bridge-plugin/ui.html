@@ -1129,6 +1129,183 @@
     }
     .style-guide-chip-x:hover { color: var(--accent); }
     .sg-btn-active { color: var(--accent) !important; }
+
+    /* ── Knowledge Sources Panel ──────────────────────────────── */
+    .ks-panel {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: var(--bg-header);
+      border: 1px solid var(--border-header);
+      border-radius: 12px;
+      padding: 10px;
+      z-index: 200;
+      max-height: 240px;
+      overflow-y: auto;
+      animation: fadein 0.15s ease;
+    }
+    .ks-panel.open { display: block; }
+    .ks-panel-title {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .ks-input-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .ks-input {
+      flex: 1;
+      background: var(--bg-input);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      outline: none;
+    }
+    .ks-input:focus { border-color: rgba(218,119,86,0.4); }
+    .ks-input::placeholder { color: var(--text-ghost); }
+    .ks-add-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .ks-add-btn:hover { background: var(--accent-hover); }
+    .ks-add-btn:disabled { opacity: 0.4; cursor: default; }
+    .ks-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 8px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 8px;
+      margin-bottom: 4px;
+    }
+    .ks-card-info {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 0;
+    }
+    .ks-card-title {
+      font-size: 12px;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ks-card-meta {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    .ks-card-remove {
+      background: transparent;
+      border: none;
+      color: var(--text-ghost);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      line-height: 1;
+    }
+    .ks-card-remove:hover { color: var(--accent); background: rgba(255,255,255,0.06); }
+    .ks-card-preview {
+      font-size: 10px;
+      color: var(--text-ghost);
+      line-height: 1.4;
+      margin-top: 3px;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.2s ease;
+    }
+    .ks-card.expanded .ks-card-preview {
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    .ks-card-toggle {
+      font-size: 9px;
+      color: var(--text-ghost);
+      cursor: pointer;
+      margin-left: 4px;
+    }
+    .ks-card-toggle:hover { color: var(--text-secondary); }
+    .ks-card-chars {
+      font-size: 10px;
+      color: var(--text-ghost);
+      margin-left: 4px;
+    }
+    .ks-empty {
+      font-size: 11px;
+      color: var(--text-ghost);
+      text-align: center;
+      padding: 4px 0;
+    }
+    .ks-error {
+      font-size: 11px;
+      color: #e55;
+      padding: 4px 0;
+    }
+    .ks-success {
+      font-size: 11px;
+      color: #4a2;
+      padding: 4px 0;
+      animation: fadein 0.15s ease;
+    }
+    .ks-badge {
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+    }
+    .ks-btn-wrap { position: relative; }
+    .ks-hub-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.1s;
+      margin-bottom: 2px;
+    }
+    .ks-hub-item:hover { background: rgba(255,255,255,0.06); }
+    .ks-hub-item.loading { opacity: 0.5; pointer-events: none; }
+    .ks-hub-icon { font-size: 18px; flex-shrink: 0; }
+    .ks-hub-info { min-width: 0; flex: 1; }
+    .ks-hub-name { font-size: 12px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ks-hub-meta { font-size: 10px; color: var(--text-ghost); }
+    .ks-hub-loaded {
+      font-size: 9px;
+      background: rgba(74,170,34,0.15);
+      color: #4a2;
+      padding: 1px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
@@ -1375,8 +1552,53 @@
   </div>
 
   <!-- Input area -->
-  <div class="input-area">
+  <div class="input-area" style="position:relative">
     <div id="style-guide-chip-container"></div>
+    <!-- Knowledge Sources Panel -->
+    <div class="ks-panel" id="ks-panel">
+      <div class="ks-panel-title">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 2h8a2 2 0 012 2v8a2 2 0 01-2 2H3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M3 2v12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        Knowledge Sources
+      </div>
+      <!-- Tab switcher: 4 tabs -->
+      <div style="display:flex;gap:0;margin-bottom:8px;border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,0.08)">
+        <button class="ks-tab" id="ks-tab-hub" onclick="switchKsTab('hub')" style="flex:1;padding:5px 8px;font-size:10.5px;border:none;cursor:pointer;background:rgba(255,255,255,0.08);color:var(--text-primary);font-family:var(--font-sans)">Hub</button>
+        <button class="ks-tab" id="ks-tab-file" onclick="switchKsTab('file')" style="flex:1;padding:5px 8px;font-size:10.5px;border:none;cursor:pointer;background:transparent;color:var(--text-muted);font-family:var(--font-sans)">Upload</button>
+        <button class="ks-tab" id="ks-tab-url" onclick="switchKsTab('url')" style="flex:1;padding:5px 8px;font-size:10.5px;border:none;cursor:pointer;background:transparent;color:var(--text-muted);font-family:var(--font-sans)">URL</button>
+        <button class="ks-tab" id="ks-tab-text" onclick="switchKsTab('text')" style="flex:1;padding:5px 8px;font-size:10.5px;border:none;cursor:pointer;background:transparent;color:var(--text-muted);font-family:var(--font-sans)">Paste</button>
+      </div>
+      <!-- Knowledge Hub -->
+      <div id="ks-hub-section">
+        <div style="font-size:10px;color:var(--text-ghost);margin-bottom:6px">Pre-loaded reference library. Click a file to activate it as context.</div>
+        <div id="ks-hub-list" style="max-height:160px;overflow-y:auto">
+          <div class="ks-empty" style="padding:8px 0">Loading hub...</div>
+        </div>
+      </div>
+      <!-- File upload -->
+      <div id="ks-file-section" style="display:none">
+        <div class="ks-input-row">
+          <button class="ks-add-btn" id="ks-file-btn" onclick="document.getElementById('ks-file-input').click()" style="width:100%;padding:12px;text-align:center">Choose PDF, DOCX, TXT, or MD file...</button>
+          <input type="file" id="ks-file-input" accept=".pdf,.docx,.doc,.txt,.md,.csv,.json,.xml,.html" style="display:none" />
+        </div>
+        <div id="ks-file-name" style="display:none;font-size:11px;color:var(--text-secondary);margin-bottom:6px"></div>
+      </div>
+      <!-- URL input -->
+      <div id="ks-url-section" style="display:none">
+        <div class="ks-input-row">
+          <input class="ks-input" id="ks-url-input" placeholder="Paste any web URL (article, docs, blog...)" />
+          <button class="ks-add-btn" id="ks-url-btn" onclick="addKsUrl()">Add</button>
+        </div>
+      </div>
+      <!-- Text paste input -->
+      <div id="ks-text-section" style="display:none">
+        <input class="ks-input" id="ks-paste-title" placeholder="Title (e.g. UX Research Notes)" style="margin-bottom:6px" />
+        <textarea class="ks-input" id="ks-paste-content" placeholder="Paste your content here..." style="min-height:80px;max-height:140px;resize:vertical;margin-bottom:6px"></textarea>
+        <button class="ks-add-btn" id="ks-paste-btn" onclick="addKsText()" style="width:100%">Add Content</button>
+      </div>
+      <div id="ks-error" class="ks-error" style="display:none"></div>
+      <div id="ks-success" class="ks-success" style="display:none"></div>
+      <div id="ks-list"></div>
+    </div>
     <div class="input-box">
       <div class="attached-files" id="attached-files" style="display:none"></div>
       <div class="input-main">
@@ -1402,6 +1624,16 @@
               <circle cx="11" cy="11" r="2" stroke="currentColor" stroke-width="1.3"/>
             </svg>
           </button>
+          <div class="ks-btn-wrap">
+            <button class="tb-btn" id="ks-btn" title="Knowledge Sources" onclick="toggleKsPanel()">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M3 2h8a2 2 0 012 2v8a2 2 0 01-2 2H3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                <path d="M3 2v12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M6 5h4M6 8h4M6 11h2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <span class="ks-badge" id="ks-badge" style="display:none">0</span>
+          </div>
           <input type="file" id="file-input" multiple style="display:none" accept="image/*,.pdf,.txt,.json,.csv,.svg,.md,.html,.css,.js,.ts,.jsx,.tsx,.py,.go,.rs,.java,.rb,.yml,.yaml,.xml,.sql,.sh">
         </div>
         <div class="toolbar-right">
@@ -1953,6 +2185,398 @@
       container.appendChild(chip);
     });
   }
+
+  /* ── Knowledge Sources ───────────────────────────────────────────────── */
+  var ksPanelOpen = false;
+  var ksSources = []; // Array of { id, title, sourceCount, meta }
+  var KS_STORAGE_KEY = "figma-intel-knowledge-sources";
+
+  function toggleKsPanel() {
+    ksPanelOpen = !ksPanelOpen;
+    var panel = document.getElementById("ks-panel");
+    if (ksPanelOpen) {
+      panel.classList.add("open");
+      if (ws && ws.readyState === 1) {
+        ws.send(JSON.stringify({ type: "list-content" }));
+        // Auto-scan hub when opening on the hub tab
+        if (ksActiveTab === "hub") {
+          ws.send(JSON.stringify({ type: "hub-scan" }));
+        }
+      }
+    } else {
+      panel.classList.remove("open");
+    }
+  }
+
+  function closeKsPanel() {
+    ksPanelOpen = false;
+    var panel = document.getElementById("ks-panel");
+    if (panel) panel.classList.remove("open");
+  }
+
+  var ksActiveTab = "hub";
+
+  function switchKsTab(tab) {
+    ksActiveTab = tab;
+    var tabs = ["hub", "file", "url", "text"];
+    tabs.forEach(function(t) {
+      var tabEl = document.getElementById("ks-tab-" + t);
+      var secEl = document.getElementById("ks-" + t + "-section");
+      if (t === tab) {
+        if (tabEl) { tabEl.style.background = "rgba(255,255,255,0.08)"; tabEl.style.color = "var(--text-primary)"; }
+        if (secEl) secEl.style.display = "block";
+      } else {
+        if (tabEl) { tabEl.style.background = "transparent"; tabEl.style.color = "var(--text-muted)"; }
+        if (secEl) secEl.style.display = "none";
+      }
+    });
+    document.getElementById("ks-error").style.display = "none";
+    // Auto-scan hub when switching to it
+    if (tab === "hub" && ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ type: "hub-scan" }));
+    }
+  }
+
+  // ── Knowledge Hub ──
+  var hubCatalog = [];
+  var hubLoadedFiles = new Set(); // fileNames currently loaded as sources
+
+  function renderHubCatalog(files) {
+    hubCatalog = files || [];
+    var list = document.getElementById("ks-hub-list");
+    if (!list) return;
+
+    if (hubCatalog.length === 0) {
+      list.innerHTML = '<div class="ks-empty" style="padding:8px 0">' +
+        'No files in the knowledge hub yet.<br>' +
+        '<span style="font-size:9px;color:var(--text-ghost)">Add PDFs, DOCX, or TXT files to:<br>figma-bridge-plugin/knowledge-hub/</span>' +
+      '</div>';
+      return;
+    }
+
+    var html = "";
+    hubCatalog.forEach(function(f) {
+      var icon = "\ud83d\udcc4"; // 📄
+      if (f.fileType === "pdf") icon = "\ud83d\udcc4";
+      else if (f.fileType === "docx" || f.fileType === "doc") icon = "\ud83d\uddd2";
+      else if (f.fileType === "md") icon = "\ud83d\udcdd";
+      else if (f.fileType === "txt") icon = "\ud83d\udcc3";
+
+      var isLoaded = hubLoadedFiles.has(f.fileName);
+      var sizeStr = f.sizeBytes >= 1048576 ? (f.sizeBytes / 1048576).toFixed(1) + " MB"
+        : f.sizeBytes >= 1024 ? (f.sizeBytes / 1024).toFixed(0) + " KB"
+        : f.sizeBytes + " B";
+      var metaParts = [f.fileType.toUpperCase(), sizeStr];
+      if (f.charCount) metaParts.push(formatCharCount(f.charCount));
+
+      html += '<div class="ks-hub-item' + (isLoaded ? "" : "") + '" onclick="loadHubFile(\'' + escapeHtml(f.fileName).replace(/'/g, "\\'") + '\')" id="hub-' + escapeHtml(f.fileName).replace(/[^a-zA-Z0-9]/g, "_") + '">' +
+        '<span class="ks-hub-icon">' + icon + '</span>' +
+        '<div class="ks-hub-info">' +
+          '<div class="ks-hub-name">' + escapeHtml(f.title) + '</div>' +
+          '<div class="ks-hub-meta">' + metaParts.join(" \u00b7 ") + '</div>' +
+        '</div>' +
+        (isLoaded ? '<span class="ks-hub-loaded">Active</span>' : '') +
+      '</div>';
+    });
+    list.innerHTML = html;
+  }
+
+  function loadHubFile(fileName) {
+    if (hubLoadedFiles.has(fileName)) return; // already loaded
+    var itemId = "hub-" + fileName.replace(/[^a-zA-Z0-9]/g, "_");
+    var el = document.getElementById(itemId);
+    if (el) el.classList.add("loading");
+
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ type: "hub-load", fileName: fileName }));
+    }
+  }
+
+  function updateHubLoadedState() {
+    // Mark which hub files are currently active as knowledge sources
+    hubLoadedFiles.clear();
+    ksSources.forEach(function(s) {
+      if (s.meta && s.meta.hubFile && s.meta.fileName) {
+        hubLoadedFiles.add(s.meta.fileName);
+      }
+    });
+    // Re-render if hub tab is active
+    if (ksActiveTab === "hub" && hubCatalog.length > 0) {
+      renderHubCatalog(hubCatalog);
+    }
+  }
+
+  // ── File Upload ──
+  document.addEventListener("DOMContentLoaded", function() {
+    var fileInput = document.getElementById("ks-file-input");
+    if (fileInput) {
+      fileInput.addEventListener("change", function() {
+        var file = fileInput.files[0];
+        if (!file) return;
+        var errEl = document.getElementById("ks-error");
+        errEl.style.display = "none";
+        var nameEl = document.getElementById("ks-file-name");
+        nameEl.textContent = "Reading: " + file.name + "...";
+        nameEl.style.display = "block";
+        var btn = document.getElementById("ks-file-btn");
+        btn.disabled = true;
+        btn.textContent = "Uploading...";
+
+        // Read as base64 DataURL (works for binary PDFs/DOCX)
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          if (ws && ws.readyState === 1) {
+            nameEl.textContent = "\u23f3 Extracting text from: " + file.name + "...";
+            btn.textContent = "Processing...";
+            ws.send(JSON.stringify({
+              type: "add-content-file",
+              name: file.name,
+              data: e.target.result, // base64 DataURL
+              fileType: file.type,
+            }));
+          }
+          // Fallback timeout in case relay never responds
+          setTimeout(function() {
+            if (btn.disabled) {
+              btn.disabled = false;
+              btn.textContent = "Choose PDF, DOCX, TXT, or MD file...";
+              nameEl.style.display = "none";
+            }
+          }, 30000);
+        };
+        reader.onerror = function() {
+          errEl.textContent = "Failed to read file";
+          errEl.style.display = "block";
+          btn.disabled = false;
+          btn.textContent = "Choose PDF, DOCX, TXT, or MD file...";
+          nameEl.style.display = "none";
+        };
+        reader.readAsDataURL(file);
+        fileInput.value = "";
+      });
+    }
+  });
+
+  // ── URL Add ──
+  function addKsUrl() {
+    var input = document.getElementById("ks-url-input");
+    var url = (input.value || "").trim();
+    if (!url) return;
+    var errEl = document.getElementById("ks-error");
+    errEl.style.display = "none";
+
+    if (!/^https?:\/\//i.test(url)) {
+      errEl.textContent = "Enter a valid URL starting with http:// or https://";
+      errEl.style.display = "block";
+      return;
+    }
+
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ type: "add-content-url", url: url }));
+      input.value = "";
+      var btn = document.getElementById("ks-url-btn");
+      btn.disabled = true;
+      btn.textContent = "Fetching...";
+      setTimeout(function() { btn.disabled = false; btn.textContent = "Add"; }, 15000);
+    }
+  }
+
+  // ── Text Paste ──
+  function addKsText() {
+    var titleInput = document.getElementById("ks-paste-title");
+    var contentInput = document.getElementById("ks-paste-content");
+    var title = (titleInput.value || "").trim();
+    var content = (contentInput.value || "").trim();
+    var errEl = document.getElementById("ks-error");
+
+    if (!content) {
+      errEl.textContent = "Paste some content to use as a knowledge source.";
+      errEl.style.display = "block";
+      return;
+    }
+
+    errEl.style.display = "none";
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ type: "add-content-text", title: title || "Pasted Content", content: content }));
+      titleInput.value = "";
+      contentInput.value = "";
+      var btn = document.getElementById("ks-paste-btn");
+      btn.disabled = true;
+      btn.textContent = "Adding...";
+      setTimeout(function() { btn.disabled = false; btn.textContent = "Add Content"; }, 5000);
+    }
+  }
+
+  function removeKsSource(id) {
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ type: "remove-content", sourceId: id }));
+    }
+    ksSources = ksSources.filter(function(s) { return s.id !== id; });
+    renderKsList();
+    updateKsBadge();
+    updateHubLoadedState();
+  }
+
+  function ksTypeIcon(meta) {
+    if (!meta) return "\ud83d\udcc4"; // 📄
+    var t = meta.fileType || "";
+    if (t === "pdf") return "\ud83d\udcc4"; // 📄
+    if (t === "docx" || t === "doc") return "\ud83d\uddd2"; // 🗒
+    if (t === "url") return "\ud83c\udf10"; // 🌐
+    if (t === "text") return "\ud83d\udcdd"; // 📝
+    return "\ud83d\udcc4"; // 📄
+  }
+
+  function toggleKsPreview(id) {
+    var card = document.getElementById("ksc-" + id);
+    if (card) card.classList.toggle("expanded");
+  }
+
+  function formatCharCount(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + "M chars";
+    if (n >= 1000) return (n / 1000).toFixed(1) + "K chars";
+    return n + " chars";
+  }
+
+  function renderKsList() {
+    var list = document.getElementById("ks-list");
+    if (!list) return;
+    if (ksSources.length === 0) {
+      list.innerHTML = '<div class="ks-empty">No sources added. Upload a file, paste a URL, or paste text.</div>';
+      return;
+    }
+    var html = "";
+    ksSources.forEach(function(s) {
+      var icon = ksTypeIcon(s.meta);
+      var metaParts = [];
+      if (s.meta) {
+        if (s.meta.fileType === "pdf") metaParts.push("PDF");
+        else if (s.meta.fileType === "docx" || s.meta.fileType === "doc") metaParts.push("DOCX");
+        else if (s.meta.fileType === "url") metaParts.push("Web page");
+        else if (s.meta.fileType === "text") metaParts.push("Pasted text");
+        else if (s.meta.fileType) metaParts.push(s.meta.fileType.toUpperCase());
+        if (s.meta.pages) metaParts.push(s.meta.pages + " pages");
+      }
+      if (s.charCount) metaParts.push(formatCharCount(s.charCount));
+      metaParts.push("Ready");
+      var metaStr = metaParts.join(" \u00b7 ");
+
+      var previewHtml = "";
+      if (s.preview) {
+        previewHtml =
+          '<span class="ks-card-toggle" onclick="event.stopPropagation();toggleKsPreview(\'' + s.id + '\')">\u25b6 preview</span>' +
+          '<div class="ks-card-preview">' + escapeHtml(s.preview) + (s.charCount > 500 ? "..." : "") + '</div>';
+      }
+
+      html += '<div class="ks-card" id="ksc-' + s.id + '" onclick="toggleKsPreview(\'' + s.id + '\')" style="cursor:pointer;flex-direction:column;align-items:stretch">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between">' +
+          '<div style="display:flex;align-items:center;gap:6px;min-width:0">' +
+            '<span style="font-size:16px;flex-shrink:0">' + icon + '</span>' +
+            '<div class="ks-card-info">' +
+              '<div class="ks-card-title">' + escapeHtml(s.title) + '</div>' +
+              '<div class="ks-card-meta">' + metaStr + previewHtml + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<button class="ks-card-remove" onclick="event.stopPropagation();removeKsSource(\'' + s.id + '\')" title="Remove">\u00d7</button>' +
+        '</div>' +
+      '</div>';
+    });
+    list.innerHTML = html;
+  }
+
+  function updateKsBadge() {
+    var badge = document.getElementById("ks-badge");
+    var btn = document.getElementById("ks-btn");
+    if (ksSources.length > 0) {
+      badge.textContent = ksSources.length;
+      badge.style.display = "flex";
+      if (btn) btn.style.color = "var(--accent)";
+    } else {
+      badge.style.display = "none";
+      if (btn) btn.style.color = "";
+    }
+  }
+
+  function resetKsButtons() {
+    var b1 = document.getElementById("ks-url-btn");
+    if (b1) { b1.disabled = false; b1.textContent = "Add"; }
+    var b2 = document.getElementById("ks-paste-btn");
+    if (b2) { b2.disabled = false; b2.textContent = "Add Content"; }
+    var b3 = document.getElementById("ks-file-btn");
+    if (b3) { b3.disabled = false; b3.textContent = "Choose PDF, DOCX, TXT, or MD file..."; }
+    var fn = document.getElementById("ks-file-name");
+    if (fn) fn.style.display = "none";
+  }
+
+  function showKsSuccess(text) {
+    var el = document.getElementById("ks-success");
+    if (el) {
+      el.textContent = text;
+      el.style.display = "block";
+      setTimeout(function() { el.style.display = "none"; }, 4000);
+    }
+  }
+
+  function handleKsMessage(msg) {
+    if (msg.type === "content-added") {
+      var s = msg.source;
+      var exists = ksSources.some(function(x) { return x.id === s.id; });
+      if (!exists) ksSources.push(s);
+      else ksSources = ksSources.map(function(x) { return x.id === s.id ? s : x; });
+      renderKsList();
+      updateKsBadge();
+      updateHubLoadedState();
+      resetKsButtons();
+      var errEl = document.getElementById("ks-error");
+      if (errEl) errEl.style.display = "none";
+      // Show clear success feedback
+      var metaStr = "";
+      if (s.meta && s.meta.fileType === "pdf" && s.meta.pages) metaStr = " (" + s.meta.pages + " pages)";
+      else if (s.meta && s.meta.fileType === "url") metaStr = " (web page)";
+      showKsSuccess("\u2705 Added: \"" + s.title + "\"" + metaStr + " \u2014 AI can now answer from this source");
+    }
+    if (msg.type === "content-removed") {
+      ksSources = ksSources.filter(function(x) { return x.id !== msg.sourceId; });
+      renderKsList();
+      updateKsBadge();
+    }
+    if (msg.type === "content-error") {
+      var errEl = document.getElementById("ks-error");
+      if (errEl) {
+        errEl.textContent = msg.error || "Failed to process content";
+        errEl.style.display = "block";
+      }
+      var sucEl = document.getElementById("ks-success");
+      if (sucEl) sucEl.style.display = "none";
+      resetKsButtons();
+    }
+    if (msg.type === "content-list") {
+      ksSources = msg.sources || [];
+      renderKsList();
+      updateKsBadge();
+    }
+  }
+
+  // Enter key in URL input
+  document.addEventListener("DOMContentLoaded", function() {
+    var urlInput = document.getElementById("ks-url-input");
+    if (urlInput) {
+      urlInput.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") { e.preventDefault(); addKsUrl(); }
+      });
+    }
+  });
+
+  // Close panel when clicking outside
+  document.addEventListener("click", function(e) {
+    if (!ksPanelOpen) return;
+    var panel = document.getElementById("ks-panel");
+    var btn = document.getElementById("ks-btn");
+    var wrap = btn ? btn.parentElement : null;
+    if (panel && !panel.contains(e.target) && wrap && !wrap.contains(e.target)) {
+      closeKsPanel();
+    }
+  });
 
   /* ── Provider / Login Screen ─────────────────────────────────────────── */
   var selectedLoginProvider = null;
@@ -2874,6 +3498,16 @@
 
     var messageText = text;
 
+    // Intercept /knowledge command client-side — handle without AI
+    if (/^\s*\/knowledge\b/i.test(messageText)) {
+      var kQuery = messageText.replace(/^\s*\/knowledge\s*/i, "").trim();
+      // Send to relay for hub processing (not as a chat message to AI)
+      ws.send(JSON.stringify({ type: "chat", id: currentRequestId, message: messageText, mode: activeMode, model: getSelectedModel(activeProvider), conversation: [] }));
+      // Reset input color
+      input.style.color = "";
+      return;
+    }
+
     var payload = {
       type: "chat",
       id: currentRequestId,
@@ -2951,6 +3585,13 @@
   input.addEventListener("input", function() {
     autoResize();
     updateSend();
+    // Highlight /knowledge command
+    var val = (input.value || "").trim();
+    if (/^\/knowledge\b/i.test(val)) {
+      input.style.color = "#da7756";
+    } else {
+      input.style.color = "";
+    }
   });
 
   input.addEventListener("keydown", function(e) {
@@ -2976,6 +3617,7 @@
       if (loginDismissed && selectedLoginProvider) {
         sendProviderToRelay();
       }
+      // Knowledge sources are restored from bridge-status payload (no localStorage restore needed)
     };
 
     ws.onclose = function() {
@@ -3075,7 +3717,40 @@
           var dsBtn2 = document.getElementById("style-guide-btn");
           if (dsBtn2) dsBtn2.classList.remove("sg-btn-active");
         }
+        // Restore knowledge sources from bridge-status
+        if (msg.knowledgeSources && msg.knowledgeSources.length > 0) {
+          ksSources = msg.knowledgeSources;
+          renderKsList();
+          updateKsBadge();
+        }
+
         updateStatus();
+        return;
+      }
+
+      // ── Knowledge source messages ────────────────────────────────────
+      if (msg.type === "content-added" || msg.type === "content-removed" ||
+          msg.type === "content-error" || msg.type === "content-list") {
+        handleKsMessage(msg);
+        return;
+      }
+
+      // ── Knowledge Hub messages ──────────────────────────────────────
+      if (msg.type === "hub-catalog" || msg.type === "hub-search-results") {
+        renderHubCatalog(msg.files || []);
+        // Auto-open the knowledge panel on hub tab
+        if (!ksPanelOpen) {
+          ksPanelOpen = true;
+          var panel = document.getElementById("ks-panel");
+          if (panel) panel.classList.add("open");
+          switchKsTab("hub");
+        }
+        return;
+      }
+      if (msg.type === "hub-auto-loaded") {
+        // Show a chat-like notification that a hub file was auto-loaded
+        showKsSuccess("\ud83d\udcda Loaded \"" + msg.title + "\" from Knowledge Hub" +
+          (msg.totalMatches > 1 ? " (" + (msg.totalMatches - 1) + " more match" + (msg.totalMatches > 2 ? "es" : "") + " available)" : ""));
         return;
       }
 

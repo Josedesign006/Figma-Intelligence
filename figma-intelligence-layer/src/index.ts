@@ -44,6 +44,7 @@ import { figmaUnsplashSearchHandler } from "./tools/phase3-generation/unsplash-s
 import { urlToFrameHandler } from "./tools/phase3-generation/url-to-frame/index.js";
 import { systemDriftHandler } from "./tools/phase3-generation/system-drift/index.js";
 import { prototypeMapHandler } from "./tools/phase3-generation/prototype-map/index.js";
+import { prototypeScanHandler, prototypeWireHandler } from "./tools/phase3-generation/prototype-wire/index.js";
 import { animatedBuildHandler } from "./tools/phase3-generation/figma-animated-build.js";
 
 // ─── Phase 4: Sync & Bidirectionality ───────────────────────────────────────
@@ -179,7 +180,7 @@ const TOOLS: Tool[] = [
   {
     name: "figma_layout_intelligence",
     description:
-      "Analyze any frame and apply production-ready Auto Layout settings with design token binding in one command. Detects container type (card, form, nav, modal, list, grid, section) and applies the optimal layout pattern. Call this on every container frame created by figma_execute to ensure professional spacing and padding.",
+      "Analyze any frame and apply production-ready Auto Layout settings with design token binding in one command. Detects container type (card, form, nav, modal, list, grid, section, document page, header/section/footer/table blocks) and applies the optimal layout pattern. For document pages, automatically recurses into all nested containers, applies per-container specs, runs validation, and repairs FILL/HUG issues. Call this on every container frame created by figma_execute to ensure professional spacing and padding.",
     inputSchema: {
       type: "object",
       properties: {
@@ -389,6 +390,78 @@ const TOOLS: Tool[] = [
         outputFormat: { type: "string", enum: ["json", "mermaid", "both"] },
       },
       required: ["outputFormat"],
+    },
+  },
+
+  {
+    name: "figma_prototype_scan",
+    description:
+      "Scan Figma frames to discover all interactive elements (buttons, links, nav items, icons) with confidence scoring. Returns an inventory of wireable elements per screen. Use BEFORE figma_prototype_wire to understand what can be connected. Supports auto-discovery of all top-level frames or targeting specific frame IDs. The AI should use the scan results plus the user's journey description to plan which elements to wire to which destinations.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        frameIds: {
+          type: "array",
+          items: { type: "string" },
+          description: "Specific frame IDs to scan. Omit to auto-discover all top-level frames on the current page.",
+        },
+        journeyDescription: {
+          type: "string",
+          description: "Optional user journey text — echoed back for AI context when planning wiring.",
+        },
+        maxDepth: {
+          type: "number",
+          description: "Max node tree recursion depth (default 5, max 8).",
+        },
+      },
+    },
+  },
+
+  {
+    name: "figma_prototype_wire",
+    description:
+      "Create prototype connections between interactive elements and destination frames. Supports all Figma trigger types (ON_CLICK, ON_DRAG, ON_HOVER, AFTER_DELAY, MOUSE_ENTER, MOUSE_LEAVE) and animation types (SMART_ANIMATE, DISSOLVE, SLIDE_IN, SLIDE_OUT, PUSH, MOVE_IN, MOVE_OUT, INSTANT) with configurable duration, easing, and direction. Best used after figma_prototype_scan. Supports dry-run mode and clearing existing reactions. If only journeyDescription is provided (no connections), returns a scan for the AI to plan wiring.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        connections: {
+          type: "array",
+          description: "Explicit wiring instructions. Each entry wires one interactive element to a destination frame.",
+          items: {
+            type: "object",
+            properties: {
+              fromElementId: { type: "string", description: "Node ID of the interactive element (button, link, etc.)" },
+              toFrameId: { type: "string", description: "Destination frame ID" },
+              trigger: { type: "string", enum: ["ON_CLICK", "ON_DRAG", "ON_HOVER", "AFTER_DELAY", "MOUSE_ENTER", "MOUSE_LEAVE"] },
+              animation: {
+                type: "object",
+                properties: {
+                  type: { type: "string", enum: ["SMART_ANIMATE", "DISSOLVE", "SLIDE_IN", "SLIDE_OUT", "PUSH", "MOVE_IN", "MOVE_OUT", "INSTANT"] },
+                  direction: { type: "string", enum: ["LEFT", "RIGHT", "TOP", "BOTTOM"] },
+                  duration: { type: "number", description: "Duration in seconds (default 0.3)" },
+                  easing: { type: "string", enum: ["EASE_IN", "EASE_OUT", "EASE_IN_AND_OUT", "LINEAR"] },
+                },
+              },
+              navigation: { type: "string", enum: ["NAVIGATE", "OVERLAY", "SWAP", "SCROLL_TO", "BACK", "CLOSE"] },
+            },
+            required: ["fromElementId", "toFrameId"],
+          },
+        },
+        journeyDescription: { type: "string", description: "User journey text. Without connections, triggers scan mode — returns interactive element inventory for AI to plan wiring." },
+        frameIds: { type: "array", items: { type: "string" }, description: "Frames to scan/wire (omit for auto-discover)." },
+        defaultTrigger: { type: "string", enum: ["ON_CLICK", "ON_DRAG", "ON_HOVER", "AFTER_DELAY"] },
+        defaultAnimation: {
+          type: "object",
+          properties: {
+            type: { type: "string", enum: ["SMART_ANIMATE", "DISSOLVE", "SLIDE_IN", "SLIDE_OUT", "PUSH", "MOVE_IN", "MOVE_OUT", "INSTANT"] },
+            direction: { type: "string", enum: ["LEFT", "RIGHT", "TOP", "BOTTOM"] },
+            duration: { type: "number" },
+            easing: { type: "string", enum: ["EASE_IN", "EASE_OUT", "EASE_IN_AND_OUT", "LINEAR"] },
+          },
+        },
+        clearExisting: { type: "boolean", description: "Remove existing reactions before wiring (default false)." },
+        dryRun: { type: "boolean", description: "Return plan without executing (default false)." },
+      },
     },
   },
 
@@ -1254,6 +1327,8 @@ async function dispatch(name: string, args: AnyArgs): Promise<unknown> {
     case "figma_url_to_frame":         return urlToFrameHandler(args as never);
     case "figma_system_drift":         return systemDriftHandler(args as never);
     case "figma_prototype_map":        return prototypeMapHandler(args as never);
+    case "figma_prototype_scan":       return prototypeScanHandler(args as never);
+    case "figma_prototype_wire":       return prototypeWireHandler(args as never);
     case "figma_animated_build":       return animatedBuildHandler(args as never);
     // Phase 4
     case "figma_animation_specifier":  return animationSpecifierHandler(args as never);
