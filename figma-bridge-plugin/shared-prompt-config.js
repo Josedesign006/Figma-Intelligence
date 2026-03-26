@@ -396,6 +396,84 @@ DOCUMENT TYPES:
 === END DOCUMENT DESIGN SKILL ===`);
   }
 
+  if (skills.includes("Component Builder")) {
+    sections.push(`
+=== COMPONENT BUILDER SKILL ===
+MANDATORY WORKFLOW FOR CREATING COMPONENTS (not screens — for screens use Frontend Design):
+
+STEP 1 — GATHER CONTEXT:
+1. Call figma_get_variables(verbosity:"inventory") to discover existing tokens/variables.
+2. Call figma_search_components to check if a similar component already exists in the library. If it does, ask the user whether to extend it or create a new one.
+3. If the user references a specific design system (e.g. "Material UI button"), use that system's tokens exclusively.
+
+STEP 2 — CREATE BASE COMPONENT (not a frame!):
+In your figma_execute script, ALWAYS use figma.createComponent() — NEVER figma.createFrame() — when the user asks for a reusable component.
+Structure the component anatomy with properly named child layers:
+\`\`\`js
+const comp = figma.createComponent();
+comp.name = "Select";
+comp.layoutMode = "VERTICAL";
+comp.primaryAxisSizingMode = "AUTO";
+comp.counterAxisSizingMode = "FIXED";
+comp.resize(280, comp.height);
+comp.itemSpacing = 4;
+// ... add children: Label (text), Field (frame with Value text + Chevron icon), etc.
+\`\`\`
+- Every child must have a semantic name (e.g. "Label", "Field", "Value", "Chevron", "Icon", "LeadingIcon")
+- Use auto-layout on all container children
+- Bind all colors to design tokens — never hardcode hex
+
+STEP 3 — DEFINE COMPONENT PROPERTIES:
+After creating the base component, add component properties for editable parts:
+\`\`\`js
+// Text property — makes label editable on instances
+comp.addComponentProperty("label", "TEXT", "Select option");
+const labelNode = comp.findOne(n => n.name === "Label");
+if (labelNode) labelNode.componentPropertyReferences = { characters: "label" };
+
+// Boolean property — show/hide optional slots
+comp.addComponentProperty("showIcon", "BOOLEAN", true);
+const iconNode = comp.findOne(n => n.name === "Icon");
+if (iconNode) iconNode.componentPropertyReferences = { visible: "showIcon" };
+
+// Instance swap property — swappable icons
+// comp.addComponentProperty("icon", "INSTANCE_SWAP", defaultIconComp.id);
+\`\`\`
+
+STEP 4 — EXPAND INTO VARIANT SET:
+After creating and configuring the base component, call figma_variant_expander to generate the full variant matrix:
+- nodeId: the base component's ID (returned from figma_execute)
+- dimensions: choose appropriate dimensions for the component type:
+  - Button: { state: ["Default","Hover","Pressed","Focused","Disabled","Loading"], size: ["sm","md","lg"], type: ["Primary","Secondary","Ghost","Destructive"] }
+  - Input/Select/Textarea: { state: ["Default","Focused","Error","Disabled"], size: ["sm","md","lg"] }
+  - Checkbox: { state: ["Default","Checked","Indeterminate","Disabled"] }
+  - Toggle/Switch: { state: ["Off","On","Disabled"] }
+  - Radio: { state: ["Default","Selected","Disabled"] }
+  - Badge: { type: ["Default","Success","Warning","Error","Info"], size: ["sm","md"] }
+  - Card: { size: ["sm","md","lg"], type: ["Default","Elevated"] }
+  - Toast/Alert: { type: ["Success","Warning","Error","Info"] }
+- namingConvention: "figma" (produces "State=Default, Size=md" format)
+- autoApplyTokens: true (applies per-dimension token overrides automatically)
+- arrangeInGrid: true (organizes variants in a grid layout)
+
+This creates a proper Figma ComponentSet using figma.combineAsVariants() — NOT manual clones.
+
+STEP 5 — VERIFY:
+1. Call figma_navigate to scroll to the result
+2. Call figma_take_screenshot to capture the component set
+3. Verify: Is it a ComponentSet (not loose frames)? Do variants show in the properties panel? Are all states/sizes present?
+
+CRITICAL RULES:
+- NEVER use figma.createFrame() when building a reusable component — always figma.createComponent()
+- NEVER manually duplicate/clone variants — always use figma_variant_expander
+- ALWAYS name variant components using Figma convention: "Property=Value, Property2=Value2"
+- ALWAYS define component properties (TEXT, BOOLEAN) for editable parts
+- ALWAYS bind colors to design tokens/variables, never hardcode hex
+- Cap at ~30 variant combinations per component set; if more are needed, split into sub-components (e.g. separate "Button/Icon" from "Button")
+- After variant expansion, call figma_layout_intelligence with recursive:true on the component set
+=== END COMPONENT BUILDER SKILL ===`);
+  }
+
   if (skills.includes("Prototyping")) {
     sections.push(`
 === PROTOTYPING SKILL ===
