@@ -164,6 +164,28 @@ Once connected, the plugin panel has a chat box at the bottom. Just type what yo
 
 To attach an image: click the **paperclip icon** next to the chat box.
 
+### Three modes
+
+The plugin has three tabs at the top:
+
+| Tab | What it does |
+|---|---|
+| **Chat** | Ask questions — the AI answers but does not change your Figma file |
+| **Code** | The AI builds and edits your Figma design directly using MCP tools |
+| **Design + Code** | Same as Code, but also generates component source code (React/Vue/Svelte) and writes it to your VS Code workspace |
+
+### Design + Code mode (dual output)
+
+This is the most powerful mode. From a single prompt in Figma, the AI:
+
+1. **Creates the component in Figma** — with proper auto layout, variants, properties, and design tokens
+2. **Generates matching code** — component file, CSS module, and Storybook story
+3. **Writes the code to your VS Code workspace** — files appear in `src/components/` automatically
+
+The VS Code bridge extension (installed automatically by `npm run setup`) connects in the background. You'll see a status indicator in the Figma plugin showing whether VS Code is connected. If VS Code is not running, code output still appears in the Figma chat as text.
+
+### Switching providers
+
 Use the provider badge in the plugin header to switch between Claude, OpenAI, and Gemini.
 
 - **Claude** uses the account logged into the Claude CLI
@@ -254,6 +276,7 @@ That's it — you're connected again.
 | **"dist/index.js not found"** | Run `cd figma-intelligence-layer && npm run build` in Terminal |
 | **Wrong Figma token / token expired** | Re-run `npm run setup` and paste your new token when asked |
 | **MCP tools missing in VS Code / Cursor / Zed etc.** | Run `npm run connect` then restart the tool |
+| **"Design + Code" shows "VS Code not connected"** | Restart VS Code after running `npm run setup` — the bridge extension loads on startup |
 | **Port 9001 already in use** | `npm run setup` now handles this automatically — just run it again |
 
 ---
@@ -261,15 +284,21 @@ That's it — you're connected again.
 ## Folder structure (for the curious)
 
 ```
-setup.sh                         ← the one-command setup script
+setup.sh                         ← the one-command setup script (does everything)
 figma-bridge-plugin/
   manifest.json                  ← import this file into Figma
   bridge-relay.js                ← background bridge (npm start runs this)
   chat-runner.js                 ← connects Claude to the plugin chat
   codex-runner.js                ← connects OpenAI Codex to the plugin chat
   gemini-cli-runner.js           ← connects Gemini CLI to the plugin chat
-  ui.html / code.js              ← the plugin's visual panel
+  shared-prompt-config.js        ← system prompts, design systems, dual output prompt
+  ui.html / code.js              ← the plugin's visual panel (Chat / Code / Design+Code)
 figma-intelligence-layer/
   src/                           ← source code for the AI tools
   dist/index.js                  ← built/compiled version (created by setup)
+vscode-chat-extension/           ← VS Code bridge extension (auto-installed by setup)
+  src/extension.ts               ← background service that writes code files
+  src/dual-output.ts             ← parses code output from AI responses
+  src/code-generator.ts          ← writes component files to workspace
+  src/preview-server.ts          ← Storybook live preview manager
 ```

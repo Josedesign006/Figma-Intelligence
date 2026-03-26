@@ -1447,7 +1447,10 @@
     <span id="auth-text">Checking provider subscriptions…</span>
   </div>
 
-  <!-- Mode tabs (Chat / Code) -->
+  <!-- VS Code connection status (shown in dual mode) -->
+  <div class="auth-strip" id="vscode-status" style="display:none"></div>
+
+  <!-- Mode tabs (Chat / Code / Design+Code) -->
   <div class="mode-tabs" id="mode-tabs">
     <button class="mode-tab" id="mode-tab-chat" onclick="switchMode('chat')">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -1456,6 +1459,10 @@
     <button class="mode-tab active" id="mode-tab-code" onclick="switchMode('code')">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
       Code
+    </button>
+    <button class="mode-tab" id="mode-tab-dual" onclick="switchMode('dual')">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Design + Code
     </button>
   </div>
 
@@ -1566,6 +1573,7 @@
         <button class="ks-tab" id="ks-tab-file" onclick="switchKsTab('file')" style="flex:1;padding:5px 8px;font-size:10.5px;border:none;cursor:pointer;background:transparent;color:var(--text-muted);font-family:var(--font-sans)">Upload</button>
         <button class="ks-tab" id="ks-tab-url" onclick="switchKsTab('url')" style="flex:1;padding:5px 8px;font-size:10.5px;border:none;cursor:pointer;background:transparent;color:var(--text-muted);font-family:var(--font-sans)">URL</button>
         <button class="ks-tab" id="ks-tab-text" onclick="switchKsTab('text')" style="flex:1;padding:5px 8px;font-size:10.5px;border:none;cursor:pointer;background:transparent;color:var(--text-muted);font-family:var(--font-sans)">Paste</button>
+        <button class="ks-tab" id="ks-tab-web" onclick="switchKsTab('web')" style="flex:1;padding:5px 8px;font-size:10.5px;border:none;cursor:pointer;background:transparent;color:var(--text-muted);font-family:var(--font-sans)">Web</button>
       </div>
       <!-- Knowledge Hub -->
       <div id="ks-hub-section">
@@ -1594,6 +1602,18 @@
         <input class="ks-input" id="ks-paste-title" placeholder="Title (e.g. UX Research Notes)" style="margin-bottom:6px" />
         <textarea class="ks-input" id="ks-paste-content" placeholder="Paste your content here..." style="min-height:80px;max-height:140px;resize:vertical;margin-bottom:6px"></textarea>
         <button class="ks-add-btn" id="ks-paste-btn" onclick="addKsText()" style="width:100%">Add Content</button>
+      </div>
+      <!-- Web Reference Sites -->
+      <div id="ks-web-section" style="display:none">
+        <div style="font-size:10px;color:var(--text-ghost);margin-bottom:6px">Add authoritative design reference sites. Chat mode auto-searches these for answers.</div>
+        <div class="ks-input-row">
+          <input class="ks-input" id="ks-web-name" placeholder="Site name (e.g. Nielsen Norman Group)" style="margin-bottom:4px" />
+        </div>
+        <div class="ks-input-row">
+          <input class="ks-input" id="ks-web-url" placeholder="Site URL (e.g. nngroup.com)" />
+          <button class="ks-add-btn" id="ks-web-btn" onclick="addReferenceSite()">Add</button>
+        </div>
+        <div id="ks-web-list" style="margin-top:8px;max-height:140px;overflow-y:auto"></div>
       </div>
       <div id="ks-error" class="ks-error" style="display:none"></div>
       <div id="ks-success" class="ks-success" style="display:none"></div>
@@ -2218,7 +2238,7 @@
 
   function switchKsTab(tab) {
     ksActiveTab = tab;
-    var tabs = ["hub", "file", "url", "text"];
+    var tabs = ["hub", "file", "url", "text", "web"];
     tabs.forEach(function(t) {
       var tabEl = document.getElementById("ks-tab-" + t);
       var secEl = document.getElementById("ks-" + t + "-section");
@@ -2235,6 +2255,58 @@
     if (tab === "hub" && ws && ws.readyState === 1) {
       ws.send(JSON.stringify({ type: "hub-scan" }));
     }
+    // Auto-load reference sites when switching to web tab
+    if (tab === "web" && ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ type: "list-reference-sites" }));
+    }
+  }
+
+  // ── Web Reference Sites ──
+  var webReferenceSites = [];
+
+  function addReferenceSite() {
+    var nameInput = document.getElementById("ks-web-name");
+    var urlInput = document.getElementById("ks-web-url");
+    var name = (nameInput.value || "").trim();
+    var url = (urlInput.value || "").trim();
+    if (!url) return;
+    // Auto-generate name from domain if not provided
+    if (!name) {
+      try { name = new URL(url.startsWith("http") ? url : "https://" + url).hostname.replace(/^www\./, ""); } catch(e) { name = url; }
+    }
+    // Ensure URL has protocol
+    var baseUrl = url.startsWith("http") ? url : "https://" + url;
+    var searchDomain = url.replace(/^https?:\/\/(www\.)?/, "").split("/")[0];
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ type: "add-reference-site", name: name, baseUrl: baseUrl, searchDomain: searchDomain }));
+    }
+    nameInput.value = "";
+    urlInput.value = "";
+  }
+
+  function removeRefSite(id) {
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ type: "remove-reference-site", id: id }));
+    }
+  }
+
+  function renderWebRefList(sites) {
+    webReferenceSites = sites || [];
+    var container = document.getElementById("ks-web-list");
+    if (!container) return;
+    if (webReferenceSites.length === 0) {
+      container.innerHTML = '<div style="font-size:10.5px;color:var(--text-ghost);padding:8px 0">No reference sites configured. Add a site above to enable web search in chat mode.</div>';
+      return;
+    }
+    container.innerHTML = webReferenceSites.map(function(site) {
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:rgba(255,255,255,0.04);border-radius:6px;margin-bottom:4px">' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:11px;font-weight:500;color:var(--text-primary)">' + escapeHtml(site.name) + '</div>' +
+          '<div style="font-size:10px;color:var(--text-ghost)">' + escapeHtml(site.searchDomain) + '</div>' +
+        '</div>' +
+        '<button onclick="removeRefSite(\'' + site.id + '\')" style="background:none;border:none;color:var(--text-ghost);cursor:pointer;padding:2px 4px;font-size:12px" title="Remove">&times;</button>' +
+      '</div>';
+    }).join("");
   }
 
   // ── Knowledge Hub ──
@@ -2759,20 +2831,22 @@
     return selectedLoginProvider === "bridge";
   }
 
-  /* ── Mode tabs (Chat / Code) ─────────────────────────────────────────── */
+  /* ── Mode tabs (Chat / Code / Design+Code) ────────────────────────────── */
   var activeMode = "code";
   var MODE_STORAGE_KEY = "figma-intelligence-mode";
   try {
     var savedMode = localStorage.getItem(MODE_STORAGE_KEY);
-    if (savedMode === "chat" || savedMode === "code") activeMode = savedMode;
+    if (savedMode === "chat" || savedMode === "code" || savedMode === "dual") activeMode = savedMode;
   } catch(e) {}
 
   // Apply initial tab state
   (function() {
     var codeTab = document.getElementById("mode-tab-code");
     var chatTab = document.getElementById("mode-tab-chat");
+    var dualTab = document.getElementById("mode-tab-dual");
     if (codeTab) codeTab.className = "mode-tab" + (activeMode === "code" ? " active" : "");
     if (chatTab) chatTab.className = "mode-tab" + (activeMode === "chat" ? " active" : "");
+    if (dualTab) dualTab.className = "mode-tab" + (activeMode === "dual" ? " active" : "");
   })();
 
   window.switchMode = function(mode) {
@@ -2785,6 +2859,7 @@
     // Update tab UI
     document.getElementById("mode-tab-code").className = "mode-tab" + (mode === "code" ? " active" : "");
     document.getElementById("mode-tab-chat").className = "mode-tab" + (mode === "chat" ? " active" : "");
+    document.getElementById("mode-tab-dual").className = "mode-tab" + (mode === "dual" ? " active" : "");
 
     // Swap home state template based on mode
     homeStateTemplate = mode === "chat" ? chatHomeTemplate : codeHomeTemplate;
@@ -2796,16 +2871,21 @@
     if (input) {
       if (selectedLoginProvider === "perplexity") {
         input.placeholder = "Research any topic...";
+      } else if (mode === "chat") {
+        input.placeholder = "Ask me anything...";
+      } else if (mode === "dual") {
+        input.placeholder = "Describe a component — generates design + code...";
       } else {
-        input.placeholder = mode === "chat"
-          ? "Ask me anything..."
-          : "How can I help you today?";
+        input.placeholder = "How can I help you today?";
       }
     }
 
     // Hide design-system picker in chat mode
     var dsBtn = document.getElementById("style-guide-btn");
     if (dsBtn) dsBtn.style.display = (mode === "chat") ? "none" : "";
+
+    // Show VS Code connection indicator for dual mode
+    updateVscodeStatus();
   };
 
   function isChatOnlyProvider() {
@@ -2815,6 +2895,42 @@
   function updateModeTabsVisibility() {
     var modeTabs = document.getElementById("mode-tabs");
     if (modeTabs) modeTabs.style.display = isChatOnlyProvider() ? "none" : "flex";
+    // Hide dual tab for providers that don't support it
+    var dualTab = document.getElementById("mode-tab-dual");
+    if (dualTab) dualTab.style.display = isChatOnlyProvider() ? "none" : "";
+  }
+
+  // VS Code connection status for dual mode
+  var isVscodeConnected = false;
+  var hasFastChat = false;
+
+  function updateFastChatIndicator() {
+    var chatTab = document.getElementById("mode-tab-chat");
+    if (!chatTab) return;
+    var svg = chatTab.querySelector("svg");
+    var isFast = hasFastChat || webReferenceSites.length > 0 || ksSources.length > 0;
+    // Update text after the SVG
+    var nodes = chatTab.childNodes;
+    for (var ni = 0; ni < nodes.length; ni++) {
+      if (nodes[ni].nodeType === 3 && nodes[ni].textContent.trim()) {
+        nodes[ni].textContent = isFast ? "\n      \u26a1 Chat\n    " : "\n      Chat\n    ";
+        break;
+      }
+    }
+  }
+
+  function updateVscodeStatus() {
+    var strip = document.getElementById("vscode-status");
+    if (!strip) return;
+    if (activeMode === "dual") {
+      strip.style.display = "";
+      strip.textContent = isVscodeConnected
+        ? "VS Code connected — code files will be written to workspace"
+        : "VS Code extension not connected — code will appear in chat only";
+      strip.className = "auth-strip" + (isVscodeConnected ? " ok" : "");
+    } else {
+      strip.style.display = "none";
+    }
   }
 
   /* ── State ────────────────────────────────────────────────────────────── */
@@ -3724,6 +3840,15 @@
           updateKsBadge();
         }
 
+        // Restore reference sites from bridge-status
+        if (msg.referenceSites) {
+          renderWebRefList(msg.referenceSites);
+        }
+
+        // Track fast chat availability
+        hasFastChat = !!(msg.hasAnthropicKey);
+        updateFastChatIndicator();
+
         updateStatus();
         return;
       }
@@ -3754,6 +3879,21 @@
         return;
       }
 
+      // ── Web Reference Site messages ─────────────────────────────────
+      if (msg.type === "reference-site-added") {
+        showKsSuccess("Added reference site: " + (msg.site?.name || ""));
+        if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "list-reference-sites" }));
+        return;
+      }
+      if (msg.type === "reference-site-removed") {
+        if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "list-reference-sites" }));
+        return;
+      }
+      if (msg.type === "reference-sites-list") {
+        renderWebRefList(msg.sites || []);
+        return;
+      }
+
       // ── Provider stored confirmation ─────────────────────────────────
       if (msg.type === "provider-stored") {
         if (msg.provider && PROVIDER_META[msg.provider] && msg.provider !== selectedLoginProvider) {
@@ -3763,6 +3903,13 @@
         }
         updateStatus();
         return; // acknowledged
+      }
+
+      // ── VS Code connection status ────────────────────────────────────
+      if (msg.type === "vscode-connected") {
+        isVscodeConnected = msg.connected;
+        updateVscodeStatus();
+        return;
       }
 
       // ── MCP tool request (forward to plugin sandbox) ─────────────────

@@ -154,7 +154,7 @@ function fetchHtml(url, maxRedirects = 5) {
           : new URL(res.headers.location, url).href;
         return resolve(fetchHtml(next, maxRedirects - 1));
       }
-      if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`));
+      if (res.statusCode !== 200 && res.statusCode !== 202) return reject(new Error(`HTTP ${res.statusCode}`));
       let body = "";
       res.on("data", (chunk) => { body += chunk.toString(); });
       res.on("end", () => resolve(body));
@@ -323,6 +323,228 @@ function searchHub(query) {
     .sort((a, b) => b.score - a.score);
 }
 
+// ── Tier 1: Knowledge Hub Instant Answer ─────────────────────────────────────
+
+const STOP_WORDS = new Set([
+  "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
+  "have", "has", "had", "do", "does", "did", "will", "would", "could",
+  "should", "may", "might", "shall", "can", "need", "must",
+  "i", "me", "my", "we", "our", "you", "your", "he", "she", "it",
+  "they", "them", "their", "this", "that", "these", "those",
+  "what", "which", "who", "whom", "how", "when", "where", "why",
+  "and", "or", "but", "not", "no", "nor", "so", "if", "then",
+  "of", "in", "on", "at", "to", "for", "with", "by", "from",
+  "about", "into", "through", "during", "before", "after",
+  "above", "below", "between", "under", "over",
+  "just", "also", "very", "too", "more", "most", "some", "any",
+  "all", "each", "every", "both", "few", "many", "much",
+  "tell", "me", "explain", "describe", "show",
+]);
+
+/**
+ * Search loaded content sources for a direct answer to a query.
+ * Returns a formatted answer with source attribution, or null if no confident match.
+ */
+function searchContentForAnswer(query, contentSources) {
+  if (!query || !contentSources || contentSources.size === 0) return null;
+
+  // Extract meaningful keywords
+  const keywords = query
+    .toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
+
+  if (keywords.length === 0) return null;
+
+  let bestMatch = null;
+  let bestScore = 0;
+
+  for (const [, source] of contentSources) {
+    for (const src of source.sources) {
+      if (!src.content) continue;
+      const text = src.content;
+
+      // Split into paragraphs
+      const paragraphs = text.split(/\n{2,}/).filter((p) => p.trim().length > 50);
+
+      for (const para of paragraphs) {
+        const paraLower = para.toLowerCase();
+        let score = 0;
+        let matchedKeywords = 0;
+
+        for (const kw of keywords) {
+          if (paraLower.includes(kw)) {
+            matchedKeywords++;
+            // Bonus for exact word boundary match
+            const regex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+            score += regex.test(para) ? 2 : 1;
+          }
+        }
+
+        // Require at least 3 keyword hits or 60% of keywords matched
+        const matchRatio = matchedKeywords / keywords.length;
+        if (matchedKeywords >= 3 || (keywords.length <= 3 && matchRatio >= 0.6)) {
+          if (score > bestScore) {
+            bestScore = score;
+            bestMatch = {
+              text: para.trim(),
+              title: source.title,
+              meta: source.meta,
+            };
+          }
+        }
+      }
+    }
+  }
+
+  if (!bestMatch) return null;
+
+  // Format the answer with source attribution
+  const snippet = bestMatch.text.length > 1500
+    ? bestMatch.text.slice(0, 1500) + "..."
+    : bestMatch.text;
+
+  const metaInfo = [];
+  if (bestMatch.meta?.fileType) metaInfo.push(bestMatch.meta.fileType.toUpperCase());
+  if (bestMatch.meta?.pages) metaInfo.push(`${bestMatch.meta.pages} pages`);
+  const metaStr = metaInfo.length > 0 ? ` (${metaInfo.join(", ")})` : "";
+
+  return {
+    text: `**From "${bestMatch.title}"**${metaStr}:\n\n> ${snippet}\n\n_Source: "${bestMatch.title}"_`,
+    sources: [{ title: bestMatch.title, meta: bestMatch.meta }],
+  };
+}
+
+// ── Tier 2: Web Reference Search ─────────────────────────────────────────────
+
+// Default reference sites — starts empty, users add via UI
+// NN/g is suggested in the UI but not auto-enabled to avoid blocking chat
+let referenceSites = [];
+
+// Article cache: url → { title, text, fetchedAt }
+const _articleCache = new Map();
+const ARTICLE_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+function getReferenceSites() {
+  return [...referenceSites];
+}
+
+function addReferenceSite(site) {
+  const id = "ref-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6);
+  const entry = {
+    id,
+    name: site.name || site.searchDomain || "Reference",
+    baseUrl: site.baseUrl || site.url || "",
+    searchDomain: site.searchDomain || extractDomain(site.baseUrl || site.url || ""),
+  };
+  referenceSites.push(entry);
+  return entry;
+}
+
+function removeReferenceSite(id) {
+  referenceSites = referenceSites.filter((s) => s.id !== id);
+}
+
+function extractDomain(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url.replace(/^https?:\/\/(www\.)?/, "").split("/")[0];
+  }
+}
+
+/**
+ * Search configured reference sites for articles relevant to a query.
+ * Uses DuckDuckGo HTML search (no API key needed).
+ * Returns a formatted answer with link, or null if no match.
+ */
+async function searchReferenceSites(query) {
+  if (!query || referenceSites.length === 0) return null;
+
+  // Try each reference site
+  for (const site of referenceSites) {
+    try {
+      const result = await searchSingleSite(query, site);
+      if (result) return result;
+    } catch (err) {
+      console.error(`[web-ref] Error searching ${site.name}: ${err.message}`);
+    }
+  }
+  return null;
+}
+
+async function searchSingleSite(query, site) {
+  const searchQuery = `site:${site.searchDomain} ${query}`;
+  const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(searchQuery)}`;
+
+  // Fetch DuckDuckGo search results
+  let html;
+  try {
+    html = await fetchHtml(searchUrl);
+  } catch (err) {
+    console.error(`[web-ref] DuckDuckGo search failed: ${err.message}`);
+    return null;
+  }
+
+  // Parse results to extract article URLs
+  const cheerio = getCheerio();
+  const $ = cheerio.load(html);
+  const resultLinks = [];
+
+  $("a.result__a").each((i, el) => {
+    const href = $(el).attr("href") || "";
+    const title = $(el).text().trim();
+    // DuckDuckGo wraps URLs in a redirect — extract the actual URL
+    const urlMatch = href.match(/uddg=([^&]+)/);
+    const actualUrl = urlMatch ? decodeURIComponent(urlMatch[1]) : href;
+    if (actualUrl.includes(site.searchDomain) && title) {
+      resultLinks.push({ url: actualUrl, title });
+    }
+  });
+
+  if (resultLinks.length === 0) return null;
+
+  const topResult = resultLinks[0];
+
+  // Check article cache
+  const cached = _articleCache.get(topResult.url);
+  if (cached && Date.now() - cached.fetchedAt < ARTICLE_CACHE_TTL) {
+    return formatWebAnswer(cached.title, cached.text, topResult.url, site.name);
+  }
+
+  // Fetch and extract article content
+  try {
+    const article = await fetchUrlContent(topResult.url);
+    const articleText = article.text.slice(0, 3000); // Truncate for answer
+    const articleTitle = article.title || topResult.title;
+
+    // Cache the article
+    _articleCache.set(topResult.url, {
+      title: articleTitle,
+      text: articleText,
+      fetchedAt: Date.now(),
+    });
+
+    return formatWebAnswer(articleTitle, articleText, topResult.url, site.name);
+  } catch (err) {
+    console.error(`[web-ref] Failed to fetch article: ${err.message}`);
+    return null;
+  }
+}
+
+function formatWebAnswer(title, text, url, siteName) {
+  // Extract the most relevant paragraphs (first ~1500 chars)
+  const excerpt = text.length > 1500 ? text.slice(0, 1500) + "..." : text;
+
+  return {
+    text: `**From ${siteName}:**\n\n**[${title}](${url})**\n\n> ${excerpt}\n\n_[Read full article](${url})_`,
+    url,
+    title,
+    siteName,
+  };
+}
+
 module.exports = {
   parsePdfBuffer,
   parseDocxBuffer,
@@ -332,5 +554,10 @@ module.exports = {
   scanKnowledgeHub,
   loadHubFile,
   searchHub,
+  searchContentForAnswer,
+  searchReferenceSites,
+  getReferenceSites,
+  addReferenceSite,
+  removeReferenceSite,
   KNOWLEDGE_HUB_DIR,
 };

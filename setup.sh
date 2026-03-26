@@ -288,6 +288,14 @@ cd "$REPO_DIR/design-bridge"
 npm install
 echo "   ✔ Done"
 
+# ─── Step 2c: Install VS Code bridge extension deps + build ──────────────────
+echo ""
+echo "📦 Building VS Code bridge extension (Design + Code mode)..."
+cd "$REPO_DIR/vscode-chat-extension"
+npm install
+npm run build --silent
+echo "   ✔ Done"
+
 # Verify sharp native binary loaded correctly (it can silently fail on fresh installs)
 echo ""
 echo "🔍 Verifying sharp image module..."
@@ -857,6 +865,26 @@ else
   fi
 fi
 
+# ─── Step 8: Install VS Code bridge extension ────────────────────────────────
+echo ""
+echo "🔧 Installing VS Code bridge extension (Design + Code dual output)..."
+
+VSCODE_EXT_SRC="$REPO_DIR/vscode-chat-extension"
+VSCODE_EXT_DEST="$HOME/.vscode/extensions/figma-intelligence-bridge-0.1.0"
+
+if [ -d "$VSCODE_EXT_SRC/dist" ]; then
+  rm -rf "$VSCODE_EXT_DEST"
+  mkdir -p "$VSCODE_EXT_DEST"
+  cp "$VSCODE_EXT_SRC/package.json" "$VSCODE_EXT_DEST/"
+  cp -r "$VSCODE_EXT_SRC/dist" "$VSCODE_EXT_DEST/"
+  cp -r "$VSCODE_EXT_SRC/media" "$VSCODE_EXT_DEST/"
+  cp -r "$VSCODE_EXT_SRC/node_modules" "$VSCODE_EXT_DEST/"
+  echo "   ✔ Extension installed to ~/.vscode/extensions/"
+  echo "   ℹ  Restart VS Code to activate — then use 'Design + Code' mode in the Figma plugin"
+else
+  echo "   ⚠ VS Code extension build not found — skipping"
+fi
+
 # ─── Done ─────────────────────────────────────────────────────────────────────
 echo ""
 echo "─────────────────────────────────────────────────────"
@@ -875,9 +903,10 @@ echo "  5. Click  ▶ Start  — you should see  ✅ Connected"
 echo ""
 echo "  Then restart VS Code, Claude Code, or Codex if you use MCP tools there."
 echo ""
-echo "MCP servers registered:"
-echo "   ✔ figma-intelligence-layer — reads/writes Figma files"
+echo "Components registered:"
+echo "   ✔ figma-intelligence-layer — reads/writes Figma files (MCP server)"
 echo "   ✔ design-bridge — real photos, icons, palettes, Stitch AI layout${STITCH_API_KEY:+ (Stitch active)}"
+echo "   ✔ VS Code bridge extension — receives generated code in 'Design + Code' mode"
 echo ""
 echo "AI provider setup summary:"
 if [ "$CLAUDE_LOGGED_IN" = true ]; then

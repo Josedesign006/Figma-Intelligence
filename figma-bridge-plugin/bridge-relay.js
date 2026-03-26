@@ -23,7 +23,8 @@ const { runCodex, isCodexAvailable, getCodexAuthInfo, resetCodexSession } = requ
 const { runGemini } = require("./gemini-runner");
 const { runGeminiCli, isGeminiCliAvailable, getGeminiCliAuthInfo } = require("./gemini-cli-runner");
 const { runPerplexity } = require("./perplexity-runner");
-const { parsePdfBuffer, parseDocxBuffer, fetchUrlContent, createContentSource, buildGroundingContext, scanKnowledgeHub, loadHubFile, searchHub } = require("./content-context");
+const { runAnthropicChat } = require("./anthropic-chat-runner");
+const { parsePdfBuffer, parseDocxBuffer, fetchUrlContent, createContentSource, buildGroundingContext, scanKnowledgeHub, loadHubFile, searchHub, searchContentForAnswer, searchReferenceSites, getReferenceSites, addReferenceSite, removeReferenceSite } = require("./content-context");
 
 // P3: Port fallback — try PORT, then PORT+1 through PORT+9
 const BASE_PORT = parseInt(process.argv[2] || process.env.BRIDGE_PORT || "9001", 10);
@@ -95,6 +96,7 @@ function startPersistentMcpServer() {
 
 let pluginSocket = null;
 const mcpSockets = new Set();
+const vscodeSockets = new Set();          // VS Code chat extension clients
 const pendingRequests = new Map();
 const activeChatProcesses = new Map();   // requestId → ChildProcess | EventEmitter
 
@@ -146,6 +148,23 @@ function saveProviderConfig() {
 }
 
 loadProviderConfig();
+
+// ── Anthropic API Key (for fast chat mode — Tier 3) ─────────────────────────
+function getAnthropicApiKey() {
+  // 1. Provider-level API key (set via UI)
+  if (providerConfig.apiKey && providerConfig.provider === "claude") return providerConfig.apiKey;
+  // 2. Environment variable
+  if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY;
+  // 3. From settings file
+  try {
+    const settingsPath = join(homedir(), ".claude", "settings.json");
+    if (existsSync(settingsPath)) {
+      const s = JSON.parse(readFileSync(settingsPath, "utf8"));
+      if (s?.figmaIntelligenceProvider?.anthropicApiKey) return s.figmaIntelligenceProvider.anthropicApiKey;
+    }
+  } catch {}
+  return null;
+}
 
 // ── Knowledge sources grounding context ─────────────────────────────────────
 const activeContentSources = new Map(); // sourceId → { id, title, sources, meta, extractedAt }
@@ -219,6 +238,10 @@ async function _doRefreshAuthState({ log = false } = {}) {
   }
 
   sendRelayStatus(pluginSocket, hasConnectedMcpSocket());
+  // Also send status to all VS Code clients
+  for (const vsWs of vscodeSockets) {
+    sendRelayStatus(vsWs, hasConnectedMcpSocket());
+  }
 }
 
 // ── Auth check on startup ───────────────────────────────────────────────────
@@ -241,6 +264,8 @@ function sendRelayStatus(ws, mcpConnected) {
     geminiLoggedIn: geminiCliAuthInfo.loggedIn,
     geminiEmail: geminiCliAuthInfo.email,
     activeDesignSystemId,
+    hasAnthropicKey: !!getAnthropicApiKey(),
+    referenceSites: getReferenceSites(),
     knowledgeSources: Array.from(activeContentSources.values()).map(s => ({
       id: s.id, title: s.title, sourceCount: s.sources.length, meta: s.meta || {}, extractedAt: s.extractedAt,
     })),
@@ -265,6 +290,19 @@ function broadcastToMcpSockets(raw) {
 function sendToPlugin(payload) {
   if (pluginSocket && pluginSocket.readyState === 1) {
     pluginSocket.send(JSON.stringify(payload));
+  }
+}
+
+function sendToVscode(payload, targetWs) {
+  if (targetWs && targetWs.readyState === 1) {
+    targetWs.send(JSON.stringify(payload));
+  }
+}
+
+function broadcastToVscodeSockets(payload) {
+  const data = JSON.stringify(payload);
+  for (const ws of vscodeSockets) {
+    if (ws.readyState === 1) ws.send(data);
   }
 }
 
@@ -328,6 +366,7 @@ console.log(`\n🔌 Figma Intelligence Bridge Relay`);
 console.log(`   Listening on ws://localhost:${PORT}`);
 console.log(`   MCP server   → connects to ws://localhost:${PORT}`);
 console.log(`   Figma plugin → connects to ws://localhost:${PORT}/plugin`);
+console.log(`   VS Code ext  → connects to ws://localhost:${PORT}/vscode`);
 console.log(`   Waiting for connections…\n`);
 
 // Rewrite MCP config with the actual port (chat-runner wrote initial config with default port)
@@ -343,12 +382,25 @@ startPersistentMcpServer();
 wss.on("connection", (ws, req) => {
   const path = req.url || "/";
   const isPlugin = path.includes("/plugin");
+  const isVscode = path.includes("/vscode");
 
   // P3: Heartbeat — mark connection alive on pong
   ws._isAlive = true;
   ws.on("pong", () => { ws._isAlive = true; });
 
-  if (isPlugin) {
+  if (isVscode) {
+    vscodeSockets.add(ws);
+    console.log("✅ VS Code client connected");
+    sendRelayStatus(ws, hasConnectedMcpSocket());
+    refreshAuthState().catch(() => {});
+    // Notify plugin that VS Code is connected
+    sendToPlugin({ type: "vscode-connected", connected: true, count: vscodeSockets.size });
+    ws.on("close", () => {
+      vscodeSockets.delete(ws);
+      console.log("  ↺ VS Code client disconnected");
+      sendToPlugin({ type: "vscode-connected", connected: vscodeSockets.size > 0, count: vscodeSockets.size });
+    });
+  } else if (isPlugin) {
     // P3: Cancel grace timer if plugin reconnects within grace period
     if (pluginGraceTimer) {
       clearTimeout(pluginGraceTimer);
@@ -370,6 +422,153 @@ wss.on("connection", (ws, req) => {
     const raw = data.toString();
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
+
+    // ── Messages from VS Code extension ────────────────────────────────────
+    if (isVscode) {
+
+      if (msg.type === "vscode-hello") {
+        console.log(`  VS Code client: ${msg.clientType || "unknown"} v${msg.version || "?"}`);
+        return;
+      }
+
+      // Set AI provider
+      if (msg.type === "set-provider") {
+        providerConfig = { provider: msg.provider || "claude", apiKey: msg.apiKey || null };
+        saveProviderConfig();
+        console.log(`  🔑 provider set (vscode): ${providerConfig.provider}`);
+        sendToVscode({ type: "provider-stored", provider: providerConfig.provider }, ws);
+        refreshAuthState().catch(() => {});
+        return;
+      }
+
+      // Set design system
+      if (msg.type === "set-design-system") {
+        const newId = msg.designSystemId || null;
+        if (newId !== activeDesignSystemId) {
+          activeDesignSystemId = newId;
+          resetSession();
+          resetCodexSession();
+          console.log(`  🎨 design system (vscode): ${newId || "none"} (sessions reset)`);
+        }
+        sendToVscode({ type: "design-system-stored", designSystemId: activeDesignSystemId }, ws);
+        return;
+      }
+
+      // Chat message from VS Code (supports mode: "dual", "code", "chat")
+      if (msg.type === "chat") {
+        const requestId = msg.id;
+        const prov = providerConfig.provider || "claude";
+        const chatMode = msg.mode || "dual";
+        let chatMessage = msg.message || "";
+
+        // Inject knowledge grounding if active
+        if (activeContentSources.size > 0) {
+          const groundingCtx = buildGroundingContext(activeContentSources);
+          if (groundingCtx) {
+            chatMessage = groundingCtx + "\n---\n\nUser question: " + chatMessage;
+          }
+        }
+
+        console.log(`  💬 vscode chat [${prov}/${chatMode}] (id: ${requestId}): ${chatMessage.slice(0, 60)}…`);
+
+        const onEvent = (event) => {
+          // Send to VS Code client AND plugin (so both see the Figma actions)
+          sendToVscode(event, ws);
+          sendToPlugin(event);
+        };
+
+        let proc;
+        if (prov === "claude" || !prov || prov === "bridge") {
+          const anthropicKey = getAnthropicApiKey();
+          if (chatMode === "chat" && anthropicKey) {
+            const { buildChatPrompt } = require("./shared-prompt-config");
+            proc = runAnthropicChat({
+              message: chatMessage,
+              attachments: msg.attachments,
+              conversation: msg.conversation,
+              requestId,
+              apiKey: anthropicKey,
+              model: msg.model,
+              systemPrompt: buildChatPrompt(),
+              onEvent,
+            });
+          } else {
+            proc = runClaude({
+              message: chatMessage,
+              attachments: msg.attachments,
+              conversation: msg.conversation,
+              requestId,
+              model: msg.model,
+              designSystemId: activeDesignSystemId,
+              mode: chatMode,
+              frameworkConfig: msg.frameworkConfig,
+              onEvent,
+            });
+          }
+        } else if (prov === "openai") {
+          proc = runCodex({
+            message: chatMessage,
+            attachments: msg.attachments,
+            requestId,
+            model: msg.model,
+            designSystemId: activeDesignSystemId,
+            mode: chatMode,
+            onEvent,
+          });
+        } else if (prov === "gemini") {
+          if (geminiCliAuthInfo.loggedIn) {
+            proc = runGeminiCli({
+              message: chatMessage,
+              requestId,
+              model: msg.model,
+              designSystemId: activeDesignSystemId,
+              mode: chatMode,
+              onEvent,
+            });
+          } else {
+            proc = runGemini({
+              message: chatMessage,
+              requestId,
+              apiKey: providerConfig.apiKey,
+              model: msg.model,
+              designSystemId: activeDesignSystemId,
+              mode: chatMode,
+              onEvent,
+            });
+          }
+        } else {
+          sendToVscode({ type: "error", id: requestId, error: `Unsupported provider: ${prov}` }, ws);
+          sendToVscode({ type: "done", id: requestId, fullText: "" }, ws);
+          return;
+        }
+
+        activeChatProcesses.set(requestId, proc);
+        proc.on("close", () => activeChatProcesses.delete(requestId));
+        return;
+      }
+
+      // Abort chat
+      if (msg.type === "abort-chat") {
+        const proc = activeChatProcesses.get(msg.id);
+        if (proc) {
+          proc.kill("SIGTERM");
+          activeChatProcesses.delete(msg.id);
+          console.log(`  ⛔ vscode chat aborted (id: ${msg.id})`);
+        }
+        return;
+      }
+
+      // New conversation
+      if (msg.type === "new-conversation") {
+        const resetMode = msg.mode || null;
+        resetSession(resetMode);
+        resetCodexSession(resetMode);
+        console.log(`  🔄 vscode session reset${resetMode ? ` (${resetMode})` : " (all)"}`);
+        return;
+      }
+
+      return;
+    }
 
     // ── Messages from the Figma plugin ──────────────────────────────────────
     if (isPlugin) {
@@ -578,6 +777,28 @@ wss.on("connection", (ws, req) => {
         return;
       }
 
+      // ── Web Reference Site management ───────────────────────────────
+      if (msg.type === "add-reference-site") {
+        const site = addReferenceSite({ name: msg.name, baseUrl: msg.baseUrl || msg.url, searchDomain: msg.searchDomain });
+        console.log(`  🌐 Reference site added: ${site.name} (${site.searchDomain})`);
+        sendToPlugin({ type: "reference-site-added", site });
+        sendRelayStatus(pluginSocket, hasConnectedMcpSocket());
+        return;
+      }
+
+      if (msg.type === "remove-reference-site") {
+        removeReferenceSite(msg.id);
+        console.log(`  🌐 Reference site removed: ${msg.id}`);
+        sendToPlugin({ type: "reference-site-removed", id: msg.id });
+        sendRelayStatus(pluginSocket, hasConnectedMcpSocket());
+        return;
+      }
+
+      if (msg.type === "list-reference-sites") {
+        sendToPlugin({ type: "reference-sites-list", sites: getReferenceSites() });
+        return;
+      }
+
       // Chat message → route to the configured AI runner
       if (msg.type === "chat") {
         const requestId = msg.id;
@@ -648,6 +869,49 @@ wss.on("connection", (ws, req) => {
           return;
         }
 
+        // ── Fast Chat Tiers (chat mode only) ─────────────────────────────
+        const rawMessage = chatMessage; // preserve original for knowledge/web search
+
+        // Tier 1: Knowledge Hub instant answer (chat mode only)
+        if (chatMode === "chat" && activeContentSources.size > 0) {
+          const localAnswer = searchContentForAnswer(rawMessage, activeContentSources);
+          if (localAnswer) {
+            console.log(`  📚 Tier 1 hit: Knowledge Hub instant answer`);
+            sendToPlugin({ type: "phase_start", id: requestId, phase: "📚 Knowledge Hub" });
+            sendToPlugin({ type: "text_delta", id: requestId, delta: localAnswer.text });
+            sendToPlugin({ type: "done", id: requestId, fullText: localAnswer.text });
+            return;
+          }
+        }
+
+        // Tier 2: Web Reference Search (chat mode only, async, 5s timeout)
+        if (chatMode === "chat" && getReferenceSites().length > 0) {
+          (async () => {
+            try {
+              const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 5000));
+              const webAnswer = await Promise.race([searchReferenceSites(rawMessage), timeoutPromise]);
+              if (webAnswer) {
+                console.log(`  🌐 Tier 2 hit: ${webAnswer.siteName} — ${webAnswer.title}`);
+                sendToPlugin({ type: "phase_start", id: requestId, phase: `🌐 ${webAnswer.siteName}` });
+                sendToPlugin({ type: "text_delta", id: requestId, delta: webAnswer.text });
+                sendToPlugin({ type: "done", id: requestId, fullText: webAnswer.text });
+                return;
+              }
+            } catch (err) {
+              console.error(`  ⚠ Tier 2 web search error: ${err.message}`);
+            }
+
+            // Fall through to Tier 3/4 — route to AI provider
+            routeToAiProvider();
+          })();
+          return; // async — routeToAiProvider called inside the async block
+        }
+
+        routeToAiProvider();
+        return;
+
+        function routeToAiProvider() {
+
         // Inject knowledge source grounding context if sources are active
         if (activeContentSources.size > 0) {
           const groundingCtx = buildGroundingContext(activeContentSources);
@@ -661,6 +925,10 @@ wss.on("connection", (ws, req) => {
 
         const onEvent = (event) => {
           sendToPlugin(event);
+          // In dual mode, also forward to VS Code clients for code extraction
+          if (chatMode === "dual") {
+            broadcastToVscodeSockets(event);
+          }
           if (event.type === "tool_start") {
             console.log(`  🔧 tool_start: ${event.tool}`);
           } else if (event.type === "tool_done") {
@@ -732,21 +1000,40 @@ wss.on("connection", (ws, req) => {
           return;
         } else {
           // Default: Claude
-          proc = runClaude({
-            message: chatMessage,
-            attachments: msg.attachments,
-            conversation: msg.conversation,
-            requestId,
-            model: msg.model,
-            designSystemId: activeDesignSystemId,
-            mode: chatMode,
-            onEvent,
-          });
+          const anthropicKey = getAnthropicApiKey();
+          if (chatMode === "chat" && anthropicKey) {
+            // Tier 3: Direct Anthropic API — fast streaming (~200ms first token)
+            const { buildChatPrompt } = require("./shared-prompt-config");
+            proc = runAnthropicChat({
+              message: chatMessage,
+              attachments: msg.attachments,
+              conversation: msg.conversation,
+              requestId,
+              apiKey: anthropicKey,
+              model: msg.model,
+              systemPrompt: buildChatPrompt(),
+              onEvent,
+            });
+          } else {
+            // Tier 4: Claude CLI subprocess (code/dual mode, or no API key)
+            proc = runClaude({
+              message: chatMessage,
+              attachments: msg.attachments,
+              conversation: msg.conversation,
+              requestId,
+              model: msg.model,
+              designSystemId: activeDesignSystemId,
+              mode: chatMode,
+              frameworkConfig: msg.frameworkConfig || {},
+              onEvent,
+            });
+          }
         }
 
         activeChatProcesses.set(requestId, proc);
         proc.on("close", () => activeChatProcesses.delete(requestId));
         return;
+        } // end routeToAiProvider
       }
 
       // Abort a running chat

@@ -19,6 +19,7 @@ const {
   SYSTEM_PROMPT,
   buildSystemPrompt,
   buildChatPrompt,
+  buildDualOutputPrompt,
   buildSkillAddendum,
   detectActiveSkills,
   REPO_DIR,
@@ -35,7 +36,7 @@ const CLAUDE_BIN = process.env.CLAUDE_BIN_PATH || "claude";
 // First message uses --session-id <uuid> (creates a new session).
 // Subsequent messages use --resume <uuid> (reloads full conversation context).
 // No need to re-send system prompt, MCP config, or conversation history on resume.
-let activeSessionIds = { code: null, chat: null };
+let activeSessionIds = { code: null, chat: null, dual: null };
 
 function resetSession(mode) {
   if (mode) {
@@ -174,7 +175,7 @@ function processAttachments(attachments) {
 const CLAUDE_DEFAULT_MODEL = "claude-opus-4-6";
 const CLAUDE_VALID_MODELS = new Set(["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]);
 
-function runClaude({ message, attachments, conversation, requestId, model, designSystemId, mode, onEvent }) {
+function runClaude({ message, attachments, conversation, requestId, model, designSystemId, mode, frameworkConfig, onEvent }) {
   const { imageArgs, extraText, tempFiles } = processAttachments(attachments);
 
   const resolvedModel = CLAUDE_VALID_MODELS.has(model) ? model : CLAUDE_DEFAULT_MODEL;
@@ -198,14 +199,15 @@ function runClaude({ message, attachments, conversation, requestId, model, desig
   const userMessage = `${userText}${extraText}`;
 
   // Detect active skills (hoisted so it's available for system prompt injection)
-  const skills = sessionMode === "code" ? detectActiveSkills(userText) : [];
+  const skills = (sessionMode === "code" || sessionMode === "dual") ? detectActiveSkills(userText) : [];
 
   // Emit pre-flight progress
-  if (sessionMode === "code") {
+  if (sessionMode === "code" || sessionMode === "dual") {
     if (skills.length > 0) {
       onEvent({ type: "phase_start", id: requestId, phase: `Skills: ${skills.join(" · ")}` });
     }
-    onEvent({ type: "phase_start", id: requestId, phase: `Model: ${resolvedModel} · MCP: figma-intelligence-layer` });
+    const modeLabel = sessionMode === "dual" ? "Dual (Design + Code)" : "Code";
+    onEvent({ type: "phase_start", id: requestId, phase: `${modeLabel} · ${resolvedModel} · MCP: figma-intelligence-layer` });
   } else {
     onEvent({ type: "phase_start", id: requestId, phase: `Chat · ${resolvedModel}` });
   }
@@ -213,8 +215,15 @@ function runClaude({ message, attachments, conversation, requestId, model, desig
   let args;
   if (isFirstMessage) {
     // First message: create session with full config
-    const baseSystemPrompt = sessionMode === "chat" ? buildChatPrompt() : buildSystemPrompt(designSystemId);
-    const fullSystemPrompt = sessionMode === "code" ? baseSystemPrompt + buildSkillAddendum(skills) : baseSystemPrompt;
+    let baseSystemPrompt;
+    if (sessionMode === "chat") {
+      baseSystemPrompt = buildChatPrompt();
+    } else if (sessionMode === "dual") {
+      baseSystemPrompt = buildDualOutputPrompt(designSystemId, frameworkConfig);
+    } else {
+      baseSystemPrompt = buildSystemPrompt(designSystemId);
+    }
+    const fullSystemPrompt = (sessionMode === "code" || sessionMode === "dual") ? baseSystemPrompt + buildSkillAddendum(skills) : baseSystemPrompt;
     args = [
       "--model", resolvedModel,
       "--system-prompt", fullSystemPrompt,
@@ -228,7 +237,7 @@ function runClaude({ message, attachments, conversation, requestId, model, desig
     // --strict-mcp-config ensures ONLY servers from --mcp-config are used,
     // ignoring Pencil, design-bridge, and any other MCP servers from
     // ~/.claude/settings.json or .vscode/mcp.json.
-    if (sessionMode === "code") {
+    if (sessionMode === "code" || sessionMode === "dual") {
       args.push("--mcp-config", MCP_CONFIG_PATH, "--strict-mcp-config");
     }
   } else {
@@ -242,7 +251,7 @@ function runClaude({ message, attachments, conversation, requestId, model, desig
       "--dangerously-skip-permissions",
       "--resume", currentSessionId,
     ];
-    if (sessionMode === "code") {
+    if (sessionMode === "code" || sessionMode === "dual") {
       args.push("--mcp-config", MCP_CONFIG_PATH, "--strict-mcp-config");
     }
     console.log(`[chat-runner] Resuming ${sessionMode} session: ${currentSessionId}`);

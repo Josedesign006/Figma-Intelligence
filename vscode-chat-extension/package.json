@@ -1,0 +1,72 @@
+{
+  "name": "figma-intelligence-bridge",
+  "displayName": "Figma Intelligence Bridge",
+  "description": "Background service that connects to the Figma Intelligence Bridge relay — receives generated component code from dual mode and writes files to your workspace",
+  "version": "0.1.0",
+  "publisher": "figma-intelligence",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "figmaIntelligence.togglePreview",
+        "title": "Figma Intelligence: Toggle Live Preview"
+      },
+      {
+        "command": "figmaIntelligence.reconnect",
+        "title": "Figma Intelligence: Reconnect to Bridge"
+      }
+    ],
+    "configuration": {
+      "title": "Figma Intelligence Bridge",
+      "properties": {
+        "figmaIntelligence.bridgePort": {
+          "type": "number",
+          "default": 9001,
+          "description": "WebSocket port for the bridge relay server"
+        },
+        "figmaIntelligence.framework": {
+          "type": "string",
+          "default": "react",
+          "enum": ["react", "vue", "svelte", "html"],
+          "description": "Framework for generated component code"
+        },
+        "figmaIntelligence.codeOutputDir": {
+          "type": "string",
+          "default": "src/components",
+          "description": "Directory for generated component files (relative to workspace root)"
+        },
+        "figmaIntelligence.previewMode": {
+          "type": "string",
+          "default": "storybook",
+          "enum": ["storybook", "simple"],
+          "description": "Live preview mode: Storybook or simple webview"
+        },
+        "figmaIntelligence.autoConnect": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically connect to bridge relay on startup"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/ws": "^8.5.10",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}

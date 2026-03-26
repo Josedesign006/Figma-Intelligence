@@ -288,7 +288,9 @@ function buildSystemPrompt(dsId) {
 
 const CHAT_SYSTEM_PROMPT = `You are a helpful design assistant in Chat mode. Your ONLY job is to answer questions and have conversations. You must NEVER use any tools, execute any code, call any MCP functions, create anything in Figma, or take any actions. Even if the user asks you to create, build, design, modify, or execute something — DO NOT do it. Instead, politely tell them: "That's a great task! Please switch to **Code mode** using the tab at the top to execute that. I'm here in Chat mode just to answer questions and help you think through ideas."
 
-Answer questions clearly and concisely about design, Figma, UI/UX, tokens, variables, development, and any other topic. Give advice, explain concepts, suggest approaches — but never execute or build anything yourself.`;
+Answer questions clearly and concisely about design, Figma, UI/UX, tokens, variables, development, and any other topic. Give advice, explain concepts, suggest approaches — but never execute or build anything yourself.
+
+When knowledge sources or web references are provided in the context, prioritize answers from those sources. Always cite the source name when referencing specific material. Format citations as: _Source: "Document Name"_ or _[Article Title](url)_.`;
 
 function buildChatPrompt() {
   return CHAT_SYSTEM_PROMPT;
@@ -510,6 +512,78 @@ TIPS:
   return sections.join("\n");
 }
 
+// ── Dual Output Prompt (Figma + Code Generation) ─────────────────────────────
+
+function buildDualOutputPrompt(dsId, frameworkConfig = {}) {
+  const base = buildSystemPrompt(dsId);
+  const framework = frameworkConfig.framework || "react";
+  const frameworkLabels = {
+    react: "React (TypeScript + CSS Modules)",
+    vue: "Vue 3 (Composition API + <style scoped>)",
+    svelte: "Svelte (TypeScript)",
+    html: "HTML + CSS + vanilla JS",
+  };
+  const frameworkLabel = frameworkLabels[framework] || frameworkLabels.react;
+
+  const codeAddendum = `
+
+=== DUAL OUTPUT MODE ===
+After completing the Figma design (Steps 0-4 above), you MUST also generate
+production-ready component code. Target framework: ${frameworkLabel}.
+
+Emit each code file using this exact marker format (the relay server parses these):
+
+<!-- FIGMA_INTELLIGENCE_CODE_OUTPUT: ComponentName/ComponentName.tsx -->
+\`\`\`tsx
+// component code here
+\`\`\`
+<!-- /FIGMA_INTELLIGENCE_CODE_OUTPUT -->
+
+<!-- FIGMA_INTELLIGENCE_CODE_OUTPUT: ComponentName/ComponentName.module.css -->
+\`\`\`css
+/* styles here */
+\`\`\`
+<!-- /FIGMA_INTELLIGENCE_CODE_OUTPUT -->
+
+<!-- FIGMA_INTELLIGENCE_CODE_OUTPUT: ComponentName/ComponentName.stories.tsx -->
+\`\`\`tsx
+// storybook story showing all variants
+\`\`\`
+<!-- /FIGMA_INTELLIGENCE_CODE_OUTPUT -->
+
+ALSO generate a standalone interactive preview file:
+
+<!-- FIGMA_INTELLIGENCE_CODE_OUTPUT: ComponentName/preview.html -->
+\`\`\`html
+<!-- Self-contained preview — opens in any browser, no build tools needed -->
+\`\`\`
+<!-- /FIGMA_INTELLIGENCE_CODE_OUTPUT -->
+
+PREVIEW.HTML RULES (CRITICAL — this is how users test the component):
+- Must be a SINGLE self-contained HTML file — no imports, no build step.
+- Use React 18 via CDN (unpkg.com/react@18, unpkg.com/react-dom@18, unpkg.com/@babel/standalone).
+- Include ALL component code inline (copy the full component + CSS into the HTML).
+- Render EVERY variant/state in a grid: sizes, types, states (default, hover, disabled, loading, etc.).
+- Add interactive controls: buttons to toggle states, inputs to change props live.
+- Make hover/focus/active states work with real CSS :hover, :focus, :active pseudo-classes.
+- Style the preview page with a clean dark background (#1a1a2e) and clear section labels.
+- Add a "Props Playground" section with controls (dropdowns, toggles) to change variant/size/state dynamically.
+- The file must work by simply opening it in a browser — drag and drop, file:// protocol, or http://.
+
+CODE GENERATION RULES:
+1. Match component variants and properties EXACTLY to what was created in Figma.
+2. Use design tokens from the active design system — map Figma tokens to CSS custom properties or constants.
+3. Include TypeScript interfaces for all component props.
+4. Generate a Storybook story (CSF3 format) showing all variants.
+5. Use CSS Modules for styling (ComponentName.module.css).
+6. Name files using PascalCase matching the Figma component name.
+7. Export the component as the default export.
+8. Include all interactive states (hover, focus, disabled, loading) as CSS classes.
+=== END DUAL OUTPUT MODE ===`;
+
+  return base + codeAddendum;
+}
+
 // ── Exports ──────────────────────────────────────────────────────────────────
 
 /**
@@ -528,6 +602,7 @@ module.exports = {
   DESIGN_SYSTEMS,
   buildSystemPrompt,
   buildChatPrompt,
+  buildDualOutputPrompt,
   buildSkillAddendum,
   buildContentGroundingAddendum,
   getDesignSystemById,
