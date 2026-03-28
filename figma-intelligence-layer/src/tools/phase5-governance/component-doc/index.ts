@@ -1870,6 +1870,107 @@ function buildRelatedComponents(snapshot: NodeSnapshot): RelatedComponent[] {
   return related;
 }
 
+// ─── Auto-enrichment builders (eliminate 2-phase workflow) ───────────────────
+
+function buildVariantsDetailed(snapshot: NodeSnapshot): DesignSystemSpec["variantsDetailed"] {
+  const bp = resolveBlueprint(snapshot.name);
+  const knowledge = COMPONENT_KNOWLEDGE[snapshot.name.toLowerCase()] || COMPONENT_KNOWLEDGE[bp?.name.toLowerCase() || ""];
+  const variants = buildVariants(snapshot);
+  const typeAxis = variants.find((v) => /^type$/i.test(v.property));
+  if (!typeAxis) return [];
+
+  return typeAxis.values.map((typeName) => {
+    const t = typeName.toLowerCase();
+    const overrides = TYPE_OVERRIDES[t];
+    let purpose = `${typeName} variant of ${snapshot.name}.`;
+    let emphasis = "medium";
+    let whenToUse = `Use the ${typeName} variant in standard contexts.`;
+    let whenNotToUse = `Avoid when a different emphasis level is needed.`;
+
+    if (t === "primary") {
+      emphasis = "highest";
+      purpose = "Solid filled background with high-contrast text. The highest emphasis variant for the single most important action.";
+      whenToUse = "Use for the primary CTA in any visible region — form submit, confirmation, main action.";
+      whenNotToUse = "Never use more than one Primary per visible region. Demote competing actions to Secondary.";
+    } else if (t === "secondary") {
+      emphasis = "medium";
+      purpose = "Bordered/outlined variant providing medium emphasis. Supports Primary actions without competing for attention.";
+      whenToUse = "Use for supporting actions that pair with a Primary — e.g., Cancel alongside Submit.";
+      whenNotToUse = "Avoid when the action is the sole, most important CTA (use Primary instead).";
+    } else if (t === "ghost" || t === "tertiary") {
+      emphasis = "low";
+      purpose = "Transparent background with minimal visual weight. Lowest emphasis for inline or tertiary actions.";
+      whenToUse = "Use for toolbar actions, inline controls, or actions reinforced by surrounding context.";
+      whenNotToUse = "Avoid for primary or standalone actions — Ghost buttons are less discoverable.";
+    } else if (t === "destructive" || t === "danger") {
+      emphasis = "contextual-high";
+      purpose = "Danger-colored variant reserved for irreversible or high-risk actions (delete, revoke, remove).";
+      whenToUse = "Use exclusively for destructive actions. Always pair with a confirmation step.";
+      whenNotToUse = "Never use for non-destructive actions. Never place adjacent to Primary without clear visual separation.";
+    } else if (t === "outline") {
+      emphasis = "medium-low";
+      purpose = "Transparent background with visible border. Medium-low emphasis between Secondary and Ghost.";
+      whenToUse = "Use when a bordered look is needed without the emphasis of Secondary.";
+      whenNotToUse = "Avoid when Ghost (no border) or Secondary (filled) would be more appropriate.";
+    } else if (t === "link") {
+      emphasis = "lowest";
+      purpose = "Text-only with underline, no background or border. Lowest emphasis, looks like a hyperlink.";
+      whenToUse = "Use for inline actions that should look like text links within content.";
+      whenNotToUse = "Avoid for standalone action buttons — users may not recognize them as buttons.";
+    }
+
+    return { name: typeName, purpose, emphasis, whenToUse, whenNotToUse };
+  });
+}
+
+function buildSupportedCompositions(snapshot: NodeSnapshot): DesignSystemSpec["supportedCompositions"] {
+  const bp = resolveBlueprint(snapshot.name);
+  if (!bp || !bp.root.children) return [];
+
+  const hasIcon = bp.root.children.some((c) => /icon/i.test(c.name));
+  const hasLabel = bp.root.children.some((c) => /label|text|title/i.test(c.name));
+  const compositions: NonNullable<DesignSystemSpec["supportedCompositions"]> = [];
+
+  if (hasLabel && hasIcon) {
+    compositions.push({
+      name: "Icon + Label",
+      parts: bp.root.children.map((c) => c.name),
+      whenToUse: "Default composition. Icon reinforces the label meaning. Use for most action buttons.",
+      constraints: "Icon must be 16×16px. Leading icon preferred; trailing only for directional indicators (chevrons, arrows).",
+    });
+    compositions.push({
+      name: "Label Only",
+      parts: bp.root.children.filter((c) => !/icon/i.test(c.name)).map((c) => c.name),
+      whenToUse: "When the label is sufficient without visual reinforcement. Common for form buttons (Submit, Cancel).",
+      constraints: "Hide icon slot. Label alone must clearly communicate the action.",
+    });
+    compositions.push({
+      name: "Icon Only",
+      parts: bp.root.children.filter((c) => /icon|container/i.test(c.name)).map((c) => c.name),
+      whenToUse: "Space-constrained contexts (toolbars, table actions) where the icon meaning is universally understood.",
+      constraints: "MUST provide aria-label. MUST show Tooltip on hover/focus with the label text. Icon must be universally recognizable.",
+    });
+  } else if (hasLabel) {
+    compositions.push({
+      name: "Label Only",
+      parts: bp.root.children.map((c) => c.name),
+      whenToUse: "Primary composition for this component. Label provides the accessible name.",
+    });
+  }
+
+  const n = snapshot.name.toLowerCase();
+  if (/button|btn/.test(n) || bp?.name === "Button") {
+    compositions.push({
+      name: "Loading",
+      parts: ["Spinner", "Label (optional)"],
+      whenToUse: "During async operations. Replaces icon with spinner and locks the button to prevent double-submission.",
+      constraints: "Set aria-busy='true'. Optionally keep label visible or replace with 'Loading…'. Button must be non-interactive.",
+    });
+  }
+
+  return compositions;
+}
+
 function convertAccessibilityOverrides(
   a11y: NonNullable<ContentOverrides["accessibility"]>,
 ): GeneratedDocumentSection[] {
@@ -2348,8 +2449,8 @@ async function createVisualDocPage(spec: DesignSystemSpec, nodeId: string, pageN
       var header = figma.createFrame();
       header.layoutMode = "VERTICAL"; header.primaryAxisSizingMode = "AUTO"; header.counterAxisSizingMode = "AUTO";
       header.itemSpacing = 8; header.fills = [];
-      header.appendChild(T("${escStr(spec.componentName)} Documentation", fontBold, 40, C.text));
-      header.appendChild(T("Design system specification", fontMedium, 16, C.accent));
+      header.appendChild(T("${escStr(spec.componentName)}", fontBold, 40, C.text));
+      header.appendChild(T("Full Component Spec \\u2014 Variants \\u00b7 Properties \\u00b7 Sizes \\u00b7 States \\u00b7 Tokens", fontMedium, 16, C.accent));
       root.appendChild(header);
       root.appendChild(divider());
 
@@ -2830,11 +2931,15 @@ async function createVisualDocPage(spec: DesignSystemSpec, nodeId: string, pageN
         }
       }
 
-      // ── Normalize all root children to FILL width ──
+      // ── Normalize all root children: FILL width + HUG height ──
       if ('children' in root) {
         for (var rc of root.children) {
           if ('layoutSizingHorizontal' in rc) {
             rc.layoutSizingHorizontal = 'FILL';
+          }
+          // HUG vertically for auto-layout sections; keep dividers/fixed frames as FIXED
+          if ('layoutSizingVertical' in rc && 'layoutMode' in rc && rc.layoutMode && rc.layoutMode !== 'NONE') {
+            rc.layoutSizingVertical = 'HUG';
           }
           if ('layoutAlign' in rc) {
             rc.layoutAlign = 'STRETCH';
@@ -3345,11 +3450,15 @@ async function createVisualDocPage(spec: DesignSystemSpec, nodeId: string, pageN
         root.appendChild(propsSection);
       }
 
-      // ── Normalize all root children to FILL width ──
+      // ── Normalize all root children: FILL width + HUG height ──
       if ('children' in root) {
         for (var rc of root.children) {
           if ('layoutSizingHorizontal' in rc) {
             rc.layoutSizingHorizontal = 'FILL';
+          }
+          // HUG vertically for auto-layout sections; keep dividers/fixed frames as FIXED
+          if ('layoutSizingVertical' in rc && 'layoutMode' in rc && rc.layoutMode && rc.layoutMode !== 'NONE') {
+            rc.layoutSizingVertical = 'HUG';
           }
           if ('layoutAlign' in rc) {
             rc.layoutAlign = 'STRETCH';
@@ -3662,11 +3771,14 @@ async function createVisualDocPage(spec: DesignSystemSpec, nodeId: string, pageN
           root.appendChild(relSection);
         }
 
-        // ── Normalize all root children to FILL width ──
+        // ── Normalize all root children: FILL width + HUG height ──
         if ('children' in root) {
           for (var rc of root.children) {
             if ('layoutSizingHorizontal' in rc) {
               rc.layoutSizingHorizontal = 'FILL';
+            }
+            if ('layoutSizingVertical' in rc) {
+              rc.layoutSizingVertical = 'HUG';
             }
             if ('layoutAlign' in rc) {
               rc.layoutAlign = 'STRETCH';
@@ -3727,7 +3839,7 @@ export async function componentDocHandler(args: ComponentDocArgs): Promise<Compo
     }
   }
 
-  // 5. Assemble the full design system spec (19 sections)
+  // 5. Assemble the full design system spec (21+ sections, fully auto-enriched)
   const spec: DesignSystemSpec = {
     componentName: snapshot.name,
     nodeId: snapshot.id,
@@ -3736,6 +3848,8 @@ export async function componentDocHandler(args: ComponentDocArgs): Promise<Compo
     purpose: buildPurpose(snapshot),
     anatomy: buildAnatomy(snapshot),
     variants: buildVariants(snapshot),
+    variantsDetailed: buildVariantsDetailed(snapshot),
+    supportedCompositions: buildSupportedCompositions(snapshot),
     states: inferStatesFromSnapshot(snapshot),
     statesDetailed: buildStatesDetailed(snapshot),
     sizes: buildSizes(snapshot),
@@ -3797,9 +3911,10 @@ export async function componentDocHandler(args: ComponentDocArgs): Promise<Compo
   // 7. Generate report
   const report = formatSpecAsReport(spec);
 
-  // 8. Create Figma documentation page if requested
+  // 8. Always create Figma documentation page (complete spec in one call)
   let figmaPageId: string | undefined;
-  if (args.outputFormat === "figma-page" || args.outputFormat === "all") {
+  const shouldCreatePage = args.outputFormat !== "json" && args.outputFormat !== "report";
+  if (shouldCreatePage || args.outputFormat === "figma-page" || args.outputFormat === "all") {
     const pageName = args.pageName || `${spec.componentName} Documentation`;
     figmaPageId = await createVisualDocPage(spec, nodeId, pageName);
   }
@@ -3808,7 +3923,7 @@ export async function componentDocHandler(args: ComponentDocArgs): Promise<Compo
   const logEntry = await decisionLog.log({
     tool: "figma_component_doc",
     nodeIds: figmaPageId ? [snapshot.id, figmaPageId] : [snapshot.id],
-    rationale: `Generated comprehensive design system documentation for ${snapshot.name}. Sections: overview, anatomy (${spec.anatomy.length} parts), variants (${spec.variants.length}), states (${spec.states.length}), spacing (${spec.spacing.length} entries), color tokens (${spec.colorTokens.length}), typography (${spec.typography.length}), usage guidelines, accessibility, props (${spec.props.length}).`,
+    rationale: `Generated comprehensive design system documentation for ${snapshot.name}. Sections: overview, anatomy (${spec.anatomy.length} parts), variants (${spec.variants.length}), variantsDetailed (${spec.variantsDetailed?.length || 0}), states (${spec.states.length}), spacing (${spec.spacing.length} entries), color tokens (${spec.colorTokens.length}), typography (${spec.typography.length}), usage guidelines, accessibility, props (${spec.props.length}), compositions (${spec.supportedCompositions?.length || 0}).`,
     tokens: spec.colorTokens.filter((c) => c.tokenName).map((c) => c.tokenName),
     reversible: true,
     metadata: {
@@ -3825,44 +3940,8 @@ export async function componentDocHandler(args: ComponentDocArgs): Promise<Compo
 
   return {
     spec,
-    report: args.outputFormat === "json" || args.outputFormat === "figma-page" ? undefined : report,
+    report: args.outputFormat === "figma-page" ? undefined : report,
     figmaPageId,
     logEntryId: logEntry.id,
-    ...(args.outputFormat === "json" && !args.contentOverrides
-      ? { hint: `CRITICAL: You are a Principal Design Systems Architect. Generate a PRODUCTION-GRADE component specification for the FULL COMPONENT FAMILY, not just the selected instance.
-
-SCOPE RULE: Walk up from the selected node to the COMPONENT_SET level. Document ALL variants, sizes, states, and compositions in the family. The selected instance is only a seed reference.
-
-ANATOMY vs STRUCTURE SEPARATION:
-- Anatomy = what parts exist (letter markers A/B/C, required vs optional, callout diagrams). NO measurements.
-- Structure & Spacing = how parts are measured (padding, gap, height, min-width, icon size). This is a SEPARATE section.
-
-WRITING STYLE: Use the pattern: description → rule → rationale → implication. Be direct, precise, instructional. No generic filler like "ensure usability" or "follow best practices." Every rule must be specific and testable. Reference actual token names from the extracted data.
-
-Generate content for ALL 21 sections in contentOverrides:
-
-1. overview (string) — What it IS, what problem it solves, where it appears. 2-3 sentences, specific.
-2. purpose (string) — The specific user need this component addresses.
-3. usage — { whenToUse: string[], whenNotToUse: string[] } with specific alternatives and decision logic.
-4. variants — Array<{ name, purpose, emphasis, whenToUse, whenNotToUse, misuse? }> for EVERY variant in the family. Include emphasis level, misuse risks.
-5. hierarchy (string) — Which variant has highest emphasis, how many high-emphasis per area, action hierarchy rules.
-6. supportedCompositions — Array<{ name, parts: string[], whenToUse, constraints? }> for text-only, icon+text, icon-only, loading, etc.
-7. anatomy — Array<{ index, name, type, description }> using letter markers. Consistent marker meaning across compositions.
-8. properties — Array<{ name, type, values: string[], defaultValue, description }> for the FULL family. Include dependency rules.
-9. structureAndSpacing (string) — Padding, gap, height per size, min-width, icon size, truncation rules, corner radius. SEPARATE from anatomy.
-10. sizes — Array<{ name, useCase, minTouchTarget, context }> with intended context, density suitability, when NOT to use.
-11. states — Array<{ name, visualDescription, trigger, meaning }> for default, hover, focus-visible, active, disabled, loading, selected, error.
-12. behaviour (string) — Click/tap, keyboard, loading lock, async feedback, disabled interaction, grouped behavior.
-13. interactionRules (string) — Focus movement, selection logic, confirmation, open/close, repeated activation.
-14. contentGuidance (string) — Label style, verbs, brevity, sentence case, truncation, icon-only naming, localization.
-15. responsive (string) — Narrow containers, mobile stacking, full-width, icon retention, content priority.
-16. accessibility — { semanticRole, ariaAttributes, keyboardInteraction: [{key, action}], focusManagement, screenReaderAnnouncements, readingOrder, touchTargets, colorContrast } — 8 subsections, all specific and testable.
-17. implementationNotes (string) — Semantic HTML, ARIA, state modeling, token usage, dark mode, overflow, pitfalls.
-18. qaChecklist — Array<{ area, verify, expected }> structured table: visual, keyboard, screen reader, contrast, responsive, edge cases.
-19. dosAndDonts — { dos: string[], donts: string[] } — specific, testable, with WHY for each.
-20. relatedComponents — Array<{ name, relationship, whenToPrefer }> for commonly confused components.
-
-Then call figma_component_doc again with outputFormat: "figma-page" and the contentOverrides object.` }
-      : {}),
   };
 }

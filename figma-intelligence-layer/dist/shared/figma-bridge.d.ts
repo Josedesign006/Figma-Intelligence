@@ -19,11 +19,14 @@ export declare class FigmaBridge {
     private rejectAllPending;
     private invalidateConnection;
     connect(): Promise<void>;
+    /** Fire-and-forget hydration after (re)connect — populates context cache quickly */
+    private hydrateAfterConnect;
     private emitEvent;
     private updateContextFromEvent;
     private handleMessage;
     private send;
-    execute(script: string): Promise<ExecuteResult>;
+    private sendWithTimeout;
+    execute(script: string, timeoutMs?: number): Promise<ExecuteResult>;
     getNode(nodeId: string): Promise<FigmaNode>;
     takeScreenshot(nodeId: string): Promise<string>;
     importImage(imageDataUri: string): Promise<{

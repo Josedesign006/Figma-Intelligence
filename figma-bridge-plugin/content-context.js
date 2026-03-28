@@ -185,32 +185,135 @@ function createContentSource(title, text, meta) {
 }
 
 /**
+ * Extract keywords from a query string (shared helper for search & grounding).
+ */
+function extractKeywords(query) {
+  return (query || "")
+    .toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
+}
+
+/**
+ * Score a text block against keywords. Returns { score, matchedCount }.
+ */
+function scoreText(text, keywords) {
+  const lower = text.toLowerCase();
+  let score = 0;
+  let matchedCount = 0;
+  for (const kw of keywords) {
+    if (lower.includes(kw)) {
+      matchedCount++;
+      const regex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+      score += regex.test(text) ? 2 : 1;
+    }
+  }
+  return { score, matchedCount };
+}
+
+/**
+ * Extract the most relevant passages from content using keyword scoring.
+ * Returns a string of the top passages within the char budget.
+ */
+function extractRelevantPassages(content, keywords, charBudget) {
+  if (!keywords || keywords.length === 0) {
+    // No keywords — fall back to truncation
+    return content.length > charBudget
+      ? content.slice(0, charBudget) + "\n…[truncated]"
+      : content;
+  }
+
+  const paragraphs = content.split(/\n{2,}/).filter((p) => p.trim().length > 30);
+  if (paragraphs.length === 0) {
+    return content.slice(0, charBudget);
+  }
+
+  // Score each paragraph
+  const scored = paragraphs.map((para) => {
+    const { score, matchedCount } = scoreText(para, keywords);
+    return { para: para.trim(), score, matchedCount };
+  });
+
+  // Sort by score descending, keep top paragraphs within budget
+  scored.sort((a, b) => b.score - a.score);
+
+  const selected = [];
+  let usedChars = 0;
+  for (const { para, score } of scored) {
+    if (score === 0 && selected.length > 0) break; // Stop adding irrelevant paragraphs
+    if (usedChars + para.length > charBudget) {
+      if (selected.length === 0) {
+        // At least include a truncated version of the best paragraph
+        selected.push(para.slice(0, charBudget) + "…");
+      }
+      break;
+    }
+    selected.push(para);
+    usedChars += para.length;
+  }
+
+  return selected.join("\n\n");
+}
+
+/**
  * Build a grounding context string from active content sources.
  * Prepended to chat messages before routing to the AI provider.
+ *
+ * Optimizations:
+ * - Relevance filtering: only includes sources with keyword overlap
+ * - Adaptive truncation: extracts best paragraphs, not just first N chars
+ * - Budget-based: total grounding limited to ~4000 tokens (~16000 chars)
  */
-function buildGroundingContext(contentSources) {
+const GROUNDING_CHAR_BUDGET = 16000; // ~4000 tokens total
+
+function buildGroundingContext(contentSources, userQuery) {
   if (!contentSources || contentSources.size === 0) return "";
 
-  const parts = [];
-  parts.push("=== KNOWLEDGE CONTEXT (uploaded reference material) ===");
-  parts.push("The user has uploaded documents/URLs as research context for this design project.");
-  parts.push("Ground your answers in this material when relevant. Cite specific sources by name.\n");
+  const keywords = extractKeywords(userQuery);
+  const sourceCount = contentSources.size;
+  const perSourceBudget = Math.floor(GROUNDING_CHAR_BUDGET / Math.max(sourceCount, 1));
 
+  // Score each source for relevance
+  const scoredSources = [];
   for (const [id, data] of contentSources) {
+    let totalScore = 0;
+    for (const src of data.sources) {
+      if (src.content) {
+        const { score } = scoreText(src.content.slice(0, 2000), keywords);
+        totalScore += score;
+      }
+    }
+    scoredSources.push({ id, data, score: totalScore });
+  }
+
+  // Sort by relevance, filter out zero-score sources (if we have keywords)
+  scoredSources.sort((a, b) => b.score - a.score);
+  const relevantSources = keywords.length > 0
+    ? scoredSources.filter((s) => s.score > 0)
+    : scoredSources;
+
+  // If no relevant sources found, include all (user might ask follow-up)
+  const sourcesToInclude = relevantSources.length > 0 ? relevantSources : scoredSources;
+  if (sourcesToInclude.length === 0) return "";
+
+  // Redistribute budget to relevant sources only
+  const adjustedBudget = Math.floor(GROUNDING_CHAR_BUDGET / sourcesToInclude.length);
+
+  const parts = [];
+  parts.push("=== KNOWLEDGE CONTEXT ===");
+  parts.push("Cite sources by name when referencing this material.\n");
+
+  for (const { data } of sourcesToInclude) {
     const metaInfo = [];
-    if (data.meta?.fileType) metaInfo.push(data.meta.fileType.toUpperCase());
-    if (data.meta?.pages) metaInfo.push(`${data.meta.pages} pages`);
     if (data.meta?.url) metaInfo.push(data.meta.url);
     const metaStr = metaInfo.length > 0 ? ` (${metaInfo.join(", ")})` : "";
 
-    parts.push(`--- Source: "${data.title}"${metaStr} ---`);
+    parts.push(`--- "${data.title}"${metaStr} ---`);
     for (const src of data.sources) {
       if (src.content) {
-        // Truncate per source to keep total tokens manageable
-        const truncated = src.content.length > 8000
-          ? src.content.slice(0, 8000) + "\n…[truncated]"
-          : src.content;
-        parts.push(truncated);
+        const passage = extractRelevantPassages(src.content, keywords, adjustedBudget);
+        parts.push(passage);
       }
     }
     parts.push("");
@@ -348,13 +451,7 @@ const STOP_WORDS = new Set([
 function searchContentForAnswer(query, contentSources) {
   if (!query || !contentSources || contentSources.size === 0) return null;
 
-  // Extract meaningful keywords
-  const keywords = query
-    .toLowerCase()
-    .replace(/[^\w\s]/g, " ")
-    .split(/\s+/)
-    .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
-
+  const keywords = extractKeywords(query);
   if (keywords.length === 0) return null;
 
   let bestMatch = null;

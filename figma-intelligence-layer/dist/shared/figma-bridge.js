@@ -225,11 +225,19 @@ class FigmaBridge {
         const socket = this.ws;
         this.connected = false;
         this.ws = null;
+        // Clear ALL cached state so reconnect always fetches fresh data
         this.context = {
-            ...this.context,
             status: "disconnected",
+            fileName: undefined,
+            currentPage: undefined,
+            pageCount: 0,
+            selection: [],
             lastUpdatedAt: Date.now(),
+            lastDocumentChange: undefined,
         };
+        this.hasHydratedStatus = false;
+        this.hasHydratedSelection = false;
+        this.capabilitiesCache = null;
         this.rejectAllPending(reason);
         if (socket && socket.readyState === ws_1.default.OPEN) {
             socket.close();
@@ -256,6 +264,8 @@ class FigmaBridge {
                     status: "connected",
                     lastUpdatedAt: Date.now(),
                 };
+                // Proactively hydrate status + selection in background so next getStatus() is instant
+                this.hydrateAfterConnect();
                 resolve();
             });
             socket.on("error", (err) => {
@@ -269,6 +279,42 @@ class FigmaBridge {
             this.connectPromise = null;
         });
         return this.connectPromise ?? Promise.resolve();
+    }
+    /** Fire-and-forget hydration after (re)connect — populates context cache quickly */
+    hydrateAfterConnect() {
+        if (this.hasHydratedStatus)
+            return;
+        // Use a short timeout for the hydration RPC (5s instead of default 30s)
+        const FAST_TIMEOUT = 5000;
+        const id = `req_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        if (!this.ws || this.ws.readyState !== ws_1.default.OPEN)
+            return;
+        const timeout = setTimeout(() => {
+            this.pendingRequests.delete(id);
+            // Don't invalidate connection on hydration timeout — it's best-effort
+        }, FAST_TIMEOUT);
+        this.pendingRequests.set(id, {
+            resolve: (v) => {
+                clearTimeout(timeout);
+                const status = v;
+                if (status?.fileName) {
+                    this.context = {
+                        ...this.context,
+                        status: "connected",
+                        fileName: status.fileName,
+                        currentPage: status.currentPage,
+                        pageCount: status.pageCount || 0,
+                        lastUpdatedAt: status.timestamp || Date.now(),
+                    };
+                    this.hasHydratedStatus = true;
+                }
+            },
+            reject: (e) => {
+                clearTimeout(timeout);
+                // Swallow — hydration is best-effort
+            },
+        });
+        this.ws.send(JSON.stringify({ id, method: "getStatus", params: {} }));
     }
     emitEvent(event) {
         const specificListeners = this.eventListeners.get(event.eventType);
@@ -350,6 +396,9 @@ class FigmaBridge {
         }
     }
     send(method, params = {}) {
+        return this.sendWithTimeout(method, params, REQUEST_TIMEOUT);
+    }
+    sendWithTimeout(method, params = {}, timeoutMs = REQUEST_TIMEOUT) {
         return new Promise((resolve, reject) => {
             if (!this.isConnected() || !this.ws) {
                 reject(new Error("FigmaBridge: not connected"));
@@ -361,7 +410,7 @@ class FigmaBridge {
                 const error = new Error(`FigmaBridge: timeout on method ${method}`);
                 this.invalidateConnection(error);
                 reject(error);
-            }, REQUEST_TIMEOUT);
+            }, timeoutMs);
             this.pendingRequests.set(id, {
                 resolve: (v) => { clearTimeout(timeout); resolve(v); },
                 reject: (e) => { clearTimeout(timeout); reject(e); },
@@ -369,9 +418,9 @@ class FigmaBridge {
             this.ws.send(JSON.stringify({ id, method, params }));
         });
     }
-    async execute(script) {
+    async execute(script, timeoutMs) {
         try {
-            const result = await this.send("execute", { code: script });
+            const result = await this.sendWithTimeout("execute", { code: script }, timeoutMs || REQUEST_TIMEOUT);
             return { success: true, result };
         }
         catch (err) {
@@ -392,22 +441,11 @@ class FigmaBridge {
         return result.result;
     }
     async takeScreenshot(nodeId) {
-        const result = await this.execute(`
-      const node = await figma.getNodeByIdAsync(${JSON.stringify(nodeId)});
-      if (!node) throw new Error("Node not found");
-      const bytes = await node.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: 2 } });
-      // Chunked conversion avoids "Maximum call stack size exceeded" on large PNGs
-      let binary = '';
-      const chunkSize = 8192;
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        binary += String.fromCharCode(...bytes.slice(i, i + chunkSize));
-      }
-      const base64 = btoa(binary);
-      return 'data:image/png;base64,' + base64;
-    `);
-        if (!result.success)
-            throw new Error(result.error);
-        return result.result;
+        // Use the plugin's dedicated "screenshot" handler — it exports PNG bytes
+        // in the plugin sandbox, then the UI layer (browser) converts to base64.
+        // This avoids calling btoa() inside the Figma plugin sandbox where it doesn't exist.
+        const dataUri = await this.sendWithTimeout("screenshot", { nodeId, scale: 2 }, 60000);
+        return dataUri;
     }
     async importImage(imageDataUri) {
         const result = await this.send("importImage", {
@@ -619,7 +657,8 @@ class FigmaBridge {
     }
     // ─── Navigation & Status ─────────────────────────────────────────────────
     async getStatus() {
-        if (this.context.fileName && this.context.currentPage) {
+        // Return cached status only if context has been hydrated and looks fresh
+        if (this.hasHydratedStatus && this.context.fileName && this.context.currentPage) {
             return {
                 status: this.context.status,
                 fileName: this.context.fileName,
@@ -628,7 +667,9 @@ class FigmaBridge {
                 timestamp: this.context.lastUpdatedAt || Date.now(),
             };
         }
-        const status = await this.send("getStatus");
+        // Use shorter timeout (5s) for status — don't wait 30s for a simple ping
+        const STATUS_TIMEOUT = 5000;
+        const status = await this.sendWithTimeout("getStatus", {}, STATUS_TIMEOUT);
         this.context = {
             ...this.context,
             status: "connected",
@@ -647,7 +688,8 @@ class FigmaBridge {
         if (this.hasHydratedSelection) {
             return this.context.selection.map((item) => ({ ...item }));
         }
-        const selection = await this.send("getSelection");
+        // Use shorter timeout (5s) for selection queries
+        const selection = await this.sendWithTimeout("getSelection", {}, 5000);
         this.context = {
             ...this.context,
             status: "connected",

@@ -15,7 +15,7 @@
 
 const { WebSocketServer } = require("ws");
 const { spawn } = require("child_process");
-const { readFileSync, writeFileSync, existsSync } = require("fs");
+const { readFileSync, writeFileSync, appendFileSync, existsSync } = require("fs");
 const { homedir } = require("os");
 const { join, resolve } = require("path");
 const { runClaude, resetSession, isClaudeAvailable, getClaudeAuthInfo, writeMcpConfig } = require("./chat-runner");
@@ -23,8 +23,903 @@ const { runCodex, isCodexAvailable, getCodexAuthInfo, resetCodexSession } = requ
 const { runGemini } = require("./gemini-runner");
 const { runGeminiCli, isGeminiCliAvailable, getGeminiCliAuthInfo } = require("./gemini-cli-runner");
 const { runPerplexity } = require("./perplexity-runner");
+const { runStitch } = require("./stitch-runner");
+const { startStitchAuth, getStitchAccessToken, hasStitchAuth, getStitchEmail, clearStitchAuth } = require("./stitch-auth");
 const { runAnthropicChat } = require("./anthropic-chat-runner");
 const { parsePdfBuffer, parseDocxBuffer, fetchUrlContent, createContentSource, buildGroundingContext, scanKnowledgeHub, loadHubFile, searchHub, searchContentForAnswer, searchReferenceSites, getReferenceSites, addReferenceSite, removeReferenceSite } = require("./content-context");
+
+// ── Sync Figma Design System → Stitch design.md ────────────────────────────
+const { mkdirSync } = require("fs"); // readFileSync, writeFileSync, existsSync already imported above
+const STITCH_DIR = join(homedir(), ".claude", "stitch");
+
+function isSyncDesignIntent(message) {
+  const m = message.toLowerCase();
+  return /sync\s+(figma\s+)?design\s*(system|tokens|variables)?|export\s+(figma\s+)?design\s*(system|tokens|variables)?.*stitch|figma\s+variables?\s+to\s+stitch|push\s+design\s*(system)?\s+to\s+stitch|create\s+design\s*(system)?\s+(from|using)\s+figma|figma\s+to\s+stitch\s+design|design\s+system\s+sync/.test(m);
+}
+
+function isImportVariablesIntent(message, attachments) {
+  const m = message.toLowerCase();
+  // Check for explicit "convert/import to figma variables" intent
+  if (/convert\s+(these?\s+)?(to\s+)?figma\s+variables|import\s+(these?\s+)?(as\s+)?figma\s+variables|create\s+(figma\s+)?variables\s+(from|using)|make\s+(these?\s+)?figma\s+variables|to\s+figma\s+variables|\.md\s+to\s+(figma\s+)?variables|design\s+tokens?\s+to\s+figma|variables?\s+from\s+(this|the)\s+(file|md|markdown)/.test(m)) {
+    return true;
+  }
+  // If there's an .md attachment and the message explicitly mentions variables/tokens
+  if (attachments?.length && attachments.some(a => /\.md$/i.test(a.name))) {
+    return /variables|tokens|import\s+(as\s+)?variables|convert\s+(to\s+)?variables|\.md\s+to\s+variables/.test(m);
+  }
+  return false;
+}
+
+// ── Parse design.md → structured variable data ──────────────────────────────
+
+function parseDesignMd(mdContent) {
+  const collections = [];
+  let currentCollection = null;
+  let currentSection = null;
+
+  // Normalize line endings
+  const lines = mdContent.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // ## Collection Name (but not ### which is a sub-section)
+    const colMatch = trimmed.match(/^##(?!#)\s+(.+)$/);
+    if (colMatch) {
+      const name = colMatch[1].trim();
+      // Skip non-variable sections
+      if (/^(Paint Styles|Typography|Usage Guide)/i.test(name)) {
+        currentCollection = null;
+        continue;
+      }
+      currentCollection = { name, variables: [] };
+      collections.push(currentCollection);
+      currentSection = null;
+      continue;
+    }
+
+    // ### Section Name (Colors, Strings, Toggles, or a FLOAT sub-group)
+    const secMatch = trimmed.match(/^###\s+(.+)$/);
+    if (secMatch) {
+      currentSection = secMatch[1].trim();
+      continue;
+    }
+
+    // Variable line formats:
+    // - **name**: `value`          (standard)
+    // - **name**: value            (no backticks)
+    // - **name**: → `alias`        (alias)
+    // - * **name**: value          (asterisk list)
+    // Also handle lines starting with "- " or "* " or "- [ ]" etc
+    const varMatch = trimmed.match(/^[-*]\s+\*\*(.+?)\*\*:\s*(.+)$/);
+    if (varMatch && currentCollection) {
+      const varName = varMatch[1].trim();
+      const rawValue = varMatch[2].trim();
+
+      const parsed = parseVariableValue(rawValue, currentSection);
+      currentCollection.variables.push({
+        name: varName,
+        ...parsed,
+      });
+      continue;
+    }
+
+    // Fallback: lines like "name: value" under a collection (no bold)
+    // e.g., "color/primary: #FF0000" or "  spacing/sm: 8px"
+    const plainMatch = trimmed.match(/^[-*]?\s*([a-zA-Z][\w/.-]+)\s*:\s*(.+)$/);
+    if (plainMatch && currentCollection && !trimmed.startsWith("#") && !trimmed.startsWith(">")) {
+      const varName = plainMatch[1].trim();
+      const rawValue = plainMatch[2].trim();
+      const parsed = parseVariableValue(rawValue, currentSection);
+      currentCollection.variables.push({
+        name: varName,
+        ...parsed,
+      });
+    }
+  }
+
+  // If the standard parser found 0 variables, try the Stitch narrative parser
+  const totalVars = collections.reduce((sum, c) => sum + c.variables.length, 0);
+  if (totalVars === 0) {
+    return parseStitchNarrative(mdContent);
+  }
+
+  return collections;
+}
+
+/**
+ * Parse a Stitch-generated design system narrative (.md) into variable collections.
+ * The narrative format embeds colors, fonts, and spacing inline in prose like:
+ *   `primary` (#b20070), `surface` (#f9f9ff), etc.
+ * Or in labeled lists:
+ *   *   **Primary (#b10075):** Used for critical actions
+ *
+ * Generates 3 collections: Primitives, Semantic, Component
+ */
+function parseStitchNarrative(mdContent) {
+  const primitives = { name: "Primitives", variables: [] };
+  const semantic = { name: "Semantic", variables: [] };
+  const component = { name: "Component", variables: [] };
+
+  // Track seen variable names to avoid duplicates
+  const seen = new Set();
+
+  function addVar(collection, name, value) {
+    if (seen.has(name)) return;
+    seen.add(name);
+    collection.variables.push({ name, ...value });
+  }
+
+  // ── Extract named colors from inline patterns ──
+  // Pattern: `token_name` (#hexval) or `token_name` (#hexval)
+  const inlineColorRe = /[`"](\w[\w_]*)[`"]\s*\(?\s*#([0-9a-fA-F]{6,8})\s*\)?/g;
+  let match;
+  while ((match = inlineColorRe.exec(mdContent)) !== null) {
+    const name = "color/" + match[1].replace(/_/g, "/");
+    const hex = "#" + match[2];
+    addVar(primitives, name, { type: "COLOR", value: hexToRgb(hex, 1), rawValue: hex });
+  }
+
+  // Pattern: **`token_name`** (#hexval) or **token_name** (#hexval) or **Name (#hexval)**
+  const boldColorRe = /\*\*`?(\w[\w_/]*)`?\*\*\s*\(?#([0-9a-fA-F]{6,8})\)?/g;
+  while ((match = boldColorRe.exec(mdContent)) !== null) {
+    const name = "color/" + match[1].replace(/_/g, "/").toLowerCase();
+    const hex = "#" + match[2];
+    addVar(primitives, name, { type: "COLOR", value: hexToRgb(hex, 1), rawValue: hex });
+  }
+  // Pattern: **Name (#hexval)** or **Name (#hexval):**
+  const boldParenColorRe = /\*\*(\w[\w_/\s]*?)\s*\(#([0-9a-fA-F]{6,8})\)/g;
+  while ((match = boldParenColorRe.exec(mdContent)) !== null) {
+    const raw = match[1].trim().replace(/\s+/g, "_").toLowerCase();
+    const name = "color/" + raw.replace(/_/g, "/");
+    const hex = "#" + match[2];
+    addVar(primitives, name, { type: "COLOR", value: hexToRgb(hex, 1), rawValue: hex });
+  }
+
+  // Pattern: `token_name` (hex) in backtick-name format used in Stitch narratives
+  // e.g., `on_surface` (#25181e)
+  const backtickHexRe = /`([\w_/]+)`\s*\(?#([0-9a-fA-F]{6,8})\)?/g;
+  while ((match = backtickHexRe.exec(mdContent)) !== null) {
+    const name = "color/" + match[1].replace(/_/g, "/");
+    const hex = "#" + match[2];
+    addVar(primitives, name, { type: "COLOR", value: hexToRgb(hex, 1), rawValue: hex });
+  }
+
+  // Pattern: (#hexval) with preceding word as token name
+  // e.g., "primary (#b20070)" or "Primary: #b20070"
+  const wordHexRe = /(?:^|\s)([\w]+(?:[_/][\w]+)*)\s*[:=]?\s*\(?#([0-9a-fA-F]{6,8})\)?/gm;
+  while ((match = wordHexRe.exec(mdContent)) !== null) {
+    const word = match[1].toLowerCase();
+    // Skip generic words that aren't token names
+    if (/^(the|and|or|for|with|use|from|set|at|in|to|of|is|it|a|an|hex|rgb|hsl|css|html|style|color|rule|using)$/.test(word)) continue;
+    if (word.length < 3) continue;
+    const name = "color/" + word.replace(/_/g, "/");
+    const hex = "#" + match[2];
+    addVar(primitives, name, { type: "COLOR", value: hexToRgb(hex, 1), rawValue: hex });
+  }
+
+  // ── Build semantic aliases for common role-based names ──
+  // Map role names to their primitive counterparts
+  const roleMap = {
+    "primary": "color/primary",
+    "secondary": "color/secondary",
+    "tertiary": "color/tertiary",
+    "error": "color/error",
+    "surface": "color/surface",
+    "background": "color/background",
+    "on_primary": "color/on/primary",
+    "on_secondary": "color/on/secondary",
+    "on_surface": "color/on/surface",
+    "on_background": "color/on/background",
+    "on_error": "color/on/error",
+    "outline": "color/outline",
+  };
+
+  for (const [role, target] of Object.entries(roleMap)) {
+    const primName = "color/" + role.replace(/_/g, "/");
+    if (seen.has(primName)) {
+      const semName = "color/action/" + role.replace(/_/g, "/");
+      if (!seen.has(semName)) {
+        addVar(semantic, semName, { type: "ALIAS", aliasTarget: primName, rawValue: `→ ${primName}` });
+      }
+    }
+  }
+
+  // ── Extract typography ──
+  const fontRe = /(?:font|typeface|family)\s*[:=]?\s*["']?([A-Z][\w\s]*?)["']?\s*(?:\(|,|\.|;|\n)/gi;
+  const fonts = new Set();
+  while ((match = fontRe.exec(mdContent)) !== null) {
+    const font = match[1].trim();
+    if (font.length > 2 && font.length < 40 && !/^(The|This|That|For|With|And|Use|CSS|HTML|Style)$/i.test(font)) {
+      fonts.add(font);
+    }
+  }
+  let fontIdx = 0;
+  const fontRoles = ["sans", "mono", "serif", "display"];
+  for (const font of fonts) {
+    const role = fontRoles[fontIdx] || `font${fontIdx}`;
+    addVar(primitives, `fontFamily/${role}`, { type: "STRING", value: font, rawValue: font });
+    fontIdx++;
+    if (fontIdx >= 4) break;
+  }
+
+  // ── Extract spacing/radius values ──
+  const spacingRe = /(?:spacing|gap|padding|margin)\s*[:=]?\s*(\d+(?:\.\d+)?)\s*(px|rem)/gi;
+  const spacingValues = new Set();
+  while ((match = spacingRe.exec(mdContent)) !== null) {
+    const val = match[2] === "rem" ? parseFloat(match[1]) * 16 : parseFloat(match[1]);
+    spacingValues.add(val);
+  }
+  const sortedSpacing = [...spacingValues].sort((a, b) => a - b);
+  const spacingNames = ["xs", "sm", "md", "lg", "xl", "2xl", "3xl", "4xl"];
+  sortedSpacing.forEach((val, i) => {
+    const name = `spacing/${spacingNames[i] || i}`;
+    addVar(primitives, name, { type: "FLOAT", value: val, rawValue: `${val}px` });
+  });
+
+  // ── Extract radius ──
+  const radiusRe = /(?:radius|border-radius|rounded)\s*[:=]?\s*(\d+(?:\.\d+)?)\s*(px)/gi;
+  const radiusValues = new Set();
+  while ((match = radiusRe.exec(mdContent)) !== null) {
+    radiusValues.add(parseFloat(match[1]));
+  }
+  // Check for 0px radius mentions (common in Stitch narratives)
+  if (/0\s*px\s*(?:radius|border-radius)/i.test(mdContent) || /radius.*0\s*px/i.test(mdContent)) {
+    radiusValues.add(0);
+  }
+  const sortedRadius = [...radiusValues].sort((a, b) => a - b);
+  const radiusNames = ["none", "sm", "md", "lg", "xl", "full"];
+  sortedRadius.forEach((val, i) => {
+    const name = `radius/${radiusNames[i] || i}`;
+    addVar(primitives, name, { type: "FLOAT", value: val, rawValue: `${val}px` });
+  });
+
+  // Build result — only include collections that have variables
+  const result = [];
+  if (primitives.variables.length) result.push(primitives);
+  if (semantic.variables.length) result.push(semantic);
+  if (component.variables.length) result.push(component);
+
+  return result;
+}
+
+function parseVariableValue(rawValue, sectionName) {
+  // Strip backticks if present: `value` → value
+  let clean = rawValue.replace(/^`|`$/g, "").trim();
+  // Also handle: `value` (extra text) — extract just the backtick content
+  const backtickMatch = rawValue.match(/`(.+?)`/);
+  if (backtickMatch) clean = backtickMatch[1];
+
+  // Alias: → `some/variable/name` or → some/variable/name
+  const aliasMatch = rawValue.match(/^→\s*`?(.+?)`?\s*$/);
+  if (aliasMatch && rawValue.includes("→")) {
+    return {
+      type: "ALIAS",
+      aliasTarget: aliasMatch[1].trim(),
+      rawValue,
+    };
+  }
+
+  // Color: #RRGGBB or #RRGGBBAA (with optional opacity note)
+  const hexMatch = clean.match(/^(#[0-9a-fA-F]{6,8})/);
+  if (hexMatch) {
+    const hex = hexMatch[1];
+    const opacityMatch = rawValue.match(/opacity:\s*(\d+)%/);
+    const opacity = opacityMatch ? parseInt(opacityMatch[1]) / 100 : 1;
+    return {
+      type: "COLOR",
+      value: hexToRgb(hex, opacity),
+      rawValue,
+    };
+  }
+
+  // RGB color: rgb(R, G, B) or rgba(R, G, B, A)
+  const rgbMatch = clean.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)/);
+  if (rgbMatch) {
+    return {
+      type: "COLOR",
+      value: {
+        r: parseInt(rgbMatch[1]) / 255,
+        g: parseInt(rgbMatch[2]) / 255,
+        b: parseInt(rgbMatch[3]) / 255,
+        a: rgbMatch[4] ? parseFloat(rgbMatch[4]) : 1,
+      },
+      rawValue,
+    };
+  }
+
+  // Boolean: true or false
+  if (/^(true|false)$/i.test(clean)) {
+    return {
+      type: "BOOLEAN",
+      value: clean.toLowerCase() === "true",
+      rawValue,
+    };
+  }
+
+  // Float/number: NNpx or NN or NN% (only if it's purely numeric)
+  const numMatch = clean.match(/^(-?[\d.]+)\s*(?:px|rem|em|pt|%)?$/);
+  if (numMatch) {
+    return {
+      type: "FLOAT",
+      value: parseFloat(numMatch[1]),
+      rawValue,
+    };
+  }
+
+  // If section name hints at color, try harder
+  if (sectionName && /^colors?$/i.test(sectionName)) {
+    const hexInStr = clean.match(/#[0-9a-fA-F]{6,8}/);
+    if (hexInStr) return { type: "COLOR", value: hexToRgb(hexInStr[0], 1), rawValue };
+  }
+
+  // String fallback
+  return { type: "STRING", value: clean, rawValue };
+}
+
+function hexToRgb(hex, alpha = 1) {
+  hex = hex.replace("#", "");
+  const r = parseInt(hex.slice(0, 2), 16) / 255;
+  const g = parseInt(hex.slice(2, 4), 16) / 255;
+  const b = parseInt(hex.slice(4, 6), 16) / 255;
+  const a = hex.length === 8 ? parseInt(hex.slice(6, 8), 16) / 255 : alpha;
+  return { r, g, b, a };
+}
+
+// ── Import handler: .md → Figma variables with aliasing ─────────────────────
+
+async function handleImportVariables(requestId, message, attachments, onEvent) {
+  console.log("  📥 Import variables: .md → Figma");
+  // Debug: write to temp file so we can see logs regardless of which process runs
+  const _debugLog = (msg) => { try { appendFileSync("/tmp/import-vars-debug.log", `${new Date().toISOString()} ${msg}\n`); } catch {} console.log(msg); };
+  _debugLog("  📥 handleImportVariables called");
+  _debugLog(`  📥 message: ${message?.slice(0, 200)}`);
+  _debugLog(`  📥 attachments: ${JSON.stringify((attachments || []).map(a => ({ name: a.name, type: a.type, dataLen: a.data?.length })))}`);
+
+  onEvent({ type: "phase_start", id: requestId, phase: "Parsing design tokens..." });
+
+  try {
+    // 1. Get the .md content from attachment or message code block
+    let mdContent = null;
+    let sourceName = "design.md";
+
+    // Check attachments first
+    if (attachments?.length) {
+      const mdFile = attachments.find(a => /\.md$/i.test(a.name));
+      if (mdFile) {
+        mdContent = mdFile.data;
+        sourceName = mdFile.name;
+      }
+    }
+
+    // If no attachment, look for a code block in the message
+    if (!mdContent) {
+      const codeBlockMatch = message.match(/```(?:\w*)\n([\s\S]+?)```/);
+      if (codeBlockMatch) {
+        mdContent = codeBlockMatch[1];
+        sourceName = "pasted content";
+      }
+    }
+
+    // If still nothing, check if there's a saved design.md to import
+    if (!mdContent) {
+      const { readdirSync } = require("fs");
+      const stitchDir = join(homedir(), ".claude", "stitch");
+      if (existsSync(stitchDir)) {
+        const dirs = readdirSync(stitchDir, { withFileTypes: true }).filter(d => d.isDirectory());
+        for (const dir of dirs) {
+          const mdPath = join(stitchDir, dir.name, "design.md");
+          if (existsSync(mdPath)) {
+            mdContent = readFileSync(mdPath, "utf8");
+            sourceName = `${dir.name}/design.md`;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!mdContent) {
+      onEvent({
+        type: "text_delta",
+        id: requestId,
+        delta: "No design system file found. Please either:\n" +
+               "- Attach a `.md` file using the paperclip button\n" +
+               "- Paste the design tokens in a code block in your message\n" +
+               "- First run **\"sync figma design system\"** to export, then import\n",
+      });
+      onEvent({ type: "done", id: requestId, fullText: "" });
+      return;
+    }
+
+    // 2. Parse the markdown
+    _debugLog(`  📥 MD content length: ${mdContent.length}`);
+    _debugLog(`  📥 MD first 500 chars: ${mdContent.slice(0, 500)}`);
+    const parsed = parseDesignMd(mdContent);
+    const totalVars = parsed.reduce((sum, c) => sum + c.variables.length, 0);
+    _debugLog(`  📥 Parsed: ${parsed.length} collection(s), ${totalVars} variable(s)`);
+
+    if (parsed.length === 0 || totalVars === 0) {
+      onEvent({
+        type: "text_delta",
+        id: requestId,
+        delta: "Could not find any variables in the file. Make sure the .md file follows the design system format:\n\n" +
+               "```\n## Collection Name\n### Colors\n- **color/primary**: `#FF0000`\n### Spacing\n- **spacing/sm**: `8px`\n```\n",
+      });
+      onEvent({ type: "done", id: requestId, fullText: "" });
+      return;
+    }
+
+    console.log(`  Parsed ${parsed.length} collection(s) with ${totalVars} variable(s) from ${sourceName}`);
+    onEvent({ type: "phase_start", id: requestId, phase: `Creating ${totalVars} variables in ${parsed.length} collection(s)...` });
+
+    // 3. Get existing Figma variables to check for duplicates and resolve aliases
+    let existingCollections = [];
+    try {
+      existingCollections = await requestFromPlugin("getVariables", { verbosity: "full" });
+      if (!Array.isArray(existingCollections)) existingCollections = [];
+    } catch (err) {
+      console.log("  Could not fetch existing variables:", err.message);
+    }
+
+    // Build a lookup: variable name → variable id (for alias resolution)
+    const existingVarMap = new Map(); // name → { id, collectionId }
+    for (const col of existingCollections) {
+      for (const v of (col.variables || [])) {
+        existingVarMap.set(v.name, { id: v.id, collectionId: col.id });
+      }
+    }
+
+    // Build existing collection name → id lookup
+    const existingColMap = new Map();
+    for (const col of existingCollections) {
+      existingColMap.set(col.name.toLowerCase(), col);
+    }
+
+    // 4. Create collections and variables
+    const results = { created: 0, skipped: 0, aliased: 0, collections: 0, errors: [] };
+    // Track newly created variable names → IDs for alias resolution within the import
+    const newVarMap = new Map(); // name → { id, collectionId }
+    // Deferred aliases (need all variables created first)
+    const deferredAliases = [];
+
+    for (const col of parsed) {
+      let collectionId;
+      let modeId;
+
+      // Check if collection already exists
+      const existing = existingColMap.get(col.name.toLowerCase());
+      if (existing) {
+        collectionId = existing.id;
+        modeId = existing.modes?.[0]?.modeId;
+        console.log(`  Using existing collection: ${col.name} (${collectionId})`);
+      } else {
+        // Create new collection
+        try {
+          const newCol = await requestFromPlugin("createVariableCollection", { name: col.name });
+          collectionId = newCol.id;
+          modeId = newCol.modes?.[0]?.modeId;
+          results.collections++;
+          console.log(`  Created collection: ${col.name} (${collectionId})`);
+        } catch (err) {
+          results.errors.push(`Failed to create collection "${col.name}": ${err.message}`);
+          continue;
+        }
+      }
+
+      // Separate aliases from direct values
+      const directVars = [];
+      const aliasVars = [];
+
+      for (const v of col.variables) {
+        // Skip if variable already exists
+        if (existingVarMap.has(v.name)) {
+          results.skipped++;
+          // Still record it for alias resolution
+          const ev = existingVarMap.get(v.name);
+          newVarMap.set(v.name, { id: ev.id, collectionId: ev.collectionId });
+          continue;
+        }
+
+        if (v.type === "ALIAS") {
+          aliasVars.push(v);
+        } else {
+          directVars.push(v);
+        }
+      }
+
+      // Batch-create direct (non-alias) variables
+      if (directVars.length > 0) {
+        const specs = directVars.map(v => ({
+          collectionId,
+          name: v.name,
+          resolvedType: v.type,
+          valuesByMode: modeId ? { [modeId]: v.value } : undefined,
+        }));
+
+        try {
+          const batchResult = await requestFromPlugin("batchCreateVariables", { variables: specs });
+          results.created += batchResult.created || specs.length;
+
+          // Record newly created variable IDs
+          if (batchResult.variables) {
+            for (const nv of batchResult.variables) {
+              newVarMap.set(nv.name, { id: nv.id, collectionId });
+            }
+          }
+        } catch (err) {
+          // Fallback: create one-by-one
+          console.log(`  Batch create failed, falling back to individual: ${err.message}`);
+          for (const spec of specs) {
+            try {
+              const result = await requestFromPlugin("createVariable", spec);
+              results.created++;
+              newVarMap.set(spec.name, { id: result.id, collectionId });
+            } catch (err2) {
+              results.errors.push(`"${spec.name}": ${err2.message}`);
+            }
+          }
+        }
+      }
+
+      // Queue alias variables for deferred creation
+      for (const v of aliasVars) {
+        deferredAliases.push({ ...v, collectionId, modeId });
+      }
+    }
+
+    // 5. Create alias variables (now that all targets should exist)
+    if (deferredAliases.length > 0) {
+      onEvent({ type: "phase_start", id: requestId, phase: `Setting up ${deferredAliases.length} alias references...` });
+
+      for (const alias of deferredAliases) {
+        const targetName = alias.aliasTarget;
+        const target = newVarMap.get(targetName) || existingVarMap.get(targetName);
+
+        if (!target) {
+          results.errors.push(`Alias "${alias.name}" → "${targetName}": target not found`);
+          continue;
+        }
+
+        // Determine the resolved type from the target variable
+        // We need to look it up from existing or parsed data
+        let resolvedType = "COLOR"; // default
+        for (const col of parsed) {
+          for (const v of col.variables) {
+            if (v.name === targetName && v.type !== "ALIAS") {
+              resolvedType = v.type;
+              break;
+            }
+          }
+        }
+        // Also check existing variables
+        for (const col of existingCollections) {
+          for (const v of (col.variables || [])) {
+            if (v.name === targetName) {
+              resolvedType = v.resolvedType || v.type || resolvedType;
+              break;
+            }
+          }
+        }
+
+        try {
+          const result = await requestFromPlugin("createVariable", {
+            collectionId: alias.collectionId,
+            name: alias.name,
+            resolvedType,
+            valuesByMode: alias.modeId ? {
+              [alias.modeId]: { type: "VARIABLE_ALIAS", variableId: target.id },
+            } : undefined,
+          });
+          results.created++;
+          results.aliased++;
+          newVarMap.set(alias.name, { id: result.id, collectionId: alias.collectionId });
+        } catch (err) {
+          results.errors.push(`Alias "${alias.name}": ${err.message}`);
+        }
+      }
+    }
+
+    // 6. Report results
+    const report =
+      `Figma variables imported from **${sourceName}**!\n\n` +
+      `**Results:**\n` +
+      `- ${results.created} variable(s) created\n` +
+      (results.aliased ? `- ${results.aliased} alias reference(s) linked\n` : "") +
+      (results.skipped ? `- ${results.skipped} existing variable(s) skipped\n` : "") +
+      (results.collections ? `- ${results.collections} new collection(s) created\n` : "") +
+      (results.errors.length ? `\n**Warnings:**\n${results.errors.map(e => `- ${e}`).join("\n")}\n` : "") +
+      `\nYou can now use these variables in your Figma designs. Open the **Variables** panel to see them.\n`;
+
+    onEvent({ type: "text_delta", id: requestId, delta: report });
+    onEvent({ type: "done", id: requestId, fullText: `Imported ${results.created} variables` });
+
+  } catch (err) {
+    console.error("  ❌ Import variables failed:", err.message);
+    onEvent({ type: "error", id: requestId, error: `Import failed: ${err.message}` });
+    onEvent({ type: "done", id: requestId, fullText: "" });
+  }
+}
+
+async function handleSyncDesignSystem(requestId, message, onEvent) {
+  console.log("  🔄 Sync design system: Figma → Stitch");
+
+  onEvent({ type: "phase_start", id: requestId, phase: "Extracting Figma variables..." });
+
+  try {
+    // 1. Request variables from Figma plugin
+    // getVariables returns an ARRAY of collections, each with a .variables array
+    const varsResult = await requestFromPlugin("getVariables", { verbosity: "full" });
+
+    // varsResult is an array of collection objects
+    const collections = Array.isArray(varsResult) ? varsResult : [];
+    const totalVars = collections.reduce((sum, c) => sum + (c.variables || []).length, 0);
+
+    if (collections.length === 0 || totalVars === 0) {
+      onEvent({ type: "text_delta", id: requestId, delta: "No Figma variables found in this file. Create some variables first (colors, spacing, typography) and try again.\n" });
+      onEvent({ type: "done", id: requestId, fullText: "" });
+      return;
+    }
+
+    console.log(`  Found ${collections.length} collection(s) with ${totalVars} variable(s)`);
+    onEvent({ type: "phase_start", id: requestId, phase: `Converting ${totalVars} variables to design system...` });
+
+    // 2. Also try to get paint/text/effect styles
+    // getStyles returns { paint: [...], text: [...], effect: [...] }
+    let paintStyles = [];
+    let textStyles = [];
+    try {
+      const stylesResult = await requestFromPlugin("getStyles", {});
+      if (stylesResult?.paint) paintStyles = stylesResult.paint;
+      if (stylesResult?.text) textStyles = stylesResult.text;
+    } catch (err) {
+      console.log("  Could not fetch styles:", err.message);
+    }
+
+    // 3. Convert to design.md
+    const designMd = figmaVariablesToDesignMd(collections, paintStyles, textStyles);
+
+    // 4. Extract project name from message or use default
+    let projectName = "Figma Intelligence";
+    const projMatch = message.match(/(?:for|to|in)\s+(?:project\s+)?["']?([^"',\n]+?)["']?\s*(?:project)?(?:\s*$|\s+(?:design|sync|push))/i);
+    if (projMatch) projectName = projMatch[1].trim();
+
+    // 5. Save design.md
+    const projDir = join(STITCH_DIR, projectName.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 60));
+    if (!existsSync(projDir)) mkdirSync(projDir, { recursive: true });
+    const designMdPath = join(projDir, "design.md");
+    writeFileSync(designMdPath, designMd, "utf8");
+
+    console.log(`  ✅ Design system saved: ${designMdPath} (${designMd.length} chars)`);
+
+    // 6. Report back — emit full design.md as a downloadable code block
+    onEvent({
+      type: "text_delta",
+      id: requestId,
+      delta: `Design system synced from Figma to Stitch!\n\n` +
+             `**Extracted:**\n` +
+             `- ${collections.length} variable collection(s): ${collections.map(c => c.name).join(", ")}\n` +
+             `- ${totalVars} variable(s)\n` +
+             (paintStyles.length ? `- ${paintStyles.length} paint style(s)\n` : "") +
+             (textStyles.length ? `- ${textStyles.length} text style(s)\n` : "") +
+             `\n**Saved to:** \`${designMdPath}\`\n` +
+             `**Project:** "${projectName}"\n\n` +
+             `All future Stitch generations in "${projectName}" will automatically use these design tokens for visual consistency.\n\n` +
+             `---\n\n` +
+             `**design.md** (hover to copy or download):\n\n` +
+             "```download:design.md\n" + designMd + "\n```\n",
+    });
+    onEvent({ type: "done", id: requestId, fullText: `Design system synced — ${totalVars} variables` });
+
+  } catch (err) {
+    console.error("  ❌ Design system sync failed:", err.message);
+    onEvent({ type: "error", id: requestId, error: `Design system sync failed: ${err.message}` });
+    onEvent({ type: "done", id: requestId, fullText: "" });
+  }
+}
+
+/**
+ * Convert Figma variables (collections + variables) to a design.md format
+ * that Stitch can use for consistent generation.
+ */
+function figmaVariablesToDesignMd(collections, paintStyles, textStyles) {
+  const totalVars = collections.reduce((sum, c) => sum + (c.variables || []).length, 0);
+  const lines = [];
+
+  lines.push("# Design System — Figma Variables");
+  lines.push("");
+  lines.push(`> Auto-synced from Figma on ${new Date().toISOString().split("T")[0]}`);
+  lines.push(`> ${totalVars} variables across ${collections.length} collection(s)`);
+  lines.push("");
+
+  // Process each collection (each already has .variables array)
+  for (const col of collections) {
+    const colName = col.name || "Unnamed Collection";
+    lines.push(`## ${colName}`);
+    lines.push("");
+
+    // Group by resolved type
+    const byType = {};
+    for (const v of (col.variables || [])) {
+      const type = v.resolvedType || v.type || "OTHER";
+      if (!byType[type]) byType[type] = [];
+      byType[type].push(v);
+    }
+
+    // Colors
+    if (byType.COLOR) {
+      lines.push("### Colors");
+      lines.push("");
+      for (const v of byType.COLOR) {
+        const name = v.name || "unnamed";
+        const value = formatColorValue(v, collections);
+        lines.push(`- **${name}**: ${value}`);
+      }
+      lines.push("");
+    }
+
+    // Numbers (spacing, sizing, border-radius, etc.)
+    if (byType.FLOAT) {
+      // Sub-group by name prefix (e.g., spacing/sm, radius/md)
+      const subGroups = {};
+      for (const v of byType.FLOAT) {
+        const prefix = (v.name || "").split("/")[0] || "Values";
+        if (!subGroups[prefix]) subGroups[prefix] = [];
+        subGroups[prefix].push(v);
+      }
+
+      for (const [prefix, vars] of Object.entries(subGroups)) {
+        lines.push(`### ${prefix}`);
+        lines.push("");
+        for (const v of vars) {
+          const name = v.name || "unnamed";
+          const value = formatFloatValue(v, collections);
+          lines.push(`- **${name}**: ${value}`);
+        }
+        lines.push("");
+      }
+    }
+
+    // Strings (font families, etc.)
+    if (byType.STRING) {
+      lines.push("### Strings");
+      lines.push("");
+      for (const v of byType.STRING) {
+        const name = v.name || "unnamed";
+        const value = formatStringValue(v, collections);
+        lines.push(`- **${name}**: ${value}`);
+      }
+      lines.push("");
+    }
+
+    // Booleans
+    if (byType.BOOLEAN) {
+      lines.push("### Toggles");
+      lines.push("");
+      for (const v of byType.BOOLEAN) {
+        const name = v.name || "unnamed";
+        const value = formatBooleanValue(v, collections);
+        lines.push(`- **${name}**: ${value}`);
+      }
+      lines.push("");
+    }
+  }
+
+  // Paint styles (if available)
+  if (paintStyles.length > 0) {
+    lines.push("## Paint Styles");
+    lines.push("");
+    for (const s of paintStyles) {
+      const name = s.name || "unnamed";
+      const fills = (s.paints || []).map(p => {
+        if (p.type === "SOLID" && p.color) {
+          const { r, g, b } = p.color;
+          return rgbToHex(r, g, b);
+        }
+        return p.type || "gradient";
+      }).join(", ");
+      lines.push(`- **${name}**: ${fills}`);
+    }
+    lines.push("");
+  }
+
+  // Text styles (if available)
+  if (textStyles.length > 0) {
+    lines.push("## Typography");
+    lines.push("");
+    for (const s of textStyles) {
+      const name = s.name || "unnamed";
+      const family = s.fontName?.family || s.fontFamily || "";
+      const size = s.fontSize || "";
+      const weight = s.fontName?.style || s.fontWeight || "";
+      const lh = s.lineHeight?.value ? `/${s.lineHeight.value}${s.lineHeight.unit === "PERCENT" ? "%" : "px"}` : "";
+      lines.push(`- **${name}**: ${family} ${size}px${lh} ${weight}`);
+    }
+    lines.push("");
+  }
+
+  // Usage guidance for Stitch
+  lines.push("---");
+  lines.push("");
+  lines.push("## Usage Guide for Generation");
+  lines.push("");
+  lines.push("When generating UI screens, use the exact color values, spacing values, and typography");
+  lines.push("defined above. This ensures visual consistency between Figma designs and generated screens.");
+  lines.push("");
+  lines.push("- Use the COLOR variables for all backgrounds, text, borders, and accents");
+  lines.push("- Use the spacing/sizing FLOAT variables for padding, margins, gaps, and dimensions");
+  lines.push("- Match typography settings (font family, size, weight) to the styles above");
+  lines.push("- Maintain the design language: if colors are dark/muted, generate dark-themed UIs");
+  lines.push("");
+
+  return lines.join("\n");
+}
+
+function formatColorValue(v, collections) {
+  // Try to extract the color from valuesByMode or value
+  const modes = v.valuesByMode || {};
+  const firstMode = Object.values(modes)[0];
+  const val = firstMode || v.value;
+  if (val && typeof val === "object" && "r" in val) {
+    return `\`${rgbToHex(val.r, val.g, val.b)}\`${val.a !== undefined && val.a < 1 ? ` (opacity: ${Math.round(val.a * 100)}%)` : ""}`;
+  }
+  // Variable alias — show the referenced variable name
+  if (val && typeof val === "object" && val.type === "VARIABLE_ALIAS") {
+    const refName = findVariableName(val.id, collections);
+    return refName ? `→ \`${refName}\`` : `→ alias(${val.id})`;
+  }
+  if (typeof val === "string") return `\`${val}\``;
+  return JSON.stringify(val);
+}
+
+function findVariableName(varId, collections) {
+  for (const col of (collections || [])) {
+    for (const v of (col.variables || [])) {
+      if (v.id === varId) return v.name;
+    }
+  }
+  return null;
+}
+
+function formatFloatValue(v, collections) {
+  const modes = v.valuesByMode || {};
+  const firstMode = Object.values(modes)[0];
+  const val = firstMode !== undefined ? firstMode : v.value;
+  if (val && typeof val === "object" && val.type === "VARIABLE_ALIAS") {
+    const refName = findVariableName(val.id, collections);
+    return refName ? `→ \`${refName}\`` : `→ alias`;
+  }
+  return `\`${val}px\``;
+}
+
+function formatStringValue(v, collections) {
+  const modes = v.valuesByMode || {};
+  const firstMode = Object.values(modes)[0];
+  const val = firstMode || v.value;
+  if (val && typeof val === "object" && val.type === "VARIABLE_ALIAS") {
+    const refName = findVariableName(val.id, collections);
+    return refName ? `→ \`${refName}\`` : `→ alias`;
+  }
+  return `\`${val}\``;
+}
+
+function formatBooleanValue(v, collections) {
+  const modes = v.valuesByMode || {};
+  const firstMode = Object.values(modes)[0];
+  const val = firstMode !== undefined ? firstMode : v.value;
+  if (val && typeof val === "object" && val.type === "VARIABLE_ALIAS") {
+    const refName = findVariableName(val.id, collections);
+    return refName ? `→ \`${refName}\`` : `→ alias`;
+  }
+  return `\`${val}\``;
+}
+
+function rgbToHex(r, g, b) {
+  const toHex = (c) => {
+    const v = Math.round((typeof c === "number" && c <= 1 ? c * 255 : c));
+    return v.toString(16).padStart(2, "0");
+  };
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
 
 // P3: Port fallback — try PORT, then PORT+1 through PORT+9
 const BASE_PORT = parseInt(process.argv[2] || process.env.BRIDGE_PORT || "9001", 10);
@@ -113,8 +1008,13 @@ let _authRefreshInFlight = null;
 // ── Active design system ─────────────────────────────────────────────────────
 let activeDesignSystemId = null;
 
+// ── Component Doc Generator chooser state ────────────────────────────────────
+// When the chooser is shown, we stash the original message (with Figma link)
+// so when the user picks a type, we can prepend it to the follow-up.
+let pendingDocGenChooser = null; // { originalMessage: string, shownAt: number }
+
 // ── Provider config (persisted to ~/.claude/settings.json) ───────────────────
-let providerConfig = { provider: "claude", apiKey: null };
+let providerConfig = { provider: "claude", apiKey: null, projectId: null };
 
 function loadProviderConfig() {
   try {
@@ -123,7 +1023,7 @@ function loadProviderConfig() {
       const s = JSON.parse(readFileSync(settingsPath, "utf8"));
       const saved = s?.figmaIntelligenceProvider;
       if (saved?.provider) {
-        providerConfig = { provider: saved.provider, apiKey: saved.apiKey || null };
+        providerConfig = { provider: saved.provider, apiKey: saved.apiKey || null, projectId: saved.projectId || null };
         console.log(`  Provider loaded: ${providerConfig.provider}`);
       }
     }
@@ -140,6 +1040,7 @@ function saveProviderConfig() {
     settings.figmaIntelligenceProvider = {
       provider: providerConfig.provider,
       apiKey: providerConfig.apiKey || null,
+      projectId: providerConfig.projectId || null,
     };
     writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
   } catch (err) {
@@ -261,6 +1162,8 @@ function sendRelayStatus(ws, mcpConnected) {
     openaiEmail: openaiAuthInfo.email,
     provider: providerConfig.provider,
     hasApiKey: !!(providerConfig.apiKey),
+    hasStitchOAuth: hasStitchAuth(),
+    stitchEmail: getStitchEmail(),
     geminiLoggedIn: geminiCliAuthInfo.loggedIn,
     geminiEmail: geminiCliAuthInfo.email,
     activeDesignSystemId,
@@ -291,6 +1194,30 @@ function sendToPlugin(payload) {
   if (pluginSocket && pluginSocket.readyState === 1) {
     pluginSocket.send(JSON.stringify(payload));
   }
+}
+
+// ── Relay-initiated plugin requests (for sync design system etc.) ──────────
+const pendingRelayRequests = new Map();
+
+/**
+ * Send a bridge-request to the Figma plugin and wait for the response.
+ * Returns a Promise that resolves with the result or rejects on error/timeout.
+ */
+function requestFromPlugin(method, params, timeoutMs = 15000) {
+  return new Promise((resolve, reject) => {
+    if (!pluginSocket || pluginSocket.readyState !== 1) {
+      reject(new Error("Figma plugin not connected"));
+      return;
+    }
+    const id = `relay-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const timer = setTimeout(() => {
+      pendingRelayRequests.delete(id);
+      reject(new Error(`Plugin request "${method}" timed out`));
+    }, timeoutMs);
+
+    pendingRelayRequests.set(id, { resolve, reject, timer });
+    sendToPlugin({ type: "bridge-request", id, method, params: params || {} });
+  });
 }
 
 function sendToVscode(payload, targetWs) {
@@ -423,6 +1350,9 @@ wss.on("connection", (ws, req) => {
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
 
+    // Global debug: log every message type
+    try { appendFileSync("/tmp/import-vars-debug.log", `${new Date().toISOString()} MSG type=${msg.type} isVscode=${isVscode} isPlugin=${isPlugin} keys=${Object.keys(msg).join(",")}\n`); } catch {}
+
     // ── Messages from VS Code extension ────────────────────────────────────
     if (isVscode) {
 
@@ -433,7 +1363,7 @@ wss.on("connection", (ws, req) => {
 
       // Set AI provider
       if (msg.type === "set-provider") {
-        providerConfig = { provider: msg.provider || "claude", apiKey: msg.apiKey || null };
+        providerConfig = { provider: msg.provider || "claude", apiKey: msg.apiKey || null, projectId: msg.projectId || null };
         saveProviderConfig();
         console.log(`  🔑 provider set (vscode): ${providerConfig.provider}`);
         sendToVscode({ type: "provider-stored", provider: providerConfig.provider }, ws);
@@ -461,9 +1391,86 @@ wss.on("connection", (ws, req) => {
         const chatMode = msg.mode || "dual";
         let chatMessage = msg.message || "";
 
-        // Inject knowledge grounding if active
+        // Pre-parse Figma links so the AI doesn't need to extract file_key/node_id
+        const figmaLinkMatch = chatMessage.match(/https:\/\/www\.figma\.com\/(?:design|file)\/[^\s]+/);
+        if (figmaLinkMatch) {
+          try {
+            const { parseFigmaLink } = require("./spec-helpers/parse-figma-link");
+            const parsed = parseFigmaLink(figmaLinkMatch[0]);
+            chatMessage += `\n\n[Pre-parsed Figma link: file_key="${parsed.file_key}", node_id="${parsed.node_id}"]`;
+          } catch (e) { /* ignore parse errors */ }
+        }
+
+        // ── Component Doc Generator: handle follow-up after chooser (VS Code) ─
+        if (pendingDocGenChooser && (chatMode === "code" || chatMode === "dual")) {
+          const elapsed = Date.now() - pendingDocGenChooser.shownAt;
+          if (elapsed < 10 * 60 * 1000) {
+            const reply = (chatMessage || "").trim().toLowerCase();
+            const specMap = {
+              "1": "anatomy", "anatomy": "anatomy",
+              "2": "api", "api": "api",
+              "3": "property", "properties": "property", "property": "property",
+              "4": "color", "color": "color",
+              "5": "structure", "structure": "structure",
+              "6": "screen-reader", "screen reader": "screen-reader", "screen-reader": "screen-reader",
+              "all": "all",
+            };
+            const matched = specMap[reply];
+            const multiMatch = reply.match(/^[\d,\s]+$/);
+            if (matched || multiMatch) {
+              const original = pendingDocGenChooser.originalMessage;
+              pendingDocGenChooser = null;
+              // CRITICAL: Reset session so the AI starts fresh with the correct
+              // system prompt containing the spec-type skill addendum.
+              // Without this, --resume reuses the old system prompt which lacks
+              // the tool restrictions and spec reference instructions.
+              resetSession(chatMode);
+              console.log(`  📋 Component Doc Generator (vscode): reset ${chatMode} session for fresh system prompt`);
+              if (matched === "all" || (multiMatch && reply.replace(/\s/g, "").split(",").length >= 6)) {
+                chatMessage = `${original}\n\nThe user selected ALL spec types. Generate all 6 specification documents: anatomy, api, property, color, structure, and screen-reader specs. Start with the anatomy spec, then proceed to each subsequent type.`;
+                console.log(`  📋 Component Doc Generator (vscode): user chose ALL`);
+              } else if (multiMatch) {
+                const nums = reply.replace(/\s/g, "").split(",").filter(Boolean);
+                const types = nums.map(n => specMap[n]).filter(Boolean);
+                chatMessage = `${original}\n\nThe user selected these spec types: ${types.join(", ")}. Generate a create ${types[0]} spec for the component first.`;
+                console.log(`  📋 Component Doc Generator (vscode): user chose [${types.join(", ")}]`);
+              } else {
+                chatMessage = `${original}\n\nThe user selected: create ${matched} spec for this component.`;
+                console.log(`  📋 Component Doc Generator (vscode): user chose "${matched}"`);
+              }
+            } else {
+              pendingDocGenChooser = null;
+            }
+          } else {
+            pendingDocGenChooser = null;
+          }
+        }
+
+        // ── Component Doc Generator chooser intercept (VS Code) ──────────
+        if (chatMode === "code" || chatMode === "dual") {
+          const { detectActiveSkills } = require("./shared-prompt-config");
+          const detectedSkills = detectActiveSkills(chatMessage);
+          if (detectedSkills.some(s => s === "Component Doc Generator:all")) {
+            console.log(`  📋 Component Doc Generator (vscode): presenting spec type chooser`);
+            pendingDocGenChooser = { originalMessage: chatMessage, shownAt: Date.now() };
+            const chooserText = `I can generate the following detailed spec types for your component:\n\n` +
+              `1. **Anatomy** — Numbered markers on each element + attribute table with semantic notes\n` +
+              `2. **API** — Property tables with values, defaults, required/optional status, and configuration examples\n` +
+              `3. **Properties** — Visual exhibits for variant axes, boolean toggles, variable modes, and child properties\n` +
+              `4. **Color** — Design token mapping for every element across states and variants\n` +
+              `5. **Structure** — Dimensions, spacing, padding tables across size/density variants\n` +
+              `6. **Screen Reader** — VoiceOver, TalkBack, and ARIA accessibility specs per platform\n\n` +
+              `Which spec(s) would you like me to generate? You can pick one, multiple (e.g. 1, 3, 5), or say **all** to generate everything.`;
+            sendToVscode({ type: "phase_start", id: requestId, phase: "Skills: Component Doc Generator" }, ws);
+            sendToVscode({ type: "text_delta", id: requestId, delta: chooserText }, ws);
+            sendToVscode({ type: "done", id: requestId, fullText: chooserText }, ws);
+            return;
+          }
+        }
+
+        // Inject knowledge grounding if active (relevance-filtered)
         if (activeContentSources.size > 0) {
-          const groundingCtx = buildGroundingContext(activeContentSources);
+          const groundingCtx = buildGroundingContext(activeContentSources, msg.message);
           if (groundingCtx) {
             chatMessage = groundingCtx + "\n---\n\nUser question: " + chatMessage;
           }
@@ -536,6 +1543,15 @@ wss.on("connection", (ws, req) => {
               onEvent,
             });
           }
+        } else if (prov === "stitch") {
+          proc = runStitch({
+            message: chatMessage,
+            requestId,
+            apiKey: providerConfig.apiKey,
+            projectId: providerConfig.projectId,
+            model: msg.model,
+            onEvent,
+          });
         } else {
           sendToVscode({ type: "error", id: requestId, error: `Unsupported provider: ${prov}` }, ws);
           sendToVscode({ type: "done", id: requestId, fullText: "" }, ws);
@@ -573,11 +1589,40 @@ wss.on("connection", (ws, req) => {
     // ── Messages from the Figma plugin ──────────────────────────────────────
     if (isPlugin) {
 
+      // Stitch Google OAuth — "Sign in with Google" button
+      if (msg.type === "stitch-auth") {
+        (async () => {
+          try {
+            sendToPlugin({ type: "stitch-auth-status", status: "signing-in" });
+            console.log("  Stitch: starting Google OAuth flow...");
+            const accessToken = await startStitchAuth();
+            providerConfig.apiKey = accessToken; // store as apiKey for relay compatibility
+            saveProviderConfig();
+            const email = getStitchEmail();
+            console.log(`  Stitch: authenticated as ${email || "unknown"}`);
+            sendToPlugin({ type: "stitch-auth-status", status: "success", email });
+          } catch (err) {
+            console.error("  Stitch auth failed:", err.message);
+            sendToPlugin({ type: "stitch-auth-status", status: "error", error: err.message });
+          }
+        })();
+        return;
+      }
+
+      // Stitch sign-out
+      if (msg.type === "stitch-signout") {
+        clearStitchAuth();
+        console.log("  Stitch: signed out");
+        sendToPlugin({ type: "stitch-auth-status", status: "signed-out" });
+        return;
+      }
+
       // Set AI provider / API key
       if (msg.type === "set-provider") {
         providerConfig = {
           provider: msg.provider || "claude",
           apiKey: msg.apiKey || null,
+          projectId: msg.projectId || null,
         };
         saveProviderConfig();
         console.log(`  🔑 provider set: ${providerConfig.provider}`);
@@ -806,6 +1851,20 @@ wss.on("connection", (ws, req) => {
         const chatMode = msg.mode || "code";
         let chatMessage = msg.message || "";
 
+        // Debug: log all incoming chat messages
+        try { appendFileSync("/tmp/import-vars-debug.log", `${new Date().toISOString()} CHAT prov=${prov} msg="${chatMessage.slice(0,100)}" attachments=${JSON.stringify((msg.attachments||[]).map(a=>({name:a.name,len:a.data?.length})))}\n`); } catch {}
+        try { appendFileSync("/tmp/import-vars-debug.log", `${new Date().toISOString()} isImport=${isImportVariablesIntent(chatMessage, msg.attachments)}\n`); } catch {}
+
+        // Pre-parse Figma links so the AI doesn't need to extract file_key/node_id
+        const figmaLinkMatch2 = chatMessage.match(/https:\/\/www\.figma\.com\/(?:design|file)\/[^\s]+/);
+        if (figmaLinkMatch2) {
+          try {
+            const { parseFigmaLink } = require("./spec-helpers/parse-figma-link");
+            const parsed = parseFigmaLink(figmaLinkMatch2[0]);
+            chatMessage += `\n\n[Pre-parsed Figma link: file_key="${parsed.file_key}", node_id="${parsed.node_id}"]`;
+          } catch (e) { /* ignore parse errors */ }
+        }
+
         // /knowledge command — intercept and handle via knowledge hub
         if (/^\s*\/knowledge\b/i.test(chatMessage)) {
           const query = chatMessage.replace(/^\s*\/knowledge\s*/i, "").trim();
@@ -869,6 +1928,94 @@ wss.on("connection", (ws, req) => {
           return;
         }
 
+        // ── Import .md → Figma variables (works from any provider) ──────
+        if (isImportVariablesIntent(chatMessage, msg.attachments)) {
+          handleImportVariables(requestId, chatMessage, msg.attachments, (ev) => sendToPlugin(ev));
+          return;
+        }
+
+        // ── Component Doc Generator: handle follow-up after chooser ─────
+        // If the chooser was shown and user replies with a type selection,
+        // rewrite the message to include the original context + specific spec type.
+        if (pendingDocGenChooser && (chatMode === "code" || chatMode === "dual")) {
+          const elapsed = Date.now() - pendingDocGenChooser.shownAt;
+          if (elapsed < 10 * 60 * 1000) { // within 10 minutes
+            const reply = (chatMessage || "").trim().toLowerCase();
+            const specMap = {
+              "1": "anatomy", "anatomy": "anatomy",
+              "2": "api", "api": "api",
+              "3": "property", "properties": "property", "property": "property",
+              "4": "color", "color": "color",
+              "5": "structure", "structure": "structure",
+              "6": "screen-reader", "screen reader": "screen-reader", "screen-reader": "screen-reader",
+              "all": "all",
+            };
+            // Check if reply matches a spec type choice
+            const matched = specMap[reply];
+            // Also check for multi-select like "1, 3, 5" or "1 3 5"
+            const multiMatch = reply.match(/^[\d,\s]+$/);
+            if (matched || multiMatch) {
+              const original = pendingDocGenChooser.originalMessage;
+              pendingDocGenChooser = null;
+              // CRITICAL: Reset session so the AI starts fresh with the correct
+              // system prompt containing the spec-type skill addendum.
+              resetSession(chatMode);
+              console.log(`  📋 Component Doc Generator (plugin): reset ${chatMode} session for fresh system prompt`);
+              if (matched === "all" || (multiMatch && reply.replace(/\s/g, "").split(",").length >= 6)) {
+                // User wants all specs — send each type
+                chatMessage = `${original}\n\nThe user selected ALL spec types. Generate all 6 specification documents: anatomy, api, property, color, structure, and screen-reader specs. Start with the anatomy spec, then proceed to each subsequent type.`;
+                console.log(`  📋 Component Doc Generator: user chose ALL — rewriting message`);
+              } else if (multiMatch) {
+                const nums = reply.replace(/\s/g, "").split(",").filter(Boolean);
+                const types = nums.map(n => specMap[n]).filter(Boolean);
+                chatMessage = `${original}\n\nThe user selected these spec types: ${types.join(", ")}. Generate a create ${types[0]} spec for the component first.`;
+                console.log(`  📋 Component Doc Generator: user chose [${types.join(", ")}] — rewriting message`);
+              } else {
+                chatMessage = `${original}\n\nThe user selected: create ${matched} spec for this component.`;
+                console.log(`  📋 Component Doc Generator: user chose "${matched}" — rewriting message`);
+              }
+            } else {
+              // Reply doesn't look like a spec choice — clear pending state
+              pendingDocGenChooser = null;
+            }
+          } else {
+            pendingDocGenChooser = null; // expired
+          }
+        }
+
+        // ── Component Doc Generator — no chooser, generate complete spec directly ────────
+        // The tool now auto-enriches all sections from the knowledge base in a single call.
+        // No need to present options or use a 2-phase workflow.
+
+        // ── Design Decision: auto-register NN Group + proactive article fetch ──
+        {
+          const { detectActiveSkills } = require("./shared-prompt-config");
+          const msgSkills = detectActiveSkills(chatMessage);
+          if (msgSkills.includes("Design Decision")) {
+            const sites = getReferenceSites();
+            if (!sites.some(s => s.searchDomain === "nngroup.com")) {
+              addReferenceSite({ name: "Nielsen Norman Group", searchDomain: "nngroup.com" });
+              console.log("  📖 Auto-registered nngroup.com as reference site for Design Decision");
+            }
+            // Proactive search — fetch NN Group article and inject as grounding
+            (async () => {
+              try {
+                const nnResult = await Promise.race([
+                  searchReferenceSites(chatMessage),
+                  new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 8000)),
+                ]);
+                if (nnResult) {
+                  const nnSource = createContentSource(nnResult.title, nnResult.text, { url: nnResult.url, source: "nngroup.com" });
+                  activeContentSources.set(nnSource.id, nnSource);
+                  console.log(`  📖 NN Group article loaded: "${nnResult.title}"`);
+                }
+              } catch (e) {
+                console.error(`  ⚠ NN Group search failed: ${e.message}`);
+              }
+            })();
+          }
+        }
+
         // ── Fast Chat Tiers (chat mode only) ─────────────────────────────
         const rawMessage = chatMessage; // preserve original for knowledge/web search
 
@@ -914,7 +2061,7 @@ wss.on("connection", (ws, req) => {
 
         // Inject knowledge source grounding context if sources are active
         if (activeContentSources.size > 0) {
-          const groundingCtx = buildGroundingContext(activeContentSources);
+          const groundingCtx = buildGroundingContext(activeContentSources, rawMessage);
           if (groundingCtx) {
             chatMessage = groundingCtx + "\n---\n\nUser question: " + chatMessage;
             console.log(`  📄 Injected ${activeContentSources.size} knowledge source(s) as grounding context`);
@@ -924,6 +2071,19 @@ wss.on("connection", (ws, req) => {
         console.log(`  💬 chat [${prov}/${chatMode}] (id: ${requestId}): ${(chatMessage).slice(0, 60)}…`);
 
         const onEvent = (event) => {
+          // Intercept figma_command events — forward as bridge-request to plugin
+          if (event.type === "figma_command") {
+            const cmdId = `stitch-cmd-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+            sendToPlugin({
+              type: "bridge-request",
+              id: cmdId,
+              method: event.method,
+              params: event.params || {},
+            });
+            console.log(`  🎨 stitch → figma: ${event.method}`);
+            return;
+          }
+
           sendToPlugin(event);
           // In dual mode, also forward to VS Code clients for code extraction
           if (chatMode === "dual") {
@@ -987,6 +2147,35 @@ wss.on("connection", (ws, req) => {
             apiKey: providerConfig.apiKey,
             model: msg.model,
             mode: "chat",
+            onEvent,
+          });
+        } else if (prov === "stitch") {
+          // ── Check for "sync design system" intent before routing to Stitch ──
+          if (isSyncDesignIntent(chatMessage)) {
+            handleSyncDesignSystem(requestId, chatMessage, onEvent);
+            return;
+          }
+
+          if (isImportVariablesIntent(chatMessage, msg.attachments)) {
+            handleImportVariables(requestId, chatMessage, msg.attachments, onEvent);
+            return;
+          }
+
+          // If a .md file is attached, extract its content as design context for generation
+          let designContext = null;
+          if (msg.attachments?.length) {
+            const mdFile = msg.attachments.find(a => /\.md$/i.test(a.name));
+            if (mdFile?.data) designContext = mdFile.data;
+          }
+
+          console.log(`  🎨 Routing to Stitch runner (apiKey: ${providerConfig.apiKey ? "set" : "MISSING"}${designContext ? ", with .md design context" : ""})`);
+          proc = runStitch({
+            message: chatMessage,
+            requestId,
+            apiKey: providerConfig.apiKey,
+            projectId: providerConfig.projectId,
+            model: msg.model,
+            designContext,
             onEvent,
           });
         } else if (prov === "bridge") {
@@ -1069,8 +2258,24 @@ wss.on("connection", (ws, req) => {
         return;
       }
 
+
+
       // MCP tool response from plugin → route back to the requesting MCP socket
       if (msg.id && !msg.method) {
+        // Check if this is a relay-initiated request first
+        const relayReq = pendingRelayRequests.get(msg.id);
+        if (relayReq) {
+          clearTimeout(relayReq.timer);
+          pendingRelayRequests.delete(msg.id);
+          if (msg.error) {
+            relayReq.reject(new Error(msg.error));
+          } else {
+            relayReq.resolve(msg.result);
+          }
+          console.log(`  ← relay request response (id: ${msg.id})`);
+          return;
+        }
+
         const targetSocket = pendingRequests.get(msg.id);
         if (targetSocket && targetSocket.readyState === 1) {
           targetSocket.send(raw);

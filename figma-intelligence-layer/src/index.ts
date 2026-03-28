@@ -56,6 +56,7 @@ import { webhookListenerHandler } from "./tools/phase4-sync/webhook-listener/ind
 import { dsScaffolderHandler } from "./tools/phase5-governance/ds-scaffolder/index.js";
 import { dsVariablesHandler } from "./tools/phase5-governance/ds-variables/index.js";
 import { decisionLogToolHandler } from "./tools/phase5-governance/decision-log/index.js";
+import { designDecisionLogHandler } from "./tools/phase5-governance/design-decision-log/index.js";
 import { healthReportHandler } from "./tools/phase5-governance/health-report/index.js";
 import { generateSpecHandler } from "./tools/phase5-governance/spec-generator/index.js";
 import { figmaApgDocHandler } from "./tools/phase5-governance/apg-doc/index.js";
@@ -733,6 +734,41 @@ const TOOLS: Tool[] = [
     },
   },
   {
+    name: "figma_design_decision_log",
+    description:
+      "Create a visual Design Decision Log frame in Figma documenting UX decisions for a screen. Generates a styled frame with header (status + category badges, title, description), metadata row, and numbered decision cards — each with a title, source badge, and rationale. Sources should cite UX research (NN Group, Baymard Institute, etc.).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Frame title (e.g. 'E-Commerce Checkout Flow')" },
+        description: { type: "string", description: "Overview of the screen/flow and what decisions cover" },
+        status: {
+          type: "string",
+          enum: ["Approved", "Under review", "Requires revisions", "Blocked", "In progress", "Info"],
+          description: "Status badge. Defaults to 'Approved'.",
+        },
+        category: { type: "string", description: "Category badge text (e.g. 'Design Research', 'Accessibility', 'Interaction Design'). Defaults to 'Design Research'." },
+        pageName: { type: "string", description: "Page context (e.g. 'prototype example')" },
+        screenCount: { type: "number", description: "Number of screens covered" },
+        decisions: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "Decision title (e.g. 'Linear Checkout Flow')" },
+              rationale: { type: "string", description: "Detailed UX rationale explaining the decision" },
+              source: { type: "string", description: "Attribution (e.g. 'NN Group', 'Baymard Institute', 'UX Best Practice', 'Conversion Research')" },
+            },
+            required: ["title", "rationale", "source"],
+          },
+          description: "Array of design decisions with titles, rationale, and sources",
+        },
+        nearNodeId: { type: "string", description: "Place the frame near this node ID" },
+      },
+      required: ["name", "description", "decisions"],
+    },
+  },
+  {
     name: "figma_health_report",
     description:
       "Capstone governance tool. Runs all audits in sequence and returns a composite design system health score (0-100) across 6 dimensions: token coverage, accessibility, component adoption, documentation, lint, drift.",
@@ -797,7 +833,7 @@ const TOOLS: Tool[] = [
   {
     name: "figma_component_doc",
     description:
-      "Generate production-grade, enterprise-quality design system specification for a selected component. Produces a 19-section handoff-ready spec covering: (1) overview, (2) when to use, (3) when not to use, (4) variants, (5) hierarchy & emphasis, (6) anatomy, (7) properties, (8) structure & spacing with token bindings, (9) sizes with dimensions, (10) states & behaviour with token overrides, (11) interaction rules (keyboard/pointer/focus), (12) content guidance, (13) responsive behaviour, (14) accessibility (8 deep subsections: semantic element, keyboard, focus, screen reader, labels, state announcements, contrast, touch targets), (15) developer notes, (16) QA acceptance criteria, (17) do's & don'ts, (18) related components, plus color tokens, typography, and spacing data. Leverages component blueprints, semantic token catalog, and token override maps for specific, actionable content. TWO-PHASE WORKFLOW: First call with outputFormat 'json' to extract raw data, then optionally call again with outputFormat 'figma-page' + contentOverrides for AI-enhanced content.",
+      "Generate production-grade, enterprise-quality design system specification for a selected component. Produces a 21+ section handoff-ready spec covering: overview, variants (with detailed emphasis levels), component properties, size specifications, state specifications (with token overrides), design token bindings, accessibility (semantic element, keyboard, focus, screen reader, labels, state announcements, contrast, touch targets), QA acceptance criteria, do's & don'ts, structure & layout, type hierarchy & emphasis, interaction rules, content guidance, responsive behaviour, anatomy with annotations, supported compositions, developer notes, related components — all fully auto-enriched from the knowledge base in a SINGLE call. No two-phase workflow needed. Call with outputFormat 'all' or 'figma-page' to generate the complete visual spec page directly.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1341,6 +1377,7 @@ async function dispatch(name: string, args: AnyArgs): Promise<unknown> {
     case "figma_token_naming_convention": return tokenNamingHandler(args as never);
     case "figma_token_migrate":        return tokenMigrateHandler(args as never);
     case "figma_decision_log":         return decisionLogToolHandler(args as never);
+    case "figma_design_decision_log":  return designDecisionLogHandler(args as never);
     case "figma_health_report":        return healthReportHandler(args as never);
     case "figma_generate_spec":        return generateSpecHandler(args as never);
     case "figma_apg_doc":              return figmaApgDocHandler(args as never);
@@ -1369,15 +1406,22 @@ async function dispatch(name: string, args: AnyArgs): Promise<unknown> {
     case "figma_take_screenshot": {
       const bridge = await getBridge();
       const a = args as { nodeId?: string; scale?: number };
+      let dataUri: string;
       if (a.nodeId) {
-        return bridge.takeScreenshot(a.nodeId);
+        dataUri = await bridge.takeScreenshot(a.nodeId);
+      } else {
+        const status = await bridge.getStatus() as { currentPage?: { id: string } };
+        if (!status.currentPage?.id) {
+          throw new Error("No nodeId provided and could not determine current page");
+        }
+        dataUri = await bridge.takeScreenshot(status.currentPage.id);
       }
-      // If no nodeId, screenshot the current page
-      const status = await bridge.getStatus() as { currentPage?: { id: string } };
-      if (status.currentPage?.id) {
-        return bridge.takeScreenshot(status.currentPage.id);
-      }
-      throw new Error("No nodeId provided and could not determine current page");
+      // Return as MCP image content block (not raw text)
+      const base64 = dataUri.replace(/^data:image\/png;base64,/, "");
+      return {
+        __images: [{ data: base64, mimeType: "image/png" }],
+        message: `Screenshot captured${a.nodeId ? ` for node ${a.nodeId}` : " of current page"}.`,
+      };
     }
     case "figma_get_node": {
       const bridge = await getBridge();

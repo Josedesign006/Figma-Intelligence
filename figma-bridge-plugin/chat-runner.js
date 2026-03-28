@@ -184,6 +184,18 @@ function runClaude({ message, attachments, conversation, requestId, model, desig
   const rawText = (message || "").trim() || (extraText ? "Please analyse the attached image(s) and help me create a Figma design based on them." : "");
   const userText = rawText; // No more expandShortPrompt — Claude handles short prompts natively
 
+  // Detect active skills early — needed for session reset decision
+  const skills = (sessionMode === "code" || sessionMode === "dual") ? detectActiveSkills(userText) : [];
+
+  // Force new session when Component Doc Generator skill is detected.
+  // This ensures the system prompt includes the spec-type reference and
+  // tool restriction instructions, which won't be present on resumed sessions.
+  const hasDocGenSkill = skills.some(s => s.startsWith("Component Doc Generator:") && s !== "Component Doc Generator:all");
+  if (hasDocGenSkill && activeSessionIds[sessionMode]) {
+    console.log(`[chat-runner] Component Doc Generator detected — resetting ${sessionMode} session for fresh system prompt`);
+    activeSessionIds[sessionMode] = null;
+  }
+
   const isFirstMessage = !activeSessionIds[sessionMode];
 
   // Generate session ID on first message
@@ -197,9 +209,6 @@ function runClaude({ message, attachments, conversation, requestId, model, desig
   // Build user message — no more conversation history, task guidance, or AGENTS.md injection
   // Session persistence handles conversation context natively
   const userMessage = `${userText}${extraText}`;
-
-  // Detect active skills (hoisted so it's available for system prompt injection)
-  const skills = (sessionMode === "code" || sessionMode === "dual") ? detectActiveSkills(userText) : [];
 
   // Emit pre-flight progress
   if (sessionMode === "code" || sessionMode === "dual") {

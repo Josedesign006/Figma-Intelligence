@@ -7,7 +7,9 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -34,7 +36,12 @@
         "figmaIntelligence.framework": {
           "type": "string",
           "default": "react",
-          "enum": ["react", "vue", "svelte", "html"],
+          "enum": [
+            "react",
+            "vue",
+            "svelte",
+            "html"
+          ],
           "description": "Framework for generated component code"
         },
         "figmaIntelligence.codeOutputDir": {
@@ -45,7 +52,10 @@
         "figmaIntelligence.previewMode": {
           "type": "string",
           "default": "storybook",
-          "enum": ["storybook", "simple"],
+          "enum": [
+            "storybook",
+            "simple"
+          ],
           "description": "Live preview mode: Storybook or simple webview"
         },
         "figmaIntelligence.autoConnect": {
@@ -67,6 +77,7 @@
     "typescript": "^5.3.0"
   },
   "dependencies": {
+    "sharp": "^0.34.5",
     "ws": "^8.16.0"
   }
 }

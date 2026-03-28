@@ -11,6 +11,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@google/stitch-sdk": "^0.0.3",
     "@mozilla/readability": "^0.6.0",
     "cheerio": "^1.2.0",
     "mammoth": "^1.12.0",
