@@ -1,0 +1,243 @@
+/**
+ * button.ts — Gold-standard design knowledge for Button components
+ */
+import type { ComponentKnowledge } from "../types.js";
+
+export const buttonKnowledge: ComponentKnowledge = {
+  description:
+    "Core interface primitive | Triggers actions | Primary CTA element",
+
+  stateSpecifications: [
+    {
+      state: "Default",
+      visualChange: "Solid fill with label text in contrasting color",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Resting state — button is interactive and ready for activation",
+    },
+    {
+      state: "Hover",
+      visualChange: "Background darkens or lightens by one step on the color scale",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Mouse cursor enters the button's hit area",
+    },
+    {
+      state: "Active",
+      visualChange: "Background shifts an additional step; slight scale-down (0.98) gives tactile feedback",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Mouse button is held down or touch press is in progress",
+    },
+    {
+      state: "Disabled",
+      visualChange: "Background and text switch to muted/disabled tokens; no elevation",
+      opacity: "0.4",
+      cursorWeb: "not-allowed",
+      usage: "Action is unavailable due to missing prerequisites or permissions",
+    },
+    {
+      state: "Focus",
+      visualChange: "2px focus ring offset by 2px from the button edge, using $focus-ring token",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Button receives keyboard focus via Tab key or programmatic focus call",
+    },
+    {
+      state: "Loading",
+      visualChange: "Label text replaced or overlaid by a spinner; button dimensions remain fixed",
+      opacity: "1",
+      cursorWeb: "wait",
+      usage: "Asynchronous action is in progress — button is temporarily non-interactive",
+    },
+  ],
+
+  propertyDescriptions: {
+    label: "Visible text rendered inside the button; should be action-oriented (e.g. 'Save', 'Submit')",
+    type: "Visual hierarchy variant — Primary, Secondary, Tertiary, or Danger — controls fill and border treatment",
+    size: "Dimensional preset controlling height, padding, font-size, and icon-size (Small, Medium, Large)",
+    disabled: "When true the button is non-interactive: muted visuals, pointer-events none, aria-disabled='true'",
+    loading: "When true the label is replaced with a spinner and the button ignores clicks until loading completes",
+    iconLeft: "Optional icon slot rendered before the label; expects an icon component instance or icon name string",
+    iconRight: "Optional icon slot rendered after the label; typically used for directional cues (arrows, chevrons)",
+  },
+
+  sizeSpecifications: [
+    {
+      size: "Small",
+      height: "32px",
+      paddingLR: "12px",
+      fontSize: "12px",
+      iconSize: "16px",
+      borderRadius: "6px",
+    },
+    {
+      size: "Medium",
+      height: "40px",
+      paddingLR: "16px",
+      fontSize: "14px",
+      iconSize: "20px",
+      borderRadius: "8px",
+    },
+    {
+      size: "Large",
+      height: "48px",
+      paddingLR: "20px",
+      fontSize: "16px",
+      iconSize: "24px",
+      borderRadius: "10px",
+    },
+  ],
+
+  designTokenBindings: [
+    {
+      property: "Background",
+      tokenName: "$button-primary-bg",
+      role: "Primary variant fill color",
+      fallback: "#2563EB",
+    },
+    {
+      property: "Text Color",
+      tokenName: "$button-primary-text",
+      role: "Label and icon color on primary variant",
+      fallback: "#FFFFFF",
+    },
+    {
+      property: "Border",
+      tokenName: "$button-secondary-border",
+      role: "Visible border on secondary and tertiary variants",
+      fallback: "#D0D5DD",
+    },
+    {
+      property: "Radius",
+      tokenName: "$radius-button",
+      role: "Corner rounding applied to all four corners equally",
+      fallback: "8px",
+    },
+    {
+      property: "Font Family",
+      tokenName: "$font-family-sans",
+      role: "Button label typeface",
+      fallback: "Inter, system-ui, sans-serif",
+    },
+    {
+      property: "Font Weight",
+      tokenName: "$font-weight-medium",
+      role: "Label weight — medium for readability at small sizes",
+      fallback: "500",
+    },
+    {
+      property: "Line Height",
+      tokenName: "$line-height-tight",
+      role: "Tight line height to vertically center single-line label",
+      fallback: "1.2",
+    },
+    {
+      property: "Transition",
+      tokenName: "$transition-interactive",
+      role: "Smooth state transitions for background, border, and shadow",
+      fallback: "150ms ease-in-out",
+    },
+    {
+      property: "Focus Ring",
+      tokenName: "$focus-ring",
+      role: "Keyboard focus indicator ring",
+      fallback: "0 0 0 2px #FFFFFF, 0 0 0 4px #2E90FA",
+    },
+  ],
+
+  structureRules: [
+    "Container uses horizontal Auto Layout with center alignment on both axes",
+    "Icon and label are direct children of the container — no intermediate wrappers",
+    "Spacing between icon and label uses the $spacing-xs token (4px default)",
+    "Touch target is at least 44x44px regardless of visual size (add transparent padding if needed)",
+    "Full-width variant sets container to fill-container on the horizontal axis",
+    "Icon-only variant removes the label layer; container padding becomes equal on all sides",
+    "Loading spinner replaces the label but preserves the container's intrinsic width to prevent layout shift",
+  ],
+
+  typeHierarchyRules: [
+    "Font weight is Medium (500) — never Bold for standard buttons",
+    "Text uses sentence case ('Save changes', not 'Save Changes' or 'SAVE CHANGES')",
+    "No underline on label text — underline is reserved for inline links",
+    "Single-line only; truncate with ellipsis if text overflows the max-width",
+  ],
+
+  interactionRules: [
+    { event: "Click / Tap", trigger: "pointerup inside button bounds", action: "Fire onClick handler; optionally enter loading state" },
+    { event: "Hover", trigger: "pointerenter", action: "Transition to hover background token" },
+    { event: "Mouse Down", trigger: "pointerdown", action: "Transition to active/pressed visual state" },
+    { event: "Focus", trigger: "Tab key or focus()", action: "Show focus ring; do not trigger click" },
+    { event: "Blur", trigger: "Focus moves away", action: "Remove focus ring" },
+    { event: "Keydown Enter", trigger: "Enter key while focused", action: "Fire onClick handler (same as click)" },
+    { event: "Keydown Space", trigger: "Space key while focused", action: "Fire onClick handler on key-up (native button behavior)" },
+  ],
+
+  contentGuidance: [
+    "Labels should be action-oriented verbs or short verb phrases: 'Save', 'Add to cart', 'Continue'",
+    "Avoid vague labels like 'Click here', 'Submit', or 'OK' — be specific about the action",
+    "Keep labels under 3 words when possible; 4-5 words is the practical maximum",
+    "Icons should support the text meaning, not replace it (except in icon-only buttons)",
+    "Icon-only buttons must have an aria-label describing the action",
+  ],
+
+  responsiveBehaviour: [
+    { breakpoint: "Mobile (<768px)", behavior: "Buttons expand to full width in stacked layouts; minimum height 48px for touch" },
+    { breakpoint: "Tablet (768-1023px)", behavior: "Buttons may be inline or full-width depending on context" },
+    { breakpoint: "Desktop (1024-1439px)", behavior: "Inline buttons with standard padding; group spacing follows $spacing-md" },
+    { breakpoint: "Ultra-wide (>=1440px)", behavior: "Button sizes remain capped — do not scale proportionally with viewport" },
+  ],
+
+  accessibilitySpec: {
+    intro:
+      "Buttons are one of the most critical interactive elements. Accessibility must be flawless to meet WCAG 2.1 compliance.",
+    requirements: [
+      { requirement: "Role", level: "A", notes: "Use native <button> element or role='button' with full keyboard handling" },
+      { requirement: "Focusable", level: "A", notes: "Must be reachable via Tab key; disabled buttons may use aria-disabled instead of removing from tab order" },
+      { requirement: "Keyboard Activation", level: "A", notes: "Enter and Space keys must trigger the same action as a click" },
+      { requirement: "Contrast Ratio", level: "AA", notes: "Text-to-background: 4.5:1 minimum; button boundary to surrounding surface: 3:1" },
+      { requirement: "Touch Target", level: "AA", notes: "Minimum 44x44px touch area per WCAG 2.5.5 (AAA recommends 48x48px)" },
+      { requirement: "ARIA Labels", level: "A", notes: "Icon-only buttons require aria-label; loading state should announce 'Loading' via aria-live region" },
+    ],
+    outro: [
+      "Ensure focus management returns focus to the button after modal dismissal or async action completion",
+      "Never remove the focus outline without providing an equally visible alternative indicator",
+    ],
+  },
+
+  qaAcceptanceCriteria: [
+    { check: "Visual Regression", platform: "All", expectedResult: "Button renders pixel-perfect against baseline for each variant and size" },
+    { check: "Hover State", platform: "Web", expectedResult: "Background transitions smoothly on mouse enter/leave" },
+    { check: "Active State", platform: "Web", expectedResult: "Pressed visual appears on pointerdown and reverts on pointerup" },
+    { check: "Focus State", platform: "Web", expectedResult: "Focus ring visible on Tab; hidden on mouse click (focus-visible)" },
+    { check: "Keyboard Activation", platform: "Web", expectedResult: "Enter and Space fire click handler; no double-fire on Space" },
+    { check: "Screen Reader", platform: "Web", expectedResult: "Announces role 'button', accessible name, and disabled/loading state" },
+    { check: "Disabled State", platform: "All", expectedResult: "Muted visuals; pointer-events none; aria-disabled='true'" },
+    { check: "Loading State", platform: "All", expectedResult: "Spinner visible; label hidden; button width unchanged; clicks ignored" },
+    { check: "Truncation", platform: "Web", expectedResult: "Long labels truncate with ellipsis; no line wrapping" },
+    { check: "Icon Alignment", platform: "All", expectedResult: "Icons vertically centered with label; correct spacing token applied" },
+    { check: "Touch Target Size", platform: "Mobile", expectedResult: "Hit area is at least 44x44px even for Small size" },
+    { check: "Contrast", platform: "All", expectedResult: "All variants pass 4.5:1 text contrast and 3:1 non-text contrast" },
+    { check: "RTL Support", platform: "Web", expectedResult: "Icon positions swap; padding mirrors; text alignment correct in RTL locales" },
+  ],
+
+  dos: [
+    "Use the Primary variant for the single most important action on the page",
+    "Use Secondary or Tertiary variants for supporting or less critical actions",
+    "Keep labels short and action-oriented — prefer verbs",
+    "Maintain consistent padding and never override spacing tokens",
+    "Use standard size presets (Small, Medium, Large) — avoid custom heights",
+    "Ensure sufficient color contrast between button fill and label text",
+    "Provide visual feedback for every interactive state (hover, active, focus, loading)",
+  ],
+
+  donts: [
+    "Do not place multiple Primary buttons in the same view or action group",
+    "Do not use vague labels like 'Click here', 'OK', or 'Submit' without context",
+    "Do not allow label text to wrap to multiple lines — truncate instead",
+    "Do not use buttons for navigation — use links or nav components instead",
+    "Do not disable a button without explaining why (use a tooltip or helper text)",
+    "Do not override design token colors with hard-coded hex values",
+    "Do not make buttons smaller than the minimum touch target (44x44px)",
+  ],
+};

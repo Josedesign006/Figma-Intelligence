@@ -1,4 +1,4 @@
-import { GeneratedDocument, NodeSnapshot } from "../spec-generator/index.js";
+import type { GeneratedDocument, NodeSnapshot } from "../component-spec/types.js";
 export interface FigmaApgDocArgs {
     nodeId?: string;
     patternHint?: string;

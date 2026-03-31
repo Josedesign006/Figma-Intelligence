@@ -26,7 +26,7 @@ const { runPerplexity } = require("./perplexity-runner");
 const { runStitch } = require("./stitch-runner");
 const { startStitchAuth, getStitchAccessToken, hasStitchAuth, getStitchEmail, clearStitchAuth } = require("./stitch-auth");
 const { runAnthropicChat } = require("./anthropic-chat-runner");
-const { parsePdfBuffer, parseDocxBuffer, fetchUrlContent, createContentSource, buildGroundingContext, scanKnowledgeHub, loadHubFile, searchHub, searchContentForAnswer, searchReferenceSites, getReferenceSites, addReferenceSite, removeReferenceSite } = require("./content-context");
+const { parsePdfBuffer, parseDocxBuffer, fetchUrlContent, createContentSource, createChunkedContentSource, buildGroundingContext, scanKnowledgeHub, loadHubFile, searchHub, searchContentForAnswer, searchReferenceSites, getReferenceSites, addReferenceSite, removeReferenceSite, prewarmHub } = require("./content-context");
 
 // ── Sync Figma Design System → Stitch design.md ────────────────────────────
 const { mkdirSync } = require("fs"); // readFileSync, writeFileSync, existsSync already imported above
@@ -1302,6 +1302,11 @@ writeMcpConfig(PORT);
 // Start heartbeat monitoring
 setupHeartbeat(wss);
 
+// Pre-warm knowledge hub (load .chunks.json files into cache for instant first query)
+prewarmHub().then((count) => {
+  if (count > 0) console.log(`   📚 Knowledge hub pre-warmed: ${count} chunked source(s) cached`);
+}).catch(() => {});
+
 // Start the MCP server as a persistent child process so the plugin
 // always shows "Connected" — not just during active chat requests.
 startPersistentMcpServer();
@@ -2016,39 +2021,28 @@ wss.on("connection", (ws, req) => {
           }
         }
 
-        // ── Fast Chat Tiers (chat mode only) ─────────────────────────────
+        // ── Chat Tiers: always route through AI with grounding ─────────
         const rawMessage = chatMessage; // preserve original for knowledge/web search
 
-        // Tier 1: Knowledge Hub instant answer (chat mode only)
-        if (chatMode === "chat" && activeContentSources.size > 0) {
-          const localAnswer = searchContentForAnswer(rawMessage, activeContentSources);
-          if (localAnswer) {
-            console.log(`  📚 Tier 1 hit: Knowledge Hub instant answer`);
-            sendToPlugin({ type: "phase_start", id: requestId, phase: "📚 Knowledge Hub" });
-            sendToPlugin({ type: "text_delta", id: requestId, delta: localAnswer.text });
-            sendToPlugin({ type: "done", id: requestId, fullText: localAnswer.text });
-            return;
-          }
-        }
-
-        // Tier 2: Web Reference Search (chat mode only, async, 5s timeout)
+        // Tier 1: Fetch web reference articles async, then route to AI
+        // (No more raw text "instant answers" — AI always synthesizes the response)
         if (chatMode === "chat" && getReferenceSites().length > 0) {
           (async () => {
             try {
               const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 5000));
               const webAnswer = await Promise.race([searchReferenceSites(rawMessage), timeoutPromise]);
               if (webAnswer) {
-                console.log(`  🌐 Tier 2 hit: ${webAnswer.siteName} — ${webAnswer.title}`);
-                sendToPlugin({ type: "phase_start", id: requestId, phase: `🌐 ${webAnswer.siteName}` });
-                sendToPlugin({ type: "text_delta", id: requestId, delta: webAnswer.text });
-                sendToPlugin({ type: "done", id: requestId, fullText: webAnswer.text });
-                return;
+                // Add fetched article as a content source for grounding, don't return it raw
+                const webSource = createContentSource(webAnswer.title, webAnswer.text || "", {
+                  url: webAnswer.url,
+                  source: webAnswer.siteName,
+                });
+                activeContentSources.set(webSource.id, webSource);
+                console.log(`  🌐 Web reference loaded: ${webAnswer.siteName} — ${webAnswer.title}`);
               }
             } catch (err) {
-              console.error(`  ⚠ Tier 2 web search error: ${err.message}`);
+              console.error(`  ⚠ Web reference search error: ${err.message}`);
             }
-
-            // Fall through to Tier 3/4 — route to AI provider
             routeToAiProvider();
           })();
           return; // async — routeToAiProvider called inside the async block
@@ -2063,7 +2057,13 @@ wss.on("connection", (ws, req) => {
         if (activeContentSources.size > 0) {
           const groundingCtx = buildGroundingContext(activeContentSources, rawMessage);
           if (groundingCtx) {
-            chatMessage = groundingCtx + "\n---\n\nUser question: " + chatMessage;
+            chatMessage = groundingCtx +
+              "\n---\n\n" +
+              "INSTRUCTIONS: Use the knowledge context above to answer the user's question. " +
+              "Synthesize the information into a clear, structured answer — do NOT just quote raw text. " +
+              "Cite the source name when referencing specific information. " +
+              "If the context doesn't contain relevant information, say so and answer from your general knowledge.\n\n" +
+              "User question: " + chatMessage;
             console.log(`  📄 Injected ${activeContentSources.size} knowledge source(s) as grounding context`);
           }
         }

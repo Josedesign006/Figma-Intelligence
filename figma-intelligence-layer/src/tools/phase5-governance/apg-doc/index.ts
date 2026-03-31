@@ -4,10 +4,12 @@ import {
   captureSnapshot,
   createDocumentationPages,
   formatDocumentReport,
+  resolveTargetNodeId,
+} from "../component-spec/index.js";
+import type {
   GeneratedDocument,
   NodeSnapshot,
-  resolveTargetNodeId,
-} from "../spec-generator/index.js";
+} from "../component-spec/types.js";
 
 export interface FigmaApgDocArgs {
   nodeId?: string;
@@ -966,7 +968,7 @@ function buildApgDocument(
 
 export async function figmaApgDocHandler(args: FigmaApgDocArgs): Promise<FigmaApgDocResult> {
   const framework = args.framework || "html";
-  const nodeId = await resolveTargetNodeId({ nodeId: args.nodeId, outputFormat: "json" });
+  const nodeId = await resolveTargetNodeId({ nodeId: args.nodeId });
   const snapshot = await captureSnapshot(nodeId);
   const match = guessPattern(snapshot, args.patternHint);
   const snippet = buildImplementationSnippet(match.definition, framework, args.includeCodeExamples ?? true);

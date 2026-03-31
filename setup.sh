@@ -516,9 +516,48 @@ ENVEOF
 echo "   ✔ Design Bridge config written to design-bridge/.env"
 echo ""
 
-# ─── Step 4: Patch Claude Code MCP config ─────────────────────────────────────
+# ─── Step 4: Register MCP servers with Claude Code CLI ───────────────────────
 echo "⚙️  Registering MCP server settings..."
 
+# Claude Code reads MCP servers from ~/.claude.json (managed by 'claude mcp add').
+# We also write to ~/.claude/settings.json for permissions and legacy compat.
+
+if [ -n "$CLAUDE_BIN" ]; then
+  # Remove any stale registrations first
+  "$CLAUDE_BIN" mcp remove figma-intelligence-layer >/dev/null 2>&1 || true
+  "$CLAUDE_BIN" mcp remove design-bridge >/dev/null 2>&1 || true
+
+  # Build env flag list for figma-intelligence-layer
+  FIL_ENV_ARGS=(-e "FIGMA_ACCESS_TOKEN=$FIGMA_TOKEN" -e "FIGMA_BRIDGE_PORT=9001" -e "ENABLE_DECISION_LOG=true")
+  [ -n "$UNSPLASH_ACCESS_KEY" ] && FIL_ENV_ARGS+=(-e "UNSPLASH_ACCESS_KEY=$UNSPLASH_ACCESS_KEY")
+  [ -n "$PEXELS_API_KEY" ]      && FIL_ENV_ARGS+=(-e "PEXELS_API_KEY=$PEXELS_API_KEY")
+
+  if "$CLAUDE_BIN" mcp add -s user "${FIL_ENV_ARGS[@]}" \
+      figma-intelligence-layer -- node "$REPO_DIR/figma-intelligence-layer/dist/index.js" 2>/dev/null; then
+    echo "   ✔ figma-intelligence-layer registered with Claude Code"
+  else
+    echo "   ⚠ Could not register figma-intelligence-layer via claude mcp add"
+  fi
+
+  # Build env flag list for design-bridge
+  DB_ENV_ARGS=(-e "STITCH_MODE=experimental" -e "USE_COLOR_API=true" -e "USE_ICONIFY=true" -e "USE_DICEBEAR=true" -e "USE_JSON_PLACEHOLDER=true" -e "USE_GOOGLE_FONTS=true" -e "USE_PIXABAY=true" -e "DEFAULT_THEME=auto" -e "DEFAULT_DARK_MODE=false")
+  [ -n "$STITCH_API_KEY" ]       && DB_ENV_ARGS+=(-e "STITCH_API_KEY=$STITCH_API_KEY")
+  [ -n "$GOOGLE_CLOUD_PROJECT" ] && DB_ENV_ARGS+=(-e "GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT")
+  [ -n "$UNSPLASH_ACCESS_KEY" ]  && DB_ENV_ARGS+=(-e "UNSPLASH_ACCESS_KEY=$UNSPLASH_ACCESS_KEY")
+  [ -n "$PEXELS_API_KEY" ]       && DB_ENV_ARGS+=(-e "PEXELS_API_KEY=$PEXELS_API_KEY")
+  [ -n "$GOOGLE_FONTS_API_KEY" ] && DB_ENV_ARGS+=(-e "GOOGLE_FONTS_API_KEY=$GOOGLE_FONTS_API_KEY")
+
+  if "$CLAUDE_BIN" mcp add -s user "${DB_ENV_ARGS[@]}" \
+      design-bridge -- node "$REPO_DIR/design-bridge/bridge.js" 2>/dev/null; then
+    echo "   ✔ design-bridge registered with Claude Code"
+  else
+    echo "   ⚠ Could not register design-bridge via claude mcp add"
+  fi
+else
+  echo "   ⚠ Claude CLI not found — skipping Claude Code MCP registration"
+fi
+
+# Also write to ~/.claude/settings.json for permissions + legacy tools
 node - "$REPO_DIR" "$FIGMA_TOKEN" "$CLAUDE_SETTINGS" \
   "$STITCH_API_KEY" "$GOOGLE_CLOUD_PROJECT" \
   "$UNSPLASH_ACCESS_KEY" "$PEXELS_API_KEY" "$GOOGLE_FONTS_API_KEY" << 'JSEOF'
@@ -534,63 +573,44 @@ if (fs.existsSync(settingsPath)) {
   }
 }
 
-if (!settings.mcpServers) settings.mcpServers = {};
-
-// Preserve any extra env vars that were already set (e.g. GEMINI_API_KEY)
-const existingEnv = settings.mcpServers['figma-intelligence-layer']?.env || {};
-
-// Read design-bridge .env before registering either MCP server
-const dbEnvPath = path.join(repoDir, 'design-bridge', '.env');
-let dbEnv = {};
-if (fs.existsSync(dbEnvPath)) {
-  fs.readFileSync(dbEnvPath, 'utf8').split('\n').forEach(line => {
-    const t = line.trim();
-    if (!t || t.startsWith('#')) return;
-    const idx = t.indexOf('=');
-    if (idx !== -1) dbEnv[t.slice(0, idx)] = t.slice(idx + 1);
-  });
+// Auto-allow all MCP tools so users don't need manual approval
+if (!settings.permissions) settings.permissions = {};
+if (!Array.isArray(settings.permissions.allow)) settings.permissions.allow = [];
+const mcpPerms = [
+  'mcp__figma-intelligence-layer__*',
+  'mcp__design-bridge__*',
+];
+for (const perm of mcpPerms) {
+  if (!settings.permissions.allow.includes(perm)) {
+    settings.permissions.allow.push(perm);
+  }
 }
-
-settings.mcpServers['figma-intelligence-layer'] = {
-  command: 'node',
-  args: [path.join(repoDir, 'figma-intelligence-layer', 'dist', 'index.js')],
-  env: {
-    ...existingEnv,
-    FIGMA_ACCESS_TOKEN: figmaToken,
-    FIGMA_BRIDGE_PORT: '9001',
-    ENABLE_DECISION_LOG: 'true',
-    ...(dbEnv.UNSPLASH_ACCESS_KEY ? { UNSPLASH_ACCESS_KEY: dbEnv.UNSPLASH_ACCESS_KEY } : {}),
-    ...(dbEnv.PEXELS_API_KEY ? { PEXELS_API_KEY: dbEnv.PEXELS_API_KEY } : {}),
-  }
-};
-
-// Register design-bridge MCP server
-settings.mcpServers['design-bridge'] = {
-  command: 'node',
-  args: [path.join(repoDir, 'design-bridge', 'bridge.js')],
-  env: {
-    STITCH_API_KEY:       dbEnv.STITCH_API_KEY || '',
-    GOOGLE_CLOUD_PROJECT: dbEnv.GOOGLE_CLOUD_PROJECT || '',
-    STITCH_MODE:          dbEnv.STITCH_MODE || 'experimental',
-    UNSPLASH_ACCESS_KEY:  dbEnv.UNSPLASH_ACCESS_KEY || '',
-    PEXELS_API_KEY:       dbEnv.PEXELS_API_KEY || '',
-    GOOGLE_FONTS_API_KEY: dbEnv.GOOGLE_FONTS_API_KEY || '',
-    DEFAULT_THEME:        dbEnv.DEFAULT_THEME || 'auto',
-    DEFAULT_DARK_MODE:    dbEnv.DEFAULT_DARK_MODE || 'false',
-    USE_COLOR_API:        'true',
-    USE_ICONIFY:          'true',
-    USE_DICEBEAR:         'true',
-    USE_JSON_PLACEHOLDER: 'true',
-    USE_GOOGLE_FONTS:     'true',
-    USE_PIXABAY:          'true',
-  }
-};
 
 fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
 fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
-console.log('   ✔ figma-intelligence-layer registered in ~/.claude/settings.json');
-console.log('   ✔ design-bridge registered in ~/.claude/settings.json');
+console.log('   ✔ MCP tool permissions auto-enabled (no manual approval needed)');
 JSEOF
+
+# Quick smoke-test: verify the MCP server starts and responds to handshake
+echo "🔍 Verifying MCP server can start..."
+VERIFY_RESULT=$(node -e "
+const { spawn } = require('child_process');
+const p = spawn('node', ['$REPO_DIR/figma-intelligence-layer/dist/index.js'], {
+  env: { ...process.env, FIGMA_ACCESS_TOKEN: '$FIGMA_TOKEN', FIGMA_BRIDGE_PORT: '0' },
+  stdio: ['pipe', 'pipe', 'pipe']
+});
+const init = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'verify', version: '1.0.0' } } });
+let responded = false;
+p.stdout.on('data', () => { if (!responded) { responded = true; console.log('ok'); p.kill(); } });
+p.stdin.write(init + '\n');
+setTimeout(() => { if (!responded) { console.log('timeout'); } p.kill(); process.exit(0); }, 5000);
+" 2>/dev/null)
+
+if [ "$VERIFY_RESULT" = "ok" ]; then
+  echo "   ✔ MCP server responds to initialize handshake"
+else
+  echo "   ⚠ MCP server did not respond in time — check figma-intelligence-layer/dist/index.js"
+fi
 
 # ─── Step 5: Register Codex MCP config ───────────────────────────────────────
 echo "⚙️  Registering MCP server settings for Codex..."
@@ -768,6 +788,18 @@ fs.mkdirSync(path.dirname(mcpPath), { recursive: true });
 fs.writeFileSync(mcpPath, JSON.stringify(config, null, 2));
 console.log('   ✔ figma-intelligence-layer registered in .vscode/mcp.json');
 console.log('   ✔ design-bridge registered in .vscode/mcp.json');
+
+// Write .vscode/settings.json to auto-enable MCP in VS Code
+const vsSettingsPath = path.join(path.dirname(mcpPath), 'settings.json');
+let vsSettings = {};
+if (fs.existsSync(vsSettingsPath)) {
+  try { vsSettings = JSON.parse(fs.readFileSync(vsSettingsPath, 'utf8')); } catch (e) {}
+}
+vsSettings['chat.mcp.discovery.enabled'] = true;
+vsSettings['chat.mcp.autostart'] = true;
+vsSettings['github.copilot.chat.mcp.enabled'] = true;
+fs.writeFileSync(vsSettingsPath, JSON.stringify(vsSettings, null, 2) + '\n');
+console.log('   ✔ MCP auto-enabled in .vscode/settings.json');
 JSEOF2
 
 # ─── Step 7: Install bridge relay as a macOS launch service ───────────────────
@@ -870,16 +902,43 @@ echo ""
 echo "🔧 Installing VS Code bridge extension (Design + Code dual output)..."
 
 VSCODE_EXT_SRC="$REPO_DIR/vscode-chat-extension"
-VSCODE_EXT_DEST="$HOME/.vscode/extensions/figma-intelligence-bridge-0.1.0"
 
 if [ -d "$VSCODE_EXT_SRC/dist" ]; then
-  rm -rf "$VSCODE_EXT_DEST"
-  mkdir -p "$VSCODE_EXT_DEST"
-  cp "$VSCODE_EXT_SRC/package.json" "$VSCODE_EXT_DEST/"
-  cp -r "$VSCODE_EXT_SRC/dist" "$VSCODE_EXT_DEST/"
-  cp -r "$VSCODE_EXT_SRC/media" "$VSCODE_EXT_DEST/"
-  cp -r "$VSCODE_EXT_SRC/node_modules" "$VSCODE_EXT_DEST/"
-  echo "   ✔ Extension installed to ~/.vscode/extensions/"
+  # Try VSIX install first (most reliable), fall back to manual copy
+  CODE_BIN="$(command -v code 2>/dev/null || true)"
+  VSIX_INSTALLED=false
+
+  if [ -n "$CODE_BIN" ]; then
+    echo "   Found VS Code CLI: $CODE_BIN"
+    echo "   Packaging extension as VSIX..."
+    cd "$VSCODE_EXT_SRC"
+    if npx --yes @vscode/vsce package --allow-missing-repository 2>/dev/null; then
+      VSIX_FILE="$(ls -t "$VSCODE_EXT_SRC"/*.vsix 2>/dev/null | head -1)"
+      if [ -n "$VSIX_FILE" ]; then
+        if "$CODE_BIN" --install-extension "$VSIX_FILE" --force 2>/dev/null; then
+          echo "   ✔ Extension installed via VS Code CLI"
+          VSIX_INSTALLED=true
+          rm -f "$VSIX_FILE"
+        fi
+      fi
+    fi
+  fi
+
+  if [ "$VSIX_INSTALLED" != true ]; then
+    # Fallback: copy directly to extensions folder
+    VSCODE_EXT_DEST="$HOME/.vscode/extensions/figma-intelligence-bridge-0.1.0"
+    rm -rf "$VSCODE_EXT_DEST"
+    mkdir -p "$VSCODE_EXT_DEST"
+    cp "$VSCODE_EXT_SRC/package.json" "$VSCODE_EXT_DEST/"
+    cp -r "$VSCODE_EXT_SRC/dist" "$VSCODE_EXT_DEST/"
+    [ -d "$VSCODE_EXT_SRC/media" ] && cp -r "$VSCODE_EXT_SRC/media" "$VSCODE_EXT_DEST/"
+    cp -r "$VSCODE_EXT_SRC/node_modules" "$VSCODE_EXT_DEST/"
+    echo "   ✔ Extension installed to ~/.vscode/extensions/"
+    if [ -z "$CODE_BIN" ]; then
+      echo "   ℹ  Tip: Run 'Shell Command: Install code command in PATH' in VS Code"
+      echo "      so future setups can install via the VS Code CLI (more reliable)"
+    fi
+  fi
   echo "   ℹ  Restart VS Code to activate — then use 'Design + Code' mode in the Figma plugin"
 else
   echo "   ⚠ VS Code extension build not found — skipping"
@@ -901,7 +960,11 @@ echo "  4. Run the plugin:"
 echo "     Plugins → Development → Figma Intelligence Bridge"
 echo "  5. Click  ▶ Start  — you should see  ✅ Connected"
 echo ""
-echo "  Then restart VS Code, Claude Code, or Codex if you use MCP tools there."
+echo ""
+echo "⚠  IMPORTANT: Restart these apps to pick up MCP changes:"
+echo "   • Claude Code: exit the terminal and run 'claude' again"
+echo "   • VS Code: Cmd+Shift+P → 'Reload Window'"
+echo "   • Codex: restart the codex process"
 echo ""
 echo "Components registered:"
 echo "   ✔ figma-intelligence-layer — reads/writes Figma files (MCP server)"

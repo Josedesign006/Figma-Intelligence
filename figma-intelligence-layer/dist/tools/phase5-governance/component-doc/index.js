@@ -7,7 +7,43 @@
  * variants, states, spacing & structure, color tokens, typography, usage
  * guidelines, accessibility (via APG doc), and API / props table.
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.captureSpacingStructure = captureSpacingStructure;
+exports.captureColorTokenMap = captureColorTokenMap;
+exports.captureTypographySpec = captureTypographySpec;
 exports.componentDocHandler = componentDocHandler;
 const figma_bridge_js_1 = require("../../../shared/figma-bridge.js");
 const decision_log_js_1 = require("../../../shared/decision-log.js");
@@ -2169,8 +2205,8 @@ async function createVisualDocPage(spec, nodeId, pageName) {
         cell.strokeBottomWeight = 1; cell.strokeTopWeight = 0; cell.strokeLeftWeight = 0; cell.strokeRightWeight = 0;
         if (hasToken && text && text !== "\\u2014") {
           var badge = tokenBadge(String(text).slice(0, 40));
-          badge.layoutSizingHorizontal = "FILL";
           cell.appendChild(badge);
+          try { badge.layoutSizingHorizontal = "FILL"; } catch(e) {}
         } else {
           cell.appendChild(T(text || "\\u2014", isHeader ? fontSemiBold : fontRegular, isHeader ? 14 : 13, isHeader ? C.text : C.textMuted, w - 32));
         }
@@ -2730,16 +2766,22 @@ async function createVisualDocPage(spec, nodeId, pageName) {
       // ── Normalize all root children: FILL width + HUG height ──
       if ('children' in root) {
         for (var rc of root.children) {
-          if ('layoutSizingHorizontal' in rc) {
-            rc.layoutSizingHorizontal = 'FILL';
-          }
-          // HUG vertically for auto-layout sections; keep dividers/fixed frames as FIXED
-          if ('layoutSizingVertical' in rc && 'layoutMode' in rc && rc.layoutMode && rc.layoutMode !== 'NONE') {
-            rc.layoutSizingVertical = 'HUG';
-          }
-          if ('layoutAlign' in rc) {
-            rc.layoutAlign = 'STRETCH';
-          }
+          try {
+            if ('layoutSizingHorizontal' in rc) {
+              rc.layoutSizingHorizontal = 'FILL';
+            }
+          } catch(e) {}
+          try {
+            // HUG vertically for auto-layout sections; keep dividers/fixed frames as FIXED
+            if ('layoutSizingVertical' in rc && 'layoutMode' in rc && rc.layoutMode && rc.layoutMode !== 'NONE') {
+              rc.layoutSizingVertical = 'HUG';
+            }
+          } catch(e) {}
+          try {
+            if ('layoutAlign' in rc) {
+              rc.layoutAlign = 'STRETCH';
+            }
+          } catch(e) {}
         }
       }
 
@@ -2846,8 +2888,8 @@ async function createVisualDocPage(spec, nodeId, pageName) {
         cell.strokeBottomWeight = 1; cell.strokeTopWeight = 0; cell.strokeLeftWeight = 0; cell.strokeRightWeight = 0;
         if (hasToken && text && text !== "\\u2014") {
           var badge = tokenBadge(String(text).slice(0, 40));
-          badge.layoutSizingHorizontal = "FILL";
           cell.appendChild(badge);
+          try { badge.layoutSizingHorizontal = "FILL"; } catch(e) {}
         } else {
           cell.appendChild(T(text || "\\u2014", isHeader ? fontSemiBold : fontRegular, isHeader ? 14 : 13, isHeader ? C.text : C.textMuted, w - 32));
         }
@@ -3247,16 +3289,22 @@ async function createVisualDocPage(spec, nodeId, pageName) {
       // ── Normalize all root children: FILL width + HUG height ──
       if ('children' in root) {
         for (var rc of root.children) {
-          if ('layoutSizingHorizontal' in rc) {
-            rc.layoutSizingHorizontal = 'FILL';
-          }
-          // HUG vertically for auto-layout sections; keep dividers/fixed frames as FIXED
-          if ('layoutSizingVertical' in rc && 'layoutMode' in rc && rc.layoutMode && rc.layoutMode !== 'NONE') {
-            rc.layoutSizingVertical = 'HUG';
-          }
-          if ('layoutAlign' in rc) {
-            rc.layoutAlign = 'STRETCH';
-          }
+          try {
+            if ('layoutSizingHorizontal' in rc) {
+              rc.layoutSizingHorizontal = 'FILL';
+            }
+          } catch(e) {}
+          try {
+            // HUG vertically for auto-layout sections; keep dividers/fixed frames as FIXED
+            if ('layoutSizingVertical' in rc && 'layoutMode' in rc && rc.layoutMode && rc.layoutMode !== 'NONE') {
+              rc.layoutSizingVertical = 'HUG';
+            }
+          } catch(e) {}
+          try {
+            if ('layoutAlign' in rc) {
+              rc.layoutAlign = 'STRETCH';
+            }
+          } catch(e) {}
         }
       }
 
@@ -3370,8 +3418,8 @@ async function createVisualDocPage(spec, nodeId, pageName) {
           cell.strokeBottomWeight = 1; cell.strokeTopWeight = 0; cell.strokeLeftWeight = 0; cell.strokeRightWeight = 0;
           if (hasToken && text && text !== "\\u2014") {
             var badge = tokenBadge(String(text).slice(0, 40));
-            badge.layoutSizingHorizontal = "FILL";
             cell.appendChild(badge);
+            try { badge.layoutSizingHorizontal = "FILL"; } catch(e) {}
           } else {
             cell.appendChild(T(text || "\\u2014", isHeader ? fontSemiBold : fontRegular, isHeader ? 14 : 13, isHeader ? C.text : C.textMuted, w - 32));
           }
@@ -3564,15 +3612,22 @@ async function createVisualDocPage(spec, nodeId, pageName) {
         // ── Normalize all root children: FILL width + HUG height ──
         if ('children' in root) {
           for (var rc of root.children) {
-            if ('layoutSizingHorizontal' in rc) {
-              rc.layoutSizingHorizontal = 'FILL';
-            }
-            if ('layoutSizingVertical' in rc) {
-              rc.layoutSizingVertical = 'HUG';
-            }
-            if ('layoutAlign' in rc) {
-              rc.layoutAlign = 'STRETCH';
-            }
+            try {
+              if ('layoutSizingHorizontal' in rc) {
+                rc.layoutSizingHorizontal = 'FILL';
+              }
+            } catch(e) {}
+            try {
+              // HUG vertically for auto-layout sections; keep dividers/fixed frames as FIXED
+              if ('layoutSizingVertical' in rc && 'layoutMode' in rc && rc.layoutMode && rc.layoutMode !== 'NONE') {
+                rc.layoutSizingVertical = 'HUG';
+              }
+            } catch(e) {}
+            try {
+              if ('layoutAlign' in rc) {
+                rc.layoutAlign = 'STRETCH';
+              }
+            } catch(e) {}
           }
         }
 
@@ -3707,9 +3762,35 @@ async function componentDocHandler(args) {
             spec.accessibility = convertAccessibilityOverrides(co.accessibility);
         }
     }
-    // 7. Generate report
+    // 7. Log spec data for debugging
+    const fs = await Promise.resolve().then(() => __importStar(require("fs")));
+    fs.writeFileSync("/tmp/figma-spec-data.json", JSON.stringify({
+        componentName: spec.componentName,
+        nodeId: spec.nodeId,
+        nodeType: spec.nodeType,
+        overviewDesc: spec.overview.description?.slice(0, 200),
+        purpose: spec.purpose?.slice(0, 200),
+        anatomyCount: spec.anatomy.length,
+        variantsCount: spec.variants.length,
+        variantsDetailedCount: spec.variantsDetailed?.length || 0,
+        statesCount: spec.states.length,
+        sizesCount: spec.sizes.length,
+        spacingCount: spec.spacing.length,
+        colorTokensCount: spec.colorTokens.length,
+        typographyCount: spec.typography.length,
+        propsCount: spec.props.length,
+        a11yCount: spec.accessibility.length,
+        compositionsCount: spec.supportedCompositions?.length || 0,
+        qaCount: spec.qaChecklist.length,
+        hierarchy: spec.hierarchy?.slice(0, 200),
+        behaviour: spec.behaviour?.slice(0, 200),
+        interactionRules: spec.interactionRules?.slice(0, 200),
+        contentGuidance: spec.contentGuidance?.slice(0, 200),
+        responsive: spec.responsive?.slice(0, 200),
+    }, null, 2));
+    // 8. Generate report
     const report = formatSpecAsReport(spec);
-    // 8. Always create Figma documentation page (complete spec in one call)
+    // 9. Always create Figma documentation page (complete spec in one call)
     let figmaPageId;
     const shouldCreatePage = args.outputFormat !== "json" && args.outputFormat !== "report";
     if (shouldCreatePage || args.outputFormat === "figma-page" || args.outputFormat === "all") {

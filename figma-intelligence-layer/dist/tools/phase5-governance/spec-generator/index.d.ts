@@ -1,3 +1,4 @@
+import { type SpacingEntry, type ColorTokenEntry, type TypographyEntry } from "../component-doc/index.js";
 export interface GenerateSpecArgs {
     nodeId?: string;
     outputFormat: "json" | "report" | "figma-page" | "all";
@@ -109,6 +110,9 @@ export interface DesignSpec {
     };
     implementationNotes: string[];
     documentationGaps: string[];
+    spacingEntries?: SpacingEntry[];
+    colorTokenEntries?: ColorTokenEntry[];
+    typographyEntries?: TypographyEntry[];
 }
 export interface GenerateSpecResult {
     spec: DesignSpec;

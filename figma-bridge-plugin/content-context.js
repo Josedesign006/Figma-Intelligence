@@ -185,30 +185,65 @@ function createContentSource(title, text, meta) {
 }
 
 /**
- * Extract keywords from a query string (shared helper for search & grounding).
+ * Extract keywords from a query string, including bigrams for compound concepts.
+ * E.g., "design system components" → ["design system", "design", "system", "components"]
  */
 function extractKeywords(query) {
-  return (query || "")
+  const words = (query || "")
     .toLowerCase()
-    .replace(/[^\w\s]/g, " ")
+    .replace(/[^\w\s-]/g, " ")
     .split(/\s+/)
     .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
+
+  // Generate bigrams for multi-word concepts
+  const bigrams = [];
+  for (let i = 0; i < words.length - 1; i++) {
+    bigrams.push(words[i] + " " + words[i + 1]);
+  }
+
+  // Return bigrams first (higher specificity), then unigrams
+  return [...bigrams, ...words];
 }
 
 /**
- * Score a text block against keywords. Returns { score, matchedCount }.
+ * Score a text block against keywords using TF-IDF-like weighting.
+ * Bigrams score 4x (more specific), word-boundary matches score 2x,
+ * substring matches score 1x. Multiple occurrences add diminishing returns.
  */
 function scoreText(text, keywords) {
   const lower = text.toLowerCase();
   let score = 0;
   let matchedCount = 0;
+  const uniqueMatches = new Set();
+
   for (const kw of keywords) {
-    if (lower.includes(kw)) {
-      matchedCount++;
-      const regex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
-      score += regex.test(text) ? 2 : 1;
+    if (!lower.includes(kw)) continue;
+
+    const isBigram = kw.includes(" ");
+    const regex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
+    const matches = text.match(regex);
+
+    if (matches) {
+      // Count unique keyword roots matched
+      if (isBigram) {
+        kw.split(" ").forEach((w) => uniqueMatches.add(w));
+      } else {
+        uniqueMatches.add(kw);
+      }
+
+      // Score: bigrams are worth more (more specific match)
+      const baseScore = isBigram ? 4 : 2;
+      // Diminishing returns for repeated matches: 1st=full, 2nd=half, 3rd+=quarter
+      const occurrences = Math.min(matches.length, 5);
+      score += baseScore + Math.min(occurrences - 1, 3) * (baseScore * 0.25);
+    } else {
+      // Substring match (less precise)
+      uniqueMatches.add(isBigram ? kw.split(" ")[0] : kw);
+      score += isBigram ? 2 : 0.5;
     }
   }
+
+  matchedCount = uniqueMatches.size;
   return { score, matchedCount };
 }
 
@@ -271,55 +306,113 @@ function buildGroundingContext(contentSources, userQuery) {
   if (!contentSources || contentSources.size === 0) return "";
 
   const keywords = extractKeywords(userQuery);
-  const sourceCount = contentSources.size;
-  const perSourceBudget = Math.floor(GROUNDING_CHAR_BUDGET / Math.max(sourceCount, 1));
 
-  // Score each source for relevance
-  const scoredSources = [];
+  // For chunked sources: score individual chunks and pick the best ones globally
+  // For non-chunked sources: sample multiple positions (not just first 2000 chars)
+  const allScoredChunks = []; // { sourceTitle, chunkTitle, content, score, meta }
+
   for (const [id, data] of contentSources) {
-    let totalScore = 0;
-    for (const src of data.sources) {
-      if (src.content) {
-        const { score } = scoreText(src.content.slice(0, 2000), keywords);
-        totalScore += score;
+    if (data.isChunked && data.sources.length > 1) {
+      // Chunked source: score each chunk individually
+      // Extract unigrams for pre-filter (bigrams are checked in full scoring)
+      const unigrams = keywords.filter((k) => !k.includes(" "));
+
+      for (const src of data.sources) {
+        if (!src.content) continue;
+        // Pre-filter: check if any unigrams match stored chunk keywords
+        let preScore = 0;
+        if (src.keywords && unigrams.length > 0) {
+          for (const kw of unigrams) {
+            // Exact match on stored keywords (not substring)
+            if (src.keywords.includes(kw)) {
+              preScore += 2;
+            } else if (src.keywords.some((ck) => ck.includes(kw))) {
+              preScore += 0.5;
+            }
+          }
+        }
+        // Full text scoring for chunks that passed pre-filter
+        if (preScore > 0 || keywords.length === 0) {
+          const { score: textScore, matchedCount } = scoreText(src.content.slice(0, 4000), keywords);
+          const totalScore = preScore + textScore;
+          if (totalScore > 0 || keywords.length === 0) {
+            allScoredChunks.push({
+              sourceTitle: data.title,
+              chunkTitle: src.title || data.title,
+              content: src.content,
+              score: totalScore,
+              matchedCount,
+              meta: data.meta,
+            });
+          }
+        }
+      }
+    } else {
+      // Non-chunked source: sample multiple positions across the content
+      for (const src of data.sources) {
+        if (!src.content) continue;
+        let totalScore = 0;
+        const len = src.content.length;
+        const sampleSize = 2000;
+        const positions = [0, Math.floor(len * 0.25), Math.floor(len * 0.5), Math.floor(len * 0.75)];
+        for (const pos of positions) {
+          const { score } = scoreText(src.content.slice(pos, pos + sampleSize), keywords);
+          totalScore += score;
+        }
+        allScoredChunks.push({
+          sourceTitle: data.title,
+          chunkTitle: data.title,
+          content: src.content,
+          score: totalScore,
+          meta: data.meta,
+        });
       }
     }
-    scoredSources.push({ id, data, score: totalScore });
   }
 
-  // Sort by relevance, filter out zero-score sources (if we have keywords)
-  scoredSources.sort((a, b) => b.score - a.score);
-  const relevantSources = keywords.length > 0
-    ? scoredSources.filter((s) => s.score > 0)
-    : scoredSources;
+  if (allScoredChunks.length === 0) return "";
 
-  // If no relevant sources found, include all (user might ask follow-up)
-  const sourcesToInclude = relevantSources.length > 0 ? relevantSources : scoredSources;
-  if (sourcesToInclude.length === 0) return "";
+  // Sort all chunks by score, take the best ones within budget
+  allScoredChunks.sort((a, b) => b.score - a.score);
 
-  // Redistribute budget to relevant sources only
-  const adjustedBudget = Math.floor(GROUNDING_CHAR_BUDGET / sourcesToInclude.length);
+  // Filter to relevant chunks (score > 0) if we have keywords
+  const relevant = keywords.length > 0
+    ? allScoredChunks.filter((c) => c.score > 0)
+    : allScoredChunks;
+
+  const chunksToInclude = relevant.length > 0 ? relevant : allScoredChunks.slice(0, 5);
 
   const parts = [];
   parts.push("=== KNOWLEDGE CONTEXT ===");
-  parts.push("Cite sources by name when referencing this material.\n");
+  parts.push("The following excerpts are from the user's knowledge library. Use them to provide accurate, well-sourced answers. Synthesize the information — do not dump raw text.\n");
 
-  for (const { data } of sourcesToInclude) {
-    const metaInfo = [];
-    if (data.meta?.url) metaInfo.push(data.meta.url);
-    const metaStr = metaInfo.length > 0 ? ` (${metaInfo.join(", ")})` : "";
+  let usedChars = 0;
+  let currentSource = "";
 
-    parts.push(`--- "${data.title}"${metaStr} ---`);
-    for (const src of data.sources) {
-      if (src.content) {
-        const passage = extractRelevantPassages(src.content, keywords, adjustedBudget);
-        parts.push(passage);
-      }
+  for (const chunk of chunksToInclude) {
+    if (usedChars >= GROUNDING_CHAR_BUDGET) break;
+
+    // Add source header if it changed
+    if (chunk.sourceTitle !== currentSource) {
+      const metaInfo = [];
+      if (chunk.meta?.url) metaInfo.push(chunk.meta.url);
+      const metaStr = metaInfo.length > 0 ? ` (${metaInfo.join(", ")})` : "";
+      parts.push(`\n--- "${chunk.sourceTitle}"${metaStr} ---`);
+      currentSource = chunk.sourceTitle;
     }
-    parts.push("");
+
+    // Add chunk heading if different from source title
+    if (chunk.chunkTitle && chunk.chunkTitle !== chunk.sourceTitle) {
+      parts.push(`\n### ${chunk.chunkTitle}`);
+    }
+
+    const remaining = GROUNDING_CHAR_BUDGET - usedChars;
+    const passage = extractRelevantPassages(chunk.content, keywords, remaining);
+    parts.push(passage);
+    usedChars += passage.length;
   }
 
-  parts.push("=== END KNOWLEDGE CONTEXT ===\n");
+  parts.push("\n=== END KNOWLEDGE CONTEXT ===\n");
   return parts.join("\n");
 }
 
@@ -340,21 +433,48 @@ function scanKnowledgeHub() {
 
   return files
     .filter((f) => {
+      if (f.startsWith(".")) return false;
+      // Prefer .chunks.json — hide the original PDF if a chunks file exists
+      if (f.endsWith(".chunks.json")) return true;
       const ext = path.extname(f).toLowerCase();
-      return supported.includes(ext) && !f.startsWith(".");
+      if (!supported.includes(ext)) return false;
+      // Hide PDFs that have been converted to chunks
+      if (ext === ".pdf") {
+        const slug = f.replace(/\.pdf$/i, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        if (files.includes(`${slug}.chunks.json`)) return false;
+      }
+      return true;
     })
     .map((f) => {
-      const ext = path.extname(f).toLowerCase().replace(".", "");
+      const isChunks = f.endsWith(".chunks.json");
+      const ext = isChunks ? "chunks" : path.extname(f).toLowerCase().replace(".", "");
       const stat = fs.statSync(path.join(KNOWLEDGE_HUB_DIR, f));
       const cached = _hubCache.get(f);
+
+      let title = f.replace(/\.chunks\.json$/, "").replace(/\.\w+$/, "").replace(/[-_]/g, " ");
+      let charCount = cached ? cached.totalChars || cached.text?.length : null;
+      let preview = cached ? (cached.preview || (cached.text || "").slice(0, 200)).replace(/\s+/g, " ").trim() : null;
+
+      // For chunks files, read title from the JSON metadata
+      if (isChunks && !cached) {
+        try {
+          const meta = JSON.parse(fs.readFileSync(path.join(KNOWLEDGE_HUB_DIR, f), "utf8"));
+          title = meta.title || title;
+          charCount = meta.totalChars || null;
+          preview = meta.chunks?.[0]?.text?.slice(0, 200)?.replace(/\s+/g, " ")?.trim() || null;
+        } catch {}
+      } else if (isChunks && cached) {
+        title = cached.title || title;
+      }
+
       return {
         fileName: f,
         fileType: ext,
-        title: f.replace(/\.\w+$/, "").replace(/[-_]/g, " "),
+        title,
         sizeBytes: stat.size,
         cached: !!cached,
-        preview: cached ? cached.text.slice(0, 200).replace(/\s+/g, " ").trim() : null,
-        charCount: cached ? cached.text.length : null,
+        preview,
+        charCount,
       };
     });
 }
@@ -374,10 +494,39 @@ async function loadHubFile(fileName) {
   const stat = fs.statSync(filePath);
   const cached = _hubCache.get(fileName);
   if (cached && cached.mtime === stat.mtimeMs) {
+    if (cached.chunks) {
+      // Return chunked source (multi-source for chunk-level scoring)
+      return createChunkedContentSource(cached.title, cached.chunks, cached.meta);
+    }
     return createContentSource(cached.title, cached.text, cached.meta);
   }
 
-  // Parse the file
+  // Handle .chunks.json files (pre-indexed, instant load)
+  if (fileName.endsWith(".chunks.json")) {
+    const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    const meta = {
+      fileName,
+      fileType: "chunks",
+      hubFile: true,
+      pages: data.pages,
+      source: data.source,
+      chunkCount: data.chunks.length,
+    };
+
+    // Cache the chunks
+    _hubCache.set(fileName, {
+      title: data.title,
+      chunks: data.chunks,
+      totalChars: data.totalChars,
+      preview: data.chunks[0]?.text?.slice(0, 200) || "",
+      meta,
+      mtime: stat.mtimeMs,
+    });
+
+    return createChunkedContentSource(data.title, data.chunks, meta);
+  }
+
+  // Parse the file (PDF, DOCX, plain text)
   const buffer = fs.readFileSync(filePath);
   const ext = path.extname(fileName).toLowerCase();
   let title, text;
@@ -408,6 +557,25 @@ async function loadHubFile(fileName) {
 }
 
 /**
+ * Create a content source from pre-chunked data.
+ * Each chunk becomes a separate source entry for chunk-level scoring.
+ */
+function createChunkedContentSource(title, chunks, meta) {
+  return {
+    id: "hub-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6),
+    title,
+    sources: chunks.map((chunk) => ({
+      title: chunk.heading || title,
+      content: chunk.text,
+      keywords: chunk.keywords || [],
+    })),
+    meta: meta || {},
+    extractedAt: new Date().toISOString(),
+    isChunked: true,
+  };
+}
+
+/**
  * Search the knowledge hub for files relevant to a query.
  * Simple keyword matching against file names and cached content.
  */
@@ -434,19 +602,18 @@ const STOP_WORDS = new Set([
   "should", "may", "might", "shall", "can", "need", "must",
   "i", "me", "my", "we", "our", "you", "your", "he", "she", "it",
   "they", "them", "their", "this", "that", "these", "those",
-  "what", "which", "who", "whom", "how", "when", "where", "why",
   "and", "or", "but", "not", "no", "nor", "so", "if", "then",
   "of", "in", "on", "at", "to", "for", "with", "by", "from",
   "about", "into", "through", "during", "before", "after",
   "above", "below", "between", "under", "over",
   "just", "also", "very", "too", "more", "most", "some", "any",
   "all", "each", "every", "both", "few", "many", "much",
-  "tell", "me", "explain", "describe", "show",
+  "tell", "explain", "describe", "show",
 ]);
 
 /**
  * Search loaded content sources for a direct answer to a query.
- * Returns a formatted answer with source attribution, or null if no confident match.
+ * Scores ALL paragraphs globally, returns the top matches with surrounding context.
  */
 function searchContentForAnswer(query, contentSources) {
   if (!query || !contentSources || contentSources.size === 0) return null;
@@ -454,62 +621,84 @@ function searchContentForAnswer(query, contentSources) {
   const keywords = extractKeywords(query);
   if (keywords.length === 0) return null;
 
-  let bestMatch = null;
-  let bestScore = 0;
+  // Count only unique unigrams for threshold (bigrams are bonus)
+  const uniqueKeywords = keywords.filter((k) => !k.includes(" "));
+  const minMatches = Math.max(2, Math.ceil(uniqueKeywords.length * 0.4));
+
+  // Score ALL paragraphs globally
+  const candidates = [];
 
   for (const [, source] of contentSources) {
     for (const src of source.sources) {
       if (!src.content) continue;
-      const text = src.content;
+      const paragraphs = src.content.split(/\n{2,}/).filter((p) => p.trim().length > 40);
 
-      // Split into paragraphs
-      const paragraphs = text.split(/\n{2,}/).filter((p) => p.trim().length > 50);
+      for (let pi = 0; pi < paragraphs.length; pi++) {
+        const para = paragraphs[pi];
+        const { score, matchedCount } = scoreText(para, keywords);
 
-      for (const para of paragraphs) {
-        const paraLower = para.toLowerCase();
-        let score = 0;
-        let matchedKeywords = 0;
-
-        for (const kw of keywords) {
-          if (paraLower.includes(kw)) {
-            matchedKeywords++;
-            // Bonus for exact word boundary match
-            const regex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
-            score += regex.test(para) ? 2 : 1;
+        if (matchedCount >= minMatches) {
+          // Include surrounding context (previous + next paragraph) for better answers
+          const contextParts = [];
+          if (pi > 0 && paragraphs[pi - 1].trim().length > 30) {
+            contextParts.push(paragraphs[pi - 1].trim());
           }
-        }
-
-        // Require at least 3 keyword hits or 60% of keywords matched
-        const matchRatio = matchedKeywords / keywords.length;
-        if (matchedKeywords >= 3 || (keywords.length <= 3 && matchRatio >= 0.6)) {
-          if (score > bestScore) {
-            bestScore = score;
-            bestMatch = {
-              text: para.trim(),
-              title: source.title,
-              meta: source.meta,
-            };
+          contextParts.push(para.trim());
+          if (pi < paragraphs.length - 1 && paragraphs[pi + 1].trim().length > 30) {
+            contextParts.push(paragraphs[pi + 1].trim());
           }
+
+          candidates.push({
+            text: contextParts.join("\n\n"),
+            mainPara: para.trim(),
+            score,
+            matchedCount,
+            title: src.title || source.title,
+            sourceTitle: source.title,
+            meta: source.meta,
+          });
         }
       }
     }
   }
 
-  if (!bestMatch) return null;
+  if (candidates.length === 0) return null;
 
-  // Format the answer with source attribution
-  const snippet = bestMatch.text.length > 1500
-    ? bestMatch.text.slice(0, 1500) + "..."
-    : bestMatch.text;
+  // Sort by score descending, take top 3 for a richer answer
+  candidates.sort((a, b) => b.score - a.score);
+  const topMatches = candidates.slice(0, 3);
+
+  // Deduplicate overlapping text
+  const seen = new Set();
+  const uniqueMatches = topMatches.filter((m) => {
+    const key = m.mainPara.slice(0, 100);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  // Format the answer
+  const parts = [];
+  for (const match of uniqueMatches) {
+    const snippet = match.text.length > 1200
+      ? match.text.slice(0, 1200) + "..."
+      : match.text;
+
+    const heading = match.title !== match.sourceTitle
+      ? `**From "${match.sourceTitle}" — ${match.title}**`
+      : `**From "${match.sourceTitle}"**`;
+
+    parts.push(`${heading}:\n\n> ${snippet}`);
+  }
 
   const metaInfo = [];
-  if (bestMatch.meta?.fileType) metaInfo.push(bestMatch.meta.fileType.toUpperCase());
-  if (bestMatch.meta?.pages) metaInfo.push(`${bestMatch.meta.pages} pages`);
+  if (uniqueMatches[0].meta?.fileType) metaInfo.push(uniqueMatches[0].meta.fileType.toUpperCase());
+  if (uniqueMatches[0].meta?.pages) metaInfo.push(`${uniqueMatches[0].meta.pages} pages`);
   const metaStr = metaInfo.length > 0 ? ` (${metaInfo.join(", ")})` : "";
 
   return {
-    text: `**From "${bestMatch.title}"**${metaStr}:\n\n> ${snippet}\n\n_Source: "${bestMatch.title}"_`,
-    sources: [{ title: bestMatch.title, meta: bestMatch.meta }],
+    text: parts.join("\n\n---\n\n") + `\n\n_Sources: ${[...new Set(uniqueMatches.map((m) => `"${m.sourceTitle}"`))].join(", ")}${metaStr}_`,
+    sources: uniqueMatches.map((m) => ({ title: m.sourceTitle, meta: m.meta })),
   };
 }
 
@@ -642,11 +831,30 @@ function formatWebAnswer(title, text, url, siteName) {
   };
 }
 
+/**
+ * Pre-warm the hub cache by loading all .chunks.json files.
+ * Call on relay startup for instant first-query response.
+ */
+async function prewarmHub() {
+  const catalog = scanKnowledgeHub();
+  let loaded = 0;
+  for (const file of catalog) {
+    if (file.fileName.endsWith(".chunks.json")) {
+      try {
+        await loadHubFile(file.fileName);
+        loaded++;
+      } catch {}
+    }
+  }
+  return loaded;
+}
+
 module.exports = {
   parsePdfBuffer,
   parseDocxBuffer,
   fetchUrlContent,
   createContentSource,
+  createChunkedContentSource,
   buildGroundingContext,
   scanKnowledgeHub,
   loadHubFile,
@@ -656,5 +864,6 @@ module.exports = {
   getReferenceSites,
   addReferenceSite,
   removeReferenceSite,
+  prewarmHub,
   KNOWLEDGE_HUB_DIR,
 };

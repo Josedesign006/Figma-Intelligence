@@ -24,7 +24,8 @@ function loadSpecReference(specType) {
     'color': 'color-spec.md',
     'structure': 'structure-spec.md',
     'screen-reader': 'screen-reader-spec.md',
-    'all': 'SKILL.md'
+    'all': 'SKILL.md',
+    'full-template': 'full-spec-template.md',
   };
   const file = filenames[specType];
   if (!file) return '';
@@ -336,22 +337,35 @@ Validate: figma_layout_intelligence(recursive:true).
 
     if (specType === "all") {
       // Generate complete spec directly — no chooser, no 2-phase workflow
+      // Load the gold-standard template as writing reference
+      const fullTemplate = loadSpecReference('full-template');
       sections.push(`
 === COMPONENT DOC GENERATOR SKILL (HIGHEST PRIORITY) ===
 
-Generate a COMPLETE component specification directly in Figma. The tool auto-enriches all 21+ sections from the knowledge base — no manual content generation needed.
+Generate a COMPLETE component specification directly in Figma.
 
-SINGLE-CALL WORKFLOW:
-1. Call figma_component_doc(outputFormat: "all") — this generates the FULL spec with all sections auto-populated.
-   - The tool extracts component data, enriches with knowledge base content, and renders the complete visual page in Figma.
-   - All sections are auto-filled: variant matrix, component properties, size specifications, state specifications, design token bindings, accessibility, QA acceptance criteria, do's & don'ts, structure & layout, hierarchy, interaction rules, content guidance, responsive behaviour, anatomy, compositions, implementation notes, related components.
-   - No contentOverrides needed — the tool generates production-grade content automatically.
+WORKFLOW — ONE TOOL CALL, ONE PAGE:
+1. Call figma_component_spec(outputFormat: "all") — this generates the FULL spec automatically.
+2. STOP. Do NOT call any other tools after this. The spec is complete.
+
+The tool auto-generates ALL 11 sections: Overview, Anatomy, Variants, States, Properties/API, Spacing & Structure, Color Tokens, Typography, Accessibility, Usage Guidelines, Related Components. Each section includes rich descriptive content, tables, and actionable guidance — not just raw data.
+
+QUALITY REFERENCE — the tool generates content matching this standard:
+${fullTemplate ? fullTemplate.slice(0, 6000) : '(Template not loaded — generate detailed, actionable content for each section.)'}
 
 CRITICAL RULES:
-- Call figma_component_doc ONCE with outputFormat: "all" — do NOT use a two-phase workflow
-- Do NOT ask the user which spec types they want — generate EVERYTHING
-- Do NOT call figma_generate_spec — use figma_component_doc
-- The tool handles all content generation internally from the component knowledge base
+- Call figma_component_spec ONCE with outputFormat: "all" — then STOP
+- Do NOT call figma_execute to create additional spec pages
+- Do NOT call figma_execute with code that creates pages named "Spec", "specification", or "Component Doc"
+- figma_component_doc has been removed — use figma_component_spec instead
+- Do NOT call figma_apg_doc — accessibility is already included in the spec
+- Do NOT create a second page, do NOT enhance the output, do NOT add anything after
+- The single tool call produces the COMPLETE production-grade document — no manual enrichment needed
+- After the tool returns, reply with a SHORT summary (1-2 sentences). Do NOT call any more tools.
+
+ERROR HANDLING:
+- If figma_component_spec returns an error, report the error to the user verbatim. Do NOT attempt to recreate the spec manually with figma_execute. Do NOT create any pages.
+- If figma_component_spec returns warnings, include them in your summary but do NOT try to fix them with additional tool calls.
 === END COMPONENT DOC GENERATOR SKILL ===`);
     } else {
       // Specific spec type — generate focused spec with all content auto-enriched
@@ -361,14 +375,15 @@ CRITICAL RULES:
 Generate a ${specType.toUpperCase()} specification for a Figma component.
 
 SINGLE-CALL WORKFLOW:
-1. Call figma_component_doc(outputFormat: "all", pageName: "[Component] ${specType.charAt(0).toUpperCase() + specType.slice(1)} Spec")
+1. Call figma_component_spec(outputFormat: "all", pageName: "[Component] ${specType.charAt(0).toUpperCase() + specType.slice(1)} Spec")
    - The tool auto-enriches all sections from the knowledge base.
    - All content is production-grade and specific to the component.
 
 CRITICAL RULES:
-- Call figma_component_doc ONCE — no two-phase workflow needed
-- Do NOT call figma_generate_spec
+- Call figma_component_spec ONCE — no two-phase workflow needed
+- figma_component_doc has been removed
 - The tool generates complete, detailed content automatically
+- If the tool returns an error, report it to the user. Do NOT call figma_execute to manually create spec pages.
 === END COMPONENT DOC GENERATOR SKILL ===`);
     }
   }
@@ -378,13 +393,7 @@ CRITICAL RULES:
     sections.push(`
 === DOCUMENT DESIGN SKILL ===
 
-SINGLE-CALL WORKFLOW — Call figma_component_doc(outputFormat: "all") to generate the complete specification.
-The tool auto-enriches ALL 21+ sections from the knowledge base in a single call. No contentOverrides needed.
-
-SCOPE: Documents the FULL COMPONENT FAMILY — walks up to COMPONENT_SET. Selected instance is only a seed.
-OUTPUT: Complete visual spec page in Figma with variant matrix, properties, sizes, states, tokens, accessibility, QA criteria, do's/don'ts, structure, hierarchy, interaction rules, content guidance, responsive behaviour, anatomy, compositions, and related components.
-
-For quick specs: figma_generate_spec. For a11y docs: figma_apg_doc.
+Call figma_component_spec(outputFormat: "all") ONCE — then STOP. Do NOT call figma_execute or any other tool to create additional pages. The single call produces the complete visual spec page. For a11y docs: figma_apg_doc.
 === END DOCUMENT DESIGN SKILL ===`);
   }
 

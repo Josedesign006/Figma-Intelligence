@@ -9,6 +9,7 @@ exports.createDocumentationPages = createDocumentationPages;
 exports.generateSpecHandler = generateSpecHandler;
 const figma_bridge_js_1 = require("../../../shared/figma-bridge.js");
 const decision_log_js_1 = require("../../../shared/decision-log.js");
+const index_js_1 = require("../component-doc/index.js");
 function compactText(text, max = 140) {
     const normalized = text.replace(/\s+/g, " ").trim();
     return normalized.length > max ? `${normalized.slice(0, max - 1)}…` : normalized;
@@ -1064,298 +1065,6 @@ async function captureSnapshot(nodeId) {
         scanNodes,
     };
 }
-async function createSpecPage(spec, _report, pageName) {
-    const bridge = await (0, figma_bridge_js_1.getBridge)();
-    const result = await bridge.execute(`
-    (async () => {
-      const spec = ${JSON.stringify(spec)};
-      await figma.loadAllPagesAsync();
-      const existing = figma.root.children.find((p) => p.name === ${JSON.stringify(pageName || `Spec - ${spec.target.name}`)});
-      const page = existing || figma.createPage();
-      page.name = ${JSON.stringify(pageName || `Spec - ${spec.target.name}`)};
-      await figma.setCurrentPageAsync(page);
-
-      for (const child of [...page.children]) {
-        child.remove();
-      }
-
-      const fonts = [
-        { family: "Geist", style: "Regular" },
-        { family: "Geist", style: "Medium" },
-        { family: "Libre Franklin", style: "SemiBold" },
-        { family: "Cormorant Garamond", style: "Italic" },
-      ];
-
-      for (const font of fonts) {
-        await figma.loadFontAsync(font);
-      }
-
-      const colors = {
-        page: { r: 0.984, g: 0.984, b: 0.996 },
-        textStrong: { r: 0.121, g: 0.129, b: 0.259 },
-        textDefault: { r: 0.188, g: 0.192, b: 0.224 },
-        textMuted: { r: 0.376, g: 0.376, b: 0.412 },
-        card: { r: 1, g: 1, b: 1 },
-        cardTint: { r: 0.976, g: 0.976, b: 1 },
-        stroke: { r: 0.737, g: 0.737, b: 0.776 },
-        accent: { r: 0.223, g: 0.259, b: 0.447 },
-      };
-
-      function createTextNode(characters, fontName, fontSize, lineHeightPx, fill, width, autoResize) {
-        const text = figma.createText();
-        text.fontName = fontName;
-        text.fontSize = fontSize;
-        text.lineHeight = { unit: "PIXELS", value: lineHeightPx };
-        text.characters = characters;
-        text.fills = [{ type: "SOLID", color: fill }];
-        if (width) {
-          text.resize(width, text.height);
-        }
-        text.textAutoResize = autoResize || (width ? "HEIGHT" : "WIDTH_AND_HEIGHT");
-        return text;
-      }
-
-      function createBulletList(items, width) {
-        const list = figma.createFrame();
-        list.layoutMode = "VERTICAL";
-        list.primaryAxisSizingMode = "AUTO";
-        list.counterAxisSizingMode = "AUTO";
-        list.itemSpacing = 10;
-        list.fills = [];
-
-        for (const item of items) {
-          list.appendChild(createTextNode("• " + item, { family: "Geist", style: "Regular" }, 14, 24, colors.textDefault, width, "HEIGHT"));
-        }
-
-        return list;
-      }
-
-      function createSection(titleText, subtitleText) {
-        const section = figma.createFrame();
-        section.layoutMode = "VERTICAL";
-        section.primaryAxisSizingMode = "AUTO";
-        section.counterAxisSizingMode = "AUTO";
-        section.itemSpacing = 8;
-        section.fills = [];
-        section.appendChild(createTextNode(titleText, { family: "Libre Franklin", style: "SemiBold" }, 18, 24, colors.textStrong));
-        section.appendChild(createTextNode(subtitleText, { family: "Geist", style: "Regular" }, 12, 18, colors.textMuted, 760, "HEIGHT"));
-        return section;
-      }
-
-      function createCard(titleText, valueText, bodyText, width) {
-        const card = figma.createFrame();
-        card.layoutMode = "VERTICAL";
-        card.primaryAxisSizingMode = "AUTO";
-        card.counterAxisSizingMode = "AUTO";
-        card.itemSpacing = 14;
-        card.paddingTop = 22;
-        card.paddingRight = 22;
-        card.paddingBottom = 22;
-        card.paddingLeft = 22;
-        card.cornerRadius = 14;
-        card.strokes = [{ type: "SOLID", color: colors.stroke }];
-        card.fills = [{ type: "SOLID", color: colors.card }];
-        card.resize(width, card.height);
-        card.appendChild(createTextNode(titleText, { family: "Geist", style: "Medium" }, 12, 16, colors.textMuted));
-        card.appendChild(createTextNode(valueText, { family: "Libre Franklin", style: "SemiBold" }, 18, 24, colors.textStrong, width - 44, "HEIGHT"));
-        card.appendChild(createTextNode(bodyText, { family: "Geist", style: "Regular" }, 12, 18, colors.textDefault, width - 44, "HEIGHT"));
-        return card;
-      }
-
-      function createCell(textValue, width, fillColor, fontStyle) {
-        const cell = figma.createFrame();
-        cell.layoutMode = "VERTICAL";
-        cell.primaryAxisSizingMode = "AUTO";
-        cell.counterAxisSizingMode = "AUTO";
-        cell.counterAxisAlignItems = "MIN";
-        cell.primaryAxisAlignItems = "CENTER";
-        cell.paddingTop = 14;
-        cell.paddingRight = 14;
-        cell.paddingBottom = 14;
-        cell.paddingLeft = 14;
-        cell.strokes = [{ type: "SOLID", color: colors.stroke }];
-        cell.fills = [{ type: "SOLID", color: fillColor }];
-        cell.resize(width, cell.height);
-        cell.appendChild(createTextNode(textValue, { family: "Geist", style: fontStyle || "Regular" }, 12, 18, colors.textDefault, width - 28, "HEIGHT"));
-        return cell;
-      }
-
-      function createTable(columnWidths, header, rows) {
-        const table = figma.createFrame();
-        table.layoutMode = "VERTICAL";
-        table.primaryAxisSizingMode = "AUTO";
-        table.counterAxisSizingMode = "AUTO";
-        table.itemSpacing = 8;
-        table.fills = [];
-
-        function buildRow(cells, headerRow) {
-          const row = figma.createFrame();
-          row.layoutMode = "HORIZONTAL";
-          row.primaryAxisSizingMode = "FIXED";
-          row.counterAxisSizingMode = "AUTO";
-          row.itemSpacing = 0;
-          row.fills = [];
-          row.resize(918, row.height);
-
-          for (let i = 0; i < columnWidths.length; i += 1) {
-            row.appendChild(createCell(cells[i] || "—", columnWidths[i], headerRow ? colors.cardTint : colors.card, headerRow ? "Medium" : "Regular"));
-          }
-
-          return row;
-        }
-
-        table.appendChild(buildRow(header, true));
-        for (const row of rows) {
-          table.appendChild(buildRow(row, false));
-        }
-
-        return table;
-      }
-
-      function createTwoColumnList(leftItems, rightItems) {
-        const wrap = figma.createFrame();
-        wrap.layoutMode = "HORIZONTAL";
-        wrap.primaryAxisSizingMode = "FIXED";
-        wrap.counterAxisSizingMode = "AUTO";
-        wrap.itemSpacing = 20;
-        wrap.fills = [];
-        wrap.resize(918, wrap.height);
-
-        const left = createCard("Anatomy", leftItems[0] || "No anatomy items detected", leftItems.slice(1).join(" • ") || "Document the direct child layers and visible slots.", 449);
-        const right = createCard("Redlines", rightItems[0] || "No spacing notes detected", rightItems.slice(1).join(" • ") || "Capture spacing, alignment, and token references that should remain stable.", 449);
-        wrap.appendChild(left);
-        wrap.appendChild(right);
-        return wrap;
-      }
-
-      const frame = figma.createFrame();
-      frame.name = "Generated Spec";
-      frame.layoutMode = "VERTICAL";
-      frame.counterAxisSizingMode = "AUTO";
-      frame.primaryAxisSizingMode = "AUTO";
-      frame.itemSpacing = 28;
-      frame.paddingTop = 28;
-      frame.paddingRight = 44;
-      frame.paddingBottom = 64;
-      frame.paddingLeft = 44;
-      frame.fills = [{ type: "SOLID", color: colors.page }];
-      frame.x = 40;
-      frame.y = 40;
-      frame.resize(1006, 100);
-
-      const metaBar = figma.createFrame();
-      metaBar.layoutMode = "HORIZONTAL";
-      metaBar.primaryAxisSizingMode = "FIXED";
-      metaBar.counterAxisSizingMode = "FIXED";
-      metaBar.itemSpacing = 8;
-      metaBar.fills = [];
-      metaBar.resize(918, 18);
-      metaBar.appendChild(createTextNode("Documentation System", { family: "Geist", style: "Medium" }, 13, 18, colors.textMuted));
-      const spacer = figma.createFrame();
-      spacer.resize(1, 1);
-      spacer.layoutGrow = 1;
-      spacer.fills = [];
-      metaBar.appendChild(spacer);
-      metaBar.appendChild(createTextNode(spec.target.name + " / Spec", { family: "Geist", style: "Medium" }, 13, 18, colors.textMuted));
-      metaBar.appendChild(createTextNode("v1", { family: "Geist", style: "Medium" }, 13, 18, colors.textMuted));
-      frame.appendChild(metaBar);
-
-      const hero = figma.createFrame();
-      hero.layoutMode = "VERTICAL";
-      hero.primaryAxisSizingMode = "AUTO";
-      hero.counterAxisSizingMode = "AUTO";
-      hero.itemSpacing = 14;
-      hero.paddingTop = 4;
-      hero.paddingBottom = 20;
-      hero.fills = [];
-
-      const heroTitle = createTextNode(spec.target.name + " spec", { family: "Cormorant Garamond", style: "Italic" }, 64, 60, colors.textStrong, 560, "HEIGHT");
-      heroTitle.letterSpacing = { unit: "PIXELS", value: -0.5 };
-      hero.appendChild(heroTitle);
-      hero.appendChild(createTextNode(spec.overview.summary, { family: "Geist", style: "Regular" }, 12, 18, colors.textMuted, 620, "HEIGHT"));
-      frame.appendChild(hero);
-
-      const metricRow = figma.createFrame();
-      metricRow.layoutMode = "HORIZONTAL";
-      metricRow.primaryAxisSizingMode = "FIXED";
-      metricRow.counterAxisSizingMode = "AUTO";
-      metricRow.itemSpacing = 16;
-      metricRow.fills = [];
-      metricRow.resize(918, metricRow.height);
-      metricRow.appendChild(createCard("Spec target", spec.target.type, spec.overview.size, 295));
-      metricRow.appendChild(createCard("Layout", spec.overview.layout, "Child layers: " + spec.overview.childCount, 295));
-      metricRow.appendChild(createCard("States detected", String(spec.states.length || 0), spec.states.length ? spec.states.join(", ") : "No explicit states detected", 296));
-      frame.appendChild(metricRow);
-
-      frame.appendChild(createSection("Overview", "Summarize what this component does, what user problem it solves, and any notable constraints."));
-      frame.appendChild(createBulletList([
-        spec.overview.summary,
-        "Size: " + spec.overview.size,
-        "Layout: " + spec.overview.layout,
-      ], 918));
-
-      frame.appendChild(createSection("Property matrix", "List the official component API or design variants here."));
-      const propertyRows = (spec.variants.length > 0 ? spec.variants : [{ property: "variant", values: ["none"], defaultValue: "none" }]).map(function(variant) {
-        return [
-          variant.property,
-          variant.values.join(", "),
-          variant.defaultValue || "—",
-          "Controls " + variant.property.toLowerCase(),
-          "Documented from the inspected Figma component.",
-        ];
-      });
-      frame.appendChild(createTable([180, 180, 140, 190, 228], ["Property", "Values", "Default", "Purpose", "Notes"], propertyRows));
-
-      frame.appendChild(createSection("Anatomy and redlines", "Identify component parts and the exact spacing measurements reviewers should check."));
-      const stylingNotes = []
-        .concat(spec.styling.fills.slice(0, 2).map(function(item) { return "Fill: " + item; }))
-        .concat(spec.styling.strokes.slice(0, 1).map(function(item) { return "Stroke: " + item; }))
-        .concat(spec.styling.tokenReferences.slice(0, 2).map(function(item) { return "Token: " + item; }));
-      frame.appendChild(createTwoColumnList(spec.anatomy.slice(0, 4), stylingNotes.slice(0, 4)));
-
-      frame.appendChild(createSection("Live examples", "Examples below should be instantiated from the real component set."));
-      frame.appendChild(createCard("Current target", spec.target.name, "Bind live component instances or canonical examples here when the implementation is available.", 918));
-
-      frame.appendChild(createSection("States and interaction", "Document how behavior changes across hover, focus, selected, error, disabled, and loading states."));
-      const stateRows = (spec.states.length > 0 ? spec.states : ["default"]).map(function(state) {
-        return [
-          state,
-          "State transition",
-          "Document the expected behavior for " + state + ".",
-          "Add caveats, focus rules, or QA notes.",
-        ];
-      });
-      frame.appendChild(createTable([160, 180, 340, 238], ["State", "Trigger", "Expected behavior", "Notes"], stateRows));
-
-      frame.appendChild(createSection("Accessibility summary", "Summarize only the most essential accessibility rules here and link the detailed accessibility doc."));
-      const a11yRow = figma.createFrame();
-      a11yRow.layoutMode = "HORIZONTAL";
-      a11yRow.primaryAxisSizingMode = "FIXED";
-      a11yRow.counterAxisSizingMode = "AUTO";
-      a11yRow.itemSpacing = 16;
-      a11yRow.fills = [];
-      a11yRow.resize(918, a11yRow.height);
-      a11yRow.appendChild(createCard("Touch target", "Target size", spec.accessibility.touchTarget || "Confirm touch-target expectations for this component.", 295));
-      a11yRow.appendChild(createCard("Typography", "Readable text", spec.accessibility.typography.slice(0, 2).join(" • ") || "No typography details detected.", 295));
-      a11yRow.appendChild(createCard("Considerations", "Critical checks", spec.accessibility.considerations.slice(0, 2).join(" • ") || "Run contrast and focus-state checks before publish.", 296));
-      frame.appendChild(a11yRow);
-
-      frame.appendChild(createSection("Engineering contract", "Capture the build-time commitments that must remain aligned with the design intent."));
-      frame.appendChild(createBulletList(
-        spec.implementationNotes.concat(spec.documentationGaps.length > 0 ? spec.documentationGaps.map(function(item) { return "Gap: " + item; }) : []),
-        918
-      ));
-
-      page.appendChild(frame);
-      figma.viewport.scrollAndZoomIntoView([frame]);
-      return page.id;
-    })();
-  `);
-    if (!result.success) {
-        throw new Error(`figma_generate_spec: failed to create Figma page: ${result.error}`);
-    }
-    return result.result;
-}
 async function createDocumentationPages(documents, pageName) {
     const bridge = await (0, figma_bridge_js_1.getBridge)();
     const result = await bridge.execute(`
@@ -1385,7 +1094,7 @@ async function createDocumentationPages(documents, pageName) {
         muted: { r: 0.376, g: 0.376, b: 0.412 },
       };
 
-function makeText(value, size, style, color, width) {
+      function makeText(value, size, style, color, width) {
         const text = figma.createText();
         text.fontName = { family: "Libre Franklin", style };
         text.fontSize = size;
@@ -1454,17 +1163,23 @@ async function generateSpecHandler(args) {
     const nodeId = await resolveTargetNodeId(args);
     const snapshot = await captureSnapshot(nodeId);
     const spec = buildSpec(snapshot, args.includeTokens ?? true);
-    const documentType = normalizeDocumentType(args.documentType);
-    const documents = await buildGeneratedDocuments(snapshot, spec, documentType);
-    const report = documentType === "spec"
-        ? formatSpecReport(spec)
-        : documents.map((document) => formatDocumentReport(document)).join("\n\n---\n\n");
-    let figmaPageId;
-    if (args.outputFormat === "figma-page" || args.outputFormat === "all") {
-        figmaPageId = documentType === "spec"
-            ? await createSpecPage(spec, report, args.pageName)
-            : await createDocumentationPages(documents, args.pageName);
-    }
+    // Deep data extraction for richer tables
+    const [spacingEntries, colorTokenEntries, typographyEntries] = await Promise.all([
+        (0, index_js_1.captureSpacingStructure)(nodeId),
+        (0, index_js_1.captureColorTokenMap)(nodeId),
+        (0, index_js_1.captureTypographySpec)(nodeId),
+    ]);
+    spec.spacingEntries = spacingEntries;
+    spec.colorTokenEntries = colorTokenEntries;
+    spec.typographyEntries = typographyEntries;
+    const report = formatSpecReport(spec);
+    // Create Figma spec page — always use the rich componentDocHandler format
+    const docResult = await (0, index_js_1.componentDocHandler)({
+        nodeId,
+        outputFormat: "figma-page",
+        pageName: args.pageName,
+    });
+    const figmaPageId = docResult.figmaPageId;
     const shouldWriteToDescription = args.writeToDescription ?? (args.outputFormat === "figma-page" || args.outputFormat === "all");
     if (shouldWriteToDescription) {
         const bridge = await (0, figma_bridge_js_1.getBridge)();
@@ -1473,12 +1188,11 @@ async function generateSpecHandler(args) {
     const logEntry = await decision_log_js_1.decisionLog.log({
         tool: "figma_generate_spec",
         nodeIds: figmaPageId ? [snapshot.id, figmaPageId] : [snapshot.id],
-        rationale: `Generated ${documentType} documentation for ${snapshot.name} (${snapshot.type}). Variants: ${spec.variants.length}. States: ${spec.states.length}. Tokens: ${spec.styling.tokenReferences.length}.`,
+        rationale: `Generated full component documentation for ${snapshot.name} (${snapshot.type}). Variants: ${spec.variants.length}. States: ${spec.states.length}. Tokens: ${spec.styling.tokenReferences.length}.`,
         tokens: spec.styling.tokenReferences,
         reversible: true,
         metadata: {
             outputFormat: args.outputFormat,
-            documentType,
             type: snapshot.type,
             variantCount: spec.variants.length,
             stateCount: spec.states.length,
@@ -1488,7 +1202,6 @@ async function generateSpecHandler(args) {
         spec,
         report: args.outputFormat === "json" || args.outputFormat === "figma-page" ? undefined : report,
         figmaPageId,
-        documents: documents.length > 0 ? documents : undefined,
         logEntryId: logEntry.id,
     };
 }

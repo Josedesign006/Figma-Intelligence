@@ -13,6 +13,39 @@
  *     ↓  Plugin API
  *   Figma Electron App
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createMcpServer = createMcpServer;
 const index_js_1 = require("@modelcontextprotocol/sdk/server/index.js");
@@ -51,12 +84,12 @@ const index_js_25 = require("./tools/phase5-governance/ds-variables/index.js");
 const index_js_26 = require("./tools/phase5-governance/decision-log/index.js");
 const index_js_27 = require("./tools/phase5-governance/design-decision-log/index.js");
 const index_js_28 = require("./tools/phase5-governance/health-report/index.js");
-const index_js_29 = require("./tools/phase5-governance/spec-generator/index.js");
+const index_js_29 = require("./tools/phase5-governance/component-spec/index.js");
 const index_js_30 = require("./tools/phase5-governance/apg-doc/index.js");
 const index_js_31 = require("./tools/phase5-governance/ds-primitives/index.js");
 const index_js_32 = require("./tools/phase5-governance/token-naming/index.js");
 const index_js_33 = require("./tools/phase5-governance/token-migrate/index.js");
-const index_js_34 = require("./tools/phase5-governance/component-doc/index.js");
+// component-doc removed — replaced by component-spec
 // ─── Bridge (for direct execute) ────────────────────────────────────────────
 const figma_bridge_js_1 = require("./shared/figma-bridge.js");
 // ─── P0: Response compression ───────────────────────────────────────────────
@@ -738,25 +771,22 @@ const TOOLS = [
         },
     },
     {
-        name: "figma_generate_spec",
-        description: "Generate design-system documentation for a selected Figma node or component. Supports classic specs plus AI-assisted anatomy/usage and accessibility documents, can render documentation pages back into Figma, and can auto-write a compact developer handoff summary to the target node description.",
+        name: "figma_component_spec",
+        description: "Generate comprehensive, production-quality component specification documentation. Extracts real data from the Figma component (anatomy, properties, variants, states, spacing, color tokens, typography) and structures it into spec sections. Outputs as a visual Figma page, markdown, JSON, or all three. Content is always extracted from the actual component — never fabricated.",
         inputSchema: {
             type: "object",
             properties: {
-                nodeId: { type: "string", description: "Optional target node. If omitted, the current Figma selection is used." },
-                outputFormat: { type: "string", enum: ["json", "report", "figma-page", "all"] },
-                documentType: {
-                    type: "string",
-                    enum: ["spec", "anatomy-usage", "accessibility", "accessibility-annotation", "full-documentation"],
-                    description: "Choose whether to generate the classic spec, an anatomy/usage doc, an accessibility doc, a screen-level accessibility annotation, or both documentation pages.",
+                nodeId: { type: "string", description: "Component or ComponentSet node ID. If omitted, uses current Figma selection." },
+                outputFormat: { type: "string", enum: ["json", "markdown", "figma-page", "all"] },
+                sections: {
+                    type: "array",
+                    items: {
+                        type: "string",
+                        enum: ["overview", "anatomy", "variants", "states", "properties", "spacing", "color-tokens", "typography", "accessibility", "usage", "related"],
+                    },
+                    description: "Optional filter to generate only specific sections. Default: all applicable sections.",
                 },
-                includeTokens: { type: "boolean", description: "Include token aliases when detected." },
-                includeAnnotations: { type: "boolean", description: "Reserved for future in-file callouts." },
-                pageName: { type: "string", description: "Optional custom page name for the generated Figma spec." },
-                writeToDescription: {
-                    type: "boolean",
-                    description: "When true, writes a compact developer handoff summary to the target node description. Defaults to true for figma-page/all output.",
-                },
+                pageName: { type: "string", description: "Custom page name for the generated Figma spec page." },
             },
             required: ["outputFormat"],
         },
@@ -775,73 +805,6 @@ const TOOLS = [
                 writeToDescription: { type: "boolean", description: "Write the generated APG doc into the target node description." },
                 descriptionMode: { type: "string", enum: ["replace", "append"], description: "How to write back into the node description when writeToDescription is enabled." },
                 pageName: { type: "string", description: "Optional custom page name when rendering to Figma." },
-            },
-            required: ["outputFormat"],
-        },
-    },
-    {
-        name: "figma_component_doc",
-        description: "Generate production-grade, enterprise-quality design system specification for a selected component. Produces a 21+ section handoff-ready spec covering: overview, variants (with detailed emphasis levels), component properties, size specifications, state specifications (with token overrides), design token bindings, accessibility (semantic element, keyboard, focus, screen reader, labels, state announcements, contrast, touch targets), QA acceptance criteria, do's & don'ts, structure & layout, type hierarchy & emphasis, interaction rules, content guidance, responsive behaviour, anatomy with annotations, supported compositions, developer notes, related components — all fully auto-enriched from the knowledge base in a SINGLE call. No two-phase workflow needed. Call with outputFormat 'all' or 'figma-page' to generate the complete visual spec page directly.",
-        inputSchema: {
-            type: "object",
-            properties: {
-                nodeId: { type: "string", description: "Optional target node. If omitted, the current Figma selection is used." },
-                outputFormat: { type: "string", enum: ["json", "report", "figma-page", "all"] },
-                sections: {
-                    type: "array",
-                    items: {
-                        type: "string",
-                        enum: [
-                            "overview", "purpose", "anatomy", "variants", "hierarchy", "states", "sizes",
-                            "spacing", "structure", "color-tokens", "typography", "usage", "behaviour",
-                            "interaction-rules", "content-guidance", "responsive",
-                            "accessibility", "props", "implementation-notes", "qa-checklist",
-                            "related-components",
-                        ],
-                    },
-                    description: "Optional subset of sections to generate. If omitted, all sections are generated.",
-                },
-                includeVisualExamples: { type: "boolean", description: "Include variant grid as actual component instances (default true)." },
-                framework: { type: "string", enum: ["html", "react", "vue", "angular"], description: "Framework for accessibility code examples." },
-                pageName: { type: "string", description: "Optional custom Figma page name for the documentation." },
-                contentOverrides: {
-                    type: "object",
-                    description: "AI-generated content overrides for each documentation section. Use with the two-phase workflow: first call with outputFormat 'json' to extract data, then call with 'figma-page' and this parameter.",
-                    properties: {
-                        overview: { type: "string", description: "Rich component overview description." },
-                        purpose: { type: "string", description: "The specific user need this component addresses." },
-                        usage: { type: "object", properties: { whenToUse: { type: "array", items: { type: "string" } }, whenNotToUse: { type: "array", items: { type: "string" } } } },
-                        typesAndVariants: { type: "string", description: "Variant descriptions with when to pick each." },
-                        anatomy: { type: "array", items: { type: "object", properties: { index: { type: "number" }, name: { type: "string" }, type: { type: "string" }, description: { type: "string" } } } },
-                        properties: { type: "array", items: { type: "object", properties: { name: { type: "string" }, type: { type: "string" }, values: { type: "array", items: { type: "string" } }, defaultValue: { type: "string" }, description: { type: "string" } } } },
-                        states: { type: "array", items: { type: "object", properties: { name: { type: "string" }, visualDescription: { type: "string" }, trigger: { type: "string" }, meaning: { type: "string" } } } },
-                        sizes: { type: "array", items: { type: "object", properties: { name: { type: "string" }, useCase: { type: "string" }, minTouchTarget: { type: "string" }, context: { type: "string" } } } },
-                        behaviour: { type: "string" },
-                        interactionRules: { type: "string" },
-                        contentGuidance: { type: "string" },
-                        spacingAndLayout: { type: "string" },
-                        responsive: { type: "string" },
-                        accessibility: {
-                            type: "object",
-                            properties: {
-                                semanticRole: { type: "string" },
-                                ariaAttributes: { type: "string" },
-                                keyboardInteraction: { type: "array", items: { type: "object", properties: { key: { type: "string" }, action: { type: "string" } } } },
-                                focusManagement: { type: "string" },
-                                screenReaderAnnouncements: { type: "string" },
-                                readingOrder: { type: "string" },
-                                touchTargets: { type: "string" },
-                                colorContrast: { type: "string" },
-                            },
-                        },
-                        dosAndDonts: { type: "object", properties: { dos: { type: "array", items: { type: "string" } }, donts: { type: "array", items: { type: "string" } } } },
-                        implementationNotes: { type: "string" },
-                        qaChecklist: { type: "array", items: { type: "string" } },
-                        hierarchy: { type: "string", description: "Hierarchy and emphasis section — type variant ordering and visual weight rules." },
-                        structureAndSpacing: { type: "string", description: "Detailed structure section — layout, padding, spacing, token bindings." },
-                        relatedComponents: { type: "array", items: { type: "object", properties: { name: { type: "string" }, relationship: { type: "string" }, whenToPrefer: { type: "string" } } }, description: "Related components with relationship and preference guidance." },
-                    },
-                },
             },
             required: ["outputFormat"],
         },
@@ -1276,6 +1239,9 @@ const TOOLS = [
     },
 ];
 async function dispatch(name, args) {
+    // Log every tool call for debugging
+    const fs = await Promise.resolve().then(() => __importStar(require("fs")));
+    fs.appendFileSync("/tmp/figma-tool-calls.log", `[${new Date().toISOString()}] TOOL CALLED: ${name} | args: ${JSON.stringify(args).slice(0, 500)}\n`);
     switch (name) {
         // Phase 1
         case "figma_screen_cloner": return (0, index_js_2.screenClonerHandler)(args);
@@ -1314,13 +1280,21 @@ async function dispatch(name, args) {
         case "figma_decision_log": return (0, index_js_26.decisionLogToolHandler)(args);
         case "figma_design_decision_log": return (0, index_js_27.designDecisionLogHandler)(args);
         case "figma_health_report": return (0, index_js_28.healthReportHandler)(args);
-        case "figma_generate_spec": return (0, index_js_29.generateSpecHandler)(args);
+        case "figma_component_spec": return (0, index_js_29.componentSpecHandler)(args);
         case "figma_apg_doc": return (0, index_js_30.figmaApgDocHandler)(args);
-        case "figma_component_doc": return (0, index_js_34.componentDocHandler)(args);
         // Direct execute
         case "figma_execute": {
+            const code = args.code;
+            // Soft guardrail: warn if figma_execute is being used to create spec pages
+            const codeLC = code.toLowerCase();
+            if (codeLC.includes("createpage") && /spec|specification|component\s*doc/i.test(code)) {
+                return {
+                    warning: "Use figma_component_spec instead of manually creating spec pages with figma_execute. The spec tool handles page creation, deduplication, and rendering automatically.",
+                    blocked: true,
+                };
+            }
             const bridge = await (0, figma_bridge_js_1.getBridge)();
-            const execResult = await bridge.execute(args.code);
+            const execResult = await bridge.execute(code);
             if (!execResult.success)
                 throw new Error(execResult.error);
             return execResult.result;
@@ -1562,14 +1536,19 @@ function createMcpServer() {
 // Start
 // ─────────────────────────────────────────────────────────────────────────────
 async function main() {
-    await (0, figma_bridge_js_1.ensureRelayServer)();
-    // Connect the bridge eagerly so the relay immediately sees an MCP socket
-    // and reports "Connected" instead of "Relay only" in the plugin UI.
-    (0, figma_bridge_js_1.getBridge)().catch(() => { });
+    // Connect MCP transport FIRST so Claude Code gets the handshake immediately
+    // (relay/bridge startup must not delay the MCP initialize response)
     const server = createMcpServer();
     const transport = new stdio_js_1.StdioServerTransport();
     await server.connect(transport);
     process.stderr.write(`figma-intelligence-layer MCP server running (${TOOLS.length} tools across 5 phases)\n`);
+    // THEN connect to the bridge relay (non-blocking, fire-and-forget)
+    (0, figma_bridge_js_1.ensureRelayServer)().catch((err) => {
+        process.stderr.write(`Relay server warning: ${err.message}\n`);
+    });
+    // Connect the bridge eagerly so the relay immediately sees an MCP socket
+    // and reports "Connected" instead of "Relay only" in the plugin UI.
+    (0, figma_bridge_js_1.getBridge)().catch(() => { });
 }
 if (require.main === module) {
     main().catch((err) => {

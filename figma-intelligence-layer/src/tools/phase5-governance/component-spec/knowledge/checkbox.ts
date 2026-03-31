@@ -1,0 +1,227 @@
+/**
+ * checkbox.ts — Design knowledge for Checkbox components
+ */
+import type { ComponentKnowledge } from "../types.js";
+
+export const checkboxKnowledge: ComponentKnowledge = {
+  description:
+    "Selection control | Binary or tri-state choice | Form input element",
+
+  stateSpecifications: [
+    {
+      state: "Unchecked",
+      visualChange: "Empty box with visible border; no fill or checkmark",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Option is available but not selected",
+    },
+    {
+      state: "Checked",
+      visualChange: "Box filled with brand color; white checkmark icon visible",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Option has been selected by the user",
+    },
+    {
+      state: "Indeterminate",
+      visualChange: "Box filled with brand color; horizontal dash icon replaces checkmark",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Parent checkbox when only some child options are selected",
+    },
+    {
+      state: "Disabled",
+      visualChange: "Border and fill switch to muted/disabled tokens; label text dimmed",
+      opacity: "0.4",
+      cursorWeb: "not-allowed",
+      usage: "Option is non-interactive due to permissions or current context",
+    },
+    {
+      state: "Focus",
+      visualChange: "2px focus ring offset by 2px around the checkbox box",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Checkbox receives keyboard focus via Tab key",
+    },
+    {
+      state: "Hover",
+      visualChange: "Box border darkens or background shows a subtle highlight",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Mouse cursor enters the checkbox or its label area",
+    },
+    {
+      state: "Error",
+      visualChange: "Box border switches to error/red token; error message appears below",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Validation has failed — typically a required checkbox left unchecked",
+    },
+  ],
+
+  propertyDescriptions: {
+    checked: "Boolean indicating whether the checkbox is currently selected",
+    indeterminate: "When true the checkbox displays a dash instead of a checkmark, representing a mixed/partial selection",
+    disabled: "When true the checkbox is non-interactive: muted visuals, no event firing, aria-disabled='true'",
+    label: "Descriptive text rendered adjacent to the checkbox box; also serves as the accessible name",
+    error: "Error message string displayed below the checkbox when validation fails",
+    required: "When true the checkbox must be checked before the form can be submitted; adds aria-required='true'",
+    name: "Form field name used when submitting the checkbox value",
+    value: "The value submitted with the form when the checkbox is checked",
+  },
+
+  sizeSpecifications: [
+    {
+      size: "Small",
+      height: "16px",
+      paddingLR: "0px",
+      fontSize: "12px",
+      iconSize: "12px",
+      borderRadius: "3px",
+    },
+    {
+      size: "Medium",
+      height: "20px",
+      paddingLR: "0px",
+      fontSize: "14px",
+      iconSize: "14px",
+      borderRadius: "4px",
+    },
+    {
+      size: "Large",
+      height: "24px",
+      paddingLR: "0px",
+      fontSize: "16px",
+      iconSize: "16px",
+      borderRadius: "6px",
+    },
+  ],
+
+  designTokenBindings: [
+    {
+      property: "Box Border",
+      tokenName: "$checkbox-border",
+      role: "Border color of the unchecked checkbox box",
+      fallback: "#D0D5DD",
+    },
+    {
+      property: "Box Background (checked)",
+      tokenName: "$checkbox-checked-bg",
+      role: "Fill color when checkbox is checked or indeterminate",
+      fallback: "#2563EB",
+    },
+    {
+      property: "Checkmark Color",
+      tokenName: "$checkbox-checkmark",
+      role: "Color of the checkmark or dash icon inside the box",
+      fallback: "#FFFFFF",
+    },
+    {
+      property: "Label Color",
+      tokenName: "$text-primary",
+      role: "Label text color in default state",
+      fallback: "#101828",
+    },
+    {
+      property: "Focus Ring",
+      tokenName: "$focus-ring",
+      role: "Keyboard focus indicator around the checkbox box",
+      fallback: "0 0 0 2px #FFFFFF, 0 0 0 4px #2E90FA",
+    },
+    {
+      property: "Error Border",
+      tokenName: "$border-error",
+      role: "Border color when checkbox is in an error state",
+      fallback: "#F04438",
+    },
+  ],
+
+  structureRules: [
+    "Checkbox box and label are arranged in a horizontal Auto Layout with center vertical alignment",
+    "Checkmark or dash icon is centered within the checkbox box using absolute positioning or Auto Layout",
+    "The entire label area is clickable and toggles the checkbox — not just the box itself",
+    "Group spacing between stacked checkboxes uses $spacing-sm (8px) for vertical separation",
+    "Touch target for the checkbox extends to at least 44x44px including the label hit area",
+    "Checkbox groups are wrapped in a fieldset with a visible legend for screen readers",
+  ],
+
+  typeHierarchyRules: [
+    "Label text uses Regular weight (400) — never Bold — to maintain visual parity within groups",
+    "Line height matches the design system's body text scale for consistent vertical rhythm",
+    "Label text is left-aligned (or right-aligned in RTL) adjacent to the checkbox box",
+    "Description or helper text below the label uses a smaller font size and secondary color token",
+  ],
+
+  interactionRules: [
+    { event: "Click / Tap", trigger: "pointerup on box or label", action: "Toggle checked state; fire onChange handler" },
+    { event: "Space Key", trigger: "Space key while checkbox is focused", action: "Toggle checked state (same as click)" },
+    { event: "Focus", trigger: "Tab key or focus()", action: "Show focus ring around the checkbox box" },
+    { event: "Blur", trigger: "Focus moves away", action: "Remove focus ring; trigger validation if required" },
+    { event: "Label Click", trigger: "pointerup on the label text", action: "Toggle checkbox — label acts as an extended hit area" },
+  ],
+
+  contentGuidance: [
+    "Frame labels positively: 'Send me updates' instead of 'Do not send me updates'",
+    "Use parallel grammatical structure when checkboxes appear in a group",
+    "Limit checkbox groups to 7-10 items; beyond that, consider a different pattern (search, filter, or multi-select)",
+    "Each checkbox label should make sense independently — avoid labels that only work in context of the group heading",
+    "Required checkboxes (e.g. terms acceptance) should clearly state the obligation in the label",
+  ],
+
+  responsiveBehaviour: [
+    { breakpoint: "Mobile (<768px)", behavior: "Touch target expands to 48px height; labels may wrap to a second line" },
+    { breakpoint: "Tablet (768-1023px)", behavior: "Checkbox groups may display in 2-column grid layout" },
+    { breakpoint: "Desktop (>=1024px)", behavior: "Standard single-column or multi-column layout; compact sizing allowed" },
+  ],
+
+  accessibilitySpec: {
+    intro:
+      "Checkboxes must communicate their role, checked state, and any group context to assistive technology. Tri-state behavior requires careful ARIA handling.",
+    requirements: [
+      { requirement: "Role", level: "A", notes: "Use native <input type='checkbox'> or role='checkbox' with full ARIA support" },
+      { requirement: "aria-checked (tri-state)", level: "A", notes: "Values: 'true', 'false', or 'mixed' for indeterminate state" },
+      { requirement: "aria-required", level: "A", notes: "Set to 'true' on required checkboxes; pair with visible required indicator" },
+      { requirement: "Fieldset / Legend", level: "A", notes: "Wrap checkbox groups in <fieldset> with <legend> for group label context" },
+      { requirement: "Keyboard Operable", level: "A", notes: "Space key toggles state; Tab moves between checkboxes; no Enter activation" },
+      { requirement: "Contrast Ratio", level: "AA", notes: "Box border: 3:1 against background; checkmark: 3:1 against box fill; label: 4.5:1" },
+      { requirement: "Error Announcement", level: "A", notes: "Error messages linked via aria-describedby; announced on validation failure" },
+    ],
+    outro: [
+      "Test indeterminate state announcement with multiple screen readers — behavior varies across AT",
+      "Ensure label click correctly toggles the checkbox in all browsers",
+    ],
+  },
+
+  qaAcceptanceCriteria: [
+    { check: "Toggle Behavior", platform: "All", expectedResult: "Clicking checkbox or label toggles between checked and unchecked" },
+    { check: "Indeterminate State", platform: "All", expectedResult: "Dash icon visible; aria-checked='mixed'; clicking resolves to checked" },
+    { check: "Disabled State", platform: "All", expectedResult: "Muted visuals; no toggle on click; aria-disabled='true'" },
+    { check: "Keyboard Navigation", platform: "Web", expectedResult: "Tab moves focus between checkboxes; Space toggles; Enter does not toggle" },
+    { check: "Screen Reader", platform: "Web", expectedResult: "Announces role 'checkbox', label, and checked/unchecked/mixed state" },
+    { check: "Error State", platform: "All", expectedResult: "Red border on box; error text visible below; error linked via aria-describedby" },
+    { check: "Group Behavior", platform: "All", expectedResult: "Fieldset and legend announced; parent checkbox reflects child selection state" },
+    { check: "Touch Target", platform: "Mobile", expectedResult: "Hit area at least 44x44px including label" },
+    { check: "Contrast", platform: "All", expectedResult: "Box, checkmark, and label meet WCAG AA contrast requirements" },
+    { check: "RTL Support", platform: "Web", expectedResult: "Box position mirrors to right side; label alignment flips correctly" },
+  ],
+
+  dos: [
+    "Use checkboxes for independent, non-mutually-exclusive selections",
+    "Provide a visible label for every checkbox — never use a standalone unlabeled box",
+    "Use indeterminate state only for parent checkboxes that summarize child selections",
+    "Group related checkboxes inside a fieldset with a descriptive legend",
+    "Allow users to check and uncheck freely before submitting — validate on submit, not on change",
+    "Maintain consistent vertical spacing between grouped checkboxes",
+    "Pair required checkboxes with clear helper text explaining the obligation",
+  ],
+
+  donts: [
+    "Do not use checkboxes for mutually exclusive choices — use radio buttons instead",
+    "Do not pre-check optional checkboxes (e.g. marketing opt-ins) — respect user intent",
+    "Do not mix checkbox sizes within the same group",
+    "Do not place checkboxes in a horizontal row if there are more than 3 options",
+    "Do not rely on color alone to indicate the checked state — the checkmark icon is essential",
+    "Do not disable a checkbox without providing context about why it is unavailable",
+    "Do not use negative framing in labels (e.g. 'Do not contact me') — rephrase positively",
+  ],
+};

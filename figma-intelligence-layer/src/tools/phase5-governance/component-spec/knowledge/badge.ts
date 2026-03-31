@@ -1,0 +1,231 @@
+/**
+ * badge.ts — Gold-standard design knowledge for Badge components
+ */
+import type { ComponentKnowledge } from "../types.js";
+
+export const badgeKnowledge: ComponentKnowledge = {
+  description:
+    "Status indicator | Count display | Visual label marker",
+
+  stateSpecifications: [
+    {
+      state: "Default",
+      visualChange: "Solid pill-shaped fill with contrasting text or numeric count",
+      opacity: "1",
+      cursorWeb: "default",
+      usage: "Badge is visible and displays its value or status — purely presentational",
+    },
+    {
+      state: "Dot Only",
+      visualChange: "Small filled circle (8-10px) without any text — minimal presence indicator",
+      opacity: "1",
+      cursorWeb: "default",
+      usage: "Binary indicator showing presence/absence of notifications or status without a count",
+    },
+    {
+      state: "Overflow",
+      visualChange: "Count exceeds maximum threshold (e.g., 99+); displays truncated value with '+' suffix",
+      opacity: "1",
+      cursorWeb: "default",
+      usage: "Numeric count exceeds the configured max display value",
+    },
+    {
+      state: "Hidden",
+      visualChange: "Badge scales to 0 and fades out when count reaches 0 or status clears",
+      opacity: "0",
+      cursorWeb: "default",
+      usage: "No items to count or status no longer applies — badge is visually removed",
+    },
+    {
+      state: "Updating",
+      visualChange: "Badge pulses or scales briefly (1.0 → 1.15 → 1.0) when count value changes",
+      opacity: "1",
+      cursorWeb: "default",
+      usage: "Count increments or decrements — micro-animation draws attention to the change",
+    },
+    {
+      state: "Positioned",
+      visualChange: "Badge overlaps the top-right corner of its parent element with 50% offset",
+      opacity: "1",
+      cursorWeb: "default",
+      usage: "Badge is anchored to a parent element (icon, avatar, button) as a superscript indicator",
+    },
+  ],
+
+  propertyDescriptions: {
+    count: "Numeric value displayed inside the badge; values above max are shown as 'max+'",
+    max: "Maximum displayable count before overflow truncation (default 99; shows '99+')",
+    variant: "Visual style — filled, outlined, or dot — controls background treatment and content visibility",
+    color: "Semantic color — neutral, primary, success, warning, error — maps to design tokens for fill and text",
+    size: "Dimensional preset controlling diameter (dot), height and padding (count), and font-size",
+    showZero: "When true, badge remains visible when count is 0; when false, badge hides at zero",
+    anchorOrigin: "Positioning relative to parent element — topRight (default), topLeft, bottomRight, bottomLeft",
+  },
+
+  sizeSpecifications: [
+    {
+      size: "Small",
+      height: "16px",
+      paddingLR: "4px",
+      fontSize: "10px",
+      iconSize: "8px",
+      borderRadius: "999px",
+    },
+    {
+      size: "Medium",
+      height: "20px",
+      paddingLR: "6px",
+      fontSize: "11px",
+      iconSize: "10px",
+      borderRadius: "999px",
+    },
+    {
+      size: "Large",
+      height: "24px",
+      paddingLR: "8px",
+      fontSize: "12px",
+      iconSize: "12px",
+      borderRadius: "999px",
+    },
+  ],
+
+  designTokenBindings: [
+    {
+      property: "Primary Fill",
+      tokenName: "$badge-primary-bg",
+      role: "Background for the primary/default badge variant",
+      fallback: "#2563EB",
+    },
+    {
+      property: "Error Fill",
+      tokenName: "$badge-error-bg",
+      role: "Background for error/notification badges — typically red",
+      fallback: "#F04438",
+    },
+    {
+      property: "Success Fill",
+      tokenName: "$badge-success-bg",
+      role: "Background for success/positive status badges",
+      fallback: "#12B76A",
+    },
+    {
+      property: "Warning Fill",
+      tokenName: "$badge-warning-bg",
+      role: "Background for warning/caution status badges",
+      fallback: "#F79009",
+    },
+    {
+      property: "Text Color",
+      tokenName: "$badge-text",
+      role: "Label or count text color — white on filled, semantic color on outlined",
+      fallback: "#FFFFFF",
+    },
+    {
+      property: "Border",
+      tokenName: "$badge-border",
+      role: "White ring separating badge from parent element for visual clarity",
+      fallback: "2px solid #FFFFFF",
+    },
+    {
+      property: "Font Family",
+      tokenName: "$font-family-sans",
+      role: "Badge count typeface — uses tabular nums for stable width",
+      fallback: "Inter, system-ui, sans-serif",
+    },
+  ],
+
+  structureRules: [
+    "Badge is absolutely positioned relative to its parent wrapper element",
+    "Parent wrapper has position: relative and overflow: visible to allow badge overlap",
+    "Numeric badge uses horizontal Auto Layout with center alignment; min-width equals height for circular single-digit display",
+    "Dot variant is a fixed-size circle (8-10px) with no text content",
+    "A 2px white border ring separates the badge from the parent element for visual separation",
+    "Badge center aligns to the parent's corner based on anchorOrigin (default: top-right at -25% offset)",
+    "Single-digit counts render as a perfect circle; multi-digit counts expand horizontally with pill shape",
+  ],
+
+  typeHierarchyRules: [
+    "Count text uses font-variant: tabular-nums to maintain consistent width as numbers change",
+    "Font weight is Semi-Bold (600) for legibility at small sizes",
+    "Text is always horizontally and vertically centered within the badge",
+    "No letter-spacing adjustment — default tracking at small sizes is sufficient",
+    "Overflow text ('99+') uses the same font-size; the '+' is rendered at full size, not superscript",
+  ],
+
+  interactionRules: [
+    { event: "Count Change", trigger: "Value prop updates", action: "Badge pulses with a scale animation (1.0 → 1.15 → 1.0) over 200ms" },
+    { event: "Show", trigger: "Count goes from 0 to positive (or status activates)", action: "Badge scales in from 0 to 1 with ease-out over 150ms" },
+    { event: "Hide", trigger: "Count reaches 0 and showZero is false", action: "Badge scales out from 1 to 0 with ease-in over 100ms" },
+    { event: "Parent Hover", trigger: "pointerenter on parent element", action: "No change to badge — badge is static and non-interactive" },
+    { event: "Parent Click", trigger: "pointerup on parent element", action: "Badge itself is not clickable; interaction is on the parent" },
+    { event: "Overflow", trigger: "Count exceeds max value", action: "Display 'max+' text (e.g., '99+'); badge width expands to fit" },
+    { event: "Screen Reader", trigger: "Parent focused", action: "Badge count announced as part of parent's accessible description" },
+  ],
+
+  contentGuidance: [
+    "Use numeric badges for countable items — unread messages, notifications, cart items",
+    "Use dot badges for binary status — online/offline, new/seen, active/inactive",
+    "Set a reasonable max (99 is standard) to prevent absurdly wide badges",
+    "Keep the badge near its related element — typically overlapping the top-right corner",
+    "Use semantic colors consistently: red for errors/urgency, blue for informational, green for success",
+    "Do not use badges for arbitrary labels — use a tag or chip component instead",
+  ],
+
+  responsiveBehaviour: [
+    { breakpoint: "Mobile (<768px)", behavior: "Badge sizes remain fixed; position may adjust if parent element resizes or stacks" },
+    { breakpoint: "Tablet (768-1023px)", behavior: "Same sizing and positioning as desktop; no responsive changes needed" },
+    { breakpoint: "Desktop (1024-1439px)", behavior: "Standard badge behavior; anchored to parent element corner" },
+    { breakpoint: "Ultra-wide (>=1440px)", behavior: "No scaling — badges are fixed-size elements that do not grow with viewport" },
+  ],
+
+  accessibilitySpec: {
+    intro:
+      "Badges are decorative indicators that must convey their information through the parent element's accessible name or description.",
+    requirements: [
+      { requirement: "aria-label on parent", level: "A", notes: "Parent element's aria-label must include the badge count (e.g., 'Notifications, 5 unread')" },
+      { requirement: "aria-hidden on badge", level: "A", notes: "The visual badge element should be aria-hidden='true' since the parent conveys the info" },
+      { requirement: "Color Independence", level: "A", notes: "Status meaning must not rely solely on badge color — pair with parent label text" },
+      { requirement: "Contrast", level: "AA", notes: "Badge text-to-fill: 4.5:1; badge fill-to-parent-background: 3:1" },
+      { requirement: "Live Region", level: "AA", notes: "When count changes dynamically, parent should update aria-label and use aria-live='polite'" },
+      { requirement: "Reduced Motion", level: "AAA", notes: "Pulse and scale animations must be disabled when prefers-reduced-motion is set" },
+    ],
+    outro: [
+      "Screen readers should announce the badge count as part of the parent element's description, not as a separate element",
+      "Dot badges must have their meaning conveyed entirely through the parent's accessible name",
+    ],
+  },
+
+  qaAcceptanceCriteria: [
+    { check: "Numeric Display", platform: "All", expectedResult: "Badge shows exact count for values 1-99; shows '99+' for values above max" },
+    { check: "Dot Variant", platform: "All", expectedResult: "Dot badge renders as a small circle with no text content" },
+    { check: "Positioning", platform: "All", expectedResult: "Badge overlaps parent's top-right corner with correct offset; no overflow clipping" },
+    { check: "Color Variants", platform: "All", expectedResult: "Each color (neutral, primary, success, warning, error) renders correct fill and text tokens" },
+    { check: "Show/Hide Animation", platform: "Web", expectedResult: "Badge scales in/out smoothly when count transitions to/from zero" },
+    { check: "Count Update Pulse", platform: "Web", expectedResult: "Badge pulses on count change to draw attention; respects reduced motion" },
+    { check: "Single vs Multi Digit", platform: "All", expectedResult: "Single digit renders as circle; multi-digit expands to pill shape" },
+    { check: "White Border Ring", platform: "All", expectedResult: "2px white border separates badge from parent element visually" },
+    { check: "Screen Reader", platform: "Web", expectedResult: "Badge count announced via parent's aria-label; badge itself is aria-hidden" },
+    { check: "Zero Count", platform: "All", expectedResult: "Badge hides when count=0 and showZero=false; remains visible when showZero=true" },
+    { check: "Contrast", platform: "All", expectedResult: "All color variants pass 4.5:1 text and 3:1 non-text contrast" },
+  ],
+
+  dos: [
+    "Use numeric badges for countable items like unread messages or pending tasks",
+    "Use dot badges for simple binary presence indicators (online/offline)",
+    "Set a max count threshold (99) and display overflow as '99+'",
+    "Position badges at the top-right corner of their parent element consistently",
+    "Include a white border ring to separate the badge from the parent surface",
+    "Update the parent element's aria-label when the badge count changes",
+    "Use micro-animation on count changes to draw user attention",
+  ],
+
+  donts: [
+    "Do not use badges as general-purpose labels — use tag or chip components instead",
+    "Do not make badges interactive or clickable — they are purely informational",
+    "Do not display exact high numbers — truncate at the max threshold with '+'",
+    "Do not use color alone to communicate badge meaning — always pair with context",
+    "Do not place badges on elements where they obscure critical content",
+    "Do not make badges larger than 24px height — they should be subtle indicators",
+    "Do not animate badges when prefers-reduced-motion is active",
+  ],
+};

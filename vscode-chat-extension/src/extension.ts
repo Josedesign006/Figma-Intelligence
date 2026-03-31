@@ -1,4 +1,6 @@
 import * as vscode from "vscode";
+import * as net from "net";
+import * as path from "path";
 import { BridgeClient } from "./bridge-client";
 import { DualOutputParser } from "./dual-output";
 import { CodeGenerator } from "./code-generator";
@@ -9,6 +11,18 @@ let statusBarItem: vscode.StatusBarItem;
 let dualParser: DualOutputParser;
 let codeGenerator: CodeGenerator;
 let previewServer: PreviewServer;
+
+/** Check if a port is reachable (relay running) */
+function isPortOpen(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    socket.setTimeout(1500);
+    socket.once("connect", () => { socket.destroy(); resolve(true); });
+    socket.once("timeout", () => { socket.destroy(); resolve(false); });
+    socket.once("error", () => { socket.destroy(); resolve(false); });
+    socket.connect(port, "127.0.0.1");
+  });
+}
 
 export function activate(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration("figmaIntelligence");
@@ -67,9 +81,52 @@ export function activate(context: vscode.ExtensionContext) {
     )
   );
 
-  // Auto-connect
+  // Start Relay command — spawns bridge-relay.js in a VS Code terminal
+  context.subscriptions.push(
+    vscode.commands.registerCommand("figmaIntelligence.startRelay", () => {
+      const extPath = context.extensionPath;
+      // Navigate up from the extension to find the repo's bridge-relay
+      const relayPath = path.resolve(extPath, "..", "..", "Downloads",
+        "Vs code files", "MCP power -VS code version",
+        "figma-bridge-plugin", "bridge-relay.js");
+
+      // Also check a workspace-relative path
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+      const wsRelayPath = workspaceFolder
+        ? path.join(workspaceFolder.uri.fsPath, "figma-bridge-plugin", "bridge-relay.js")
+        : relayPath;
+
+      const terminal = vscode.window.createTerminal("Figma Bridge Relay");
+      terminal.sendText(`node "${wsRelayPath}"`);
+      terminal.show();
+
+      // Wait for relay to start, then auto-connect
+      setTimeout(() => bridgeClient?.connect(), 3000);
+      vscode.window.showInformationMessage("Starting Figma Bridge Relay...");
+    })
+  );
+
+  // Auto-connect with relay health-check
   if (config.get<boolean>("autoConnect", true)) {
-    bridgeClient.connect();
+    isPortOpen(port).then((running) => {
+      if (running) {
+        bridgeClient!.connect();
+      } else {
+        vscode.window
+          .showWarningMessage(
+            `Figma Intelligence Bridge relay is not running on port ${port}`,
+            "Start Relay",
+            "Connect Anyway"
+          )
+          .then((action) => {
+            if (action === "Start Relay") {
+              vscode.commands.executeCommand("figmaIntelligence.startRelay");
+            } else if (action === "Connect Anyway") {
+              bridgeClient!.connect();
+            }
+          });
+      }
+    });
   }
 }
 

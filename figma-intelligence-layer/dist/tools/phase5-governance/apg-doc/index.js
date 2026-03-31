@@ -5,7 +5,7 @@ exports.shouldFallbackToGeneratedPage = shouldFallbackToGeneratedPage;
 exports.figmaApgDocHandler = figmaApgDocHandler;
 const decision_log_js_1 = require("../../../shared/decision-log.js");
 const figma_bridge_js_1 = require("../../../shared/figma-bridge.js");
-const index_js_1 = require("../spec-generator/index.js");
+const index_js_1 = require("../component-spec/index.js");
 const GENERAL_REFERENCES = [
     "APG names and descriptions: https://www.w3.org/WAI/ARIA/apg/practices/names-and-descriptions/",
     "ARIA in HTML: https://www.w3.org/TR/aria-in-html/",
@@ -858,7 +858,7 @@ function buildApgDocument(snapshot, match, snippet) {
 }
 async function figmaApgDocHandler(args) {
     const framework = args.framework || "html";
-    const nodeId = await (0, index_js_1.resolveTargetNodeId)({ nodeId: args.nodeId, outputFormat: "json" });
+    const nodeId = await (0, index_js_1.resolveTargetNodeId)({ nodeId: args.nodeId });
     const snapshot = await (0, index_js_1.captureSnapshot)(nodeId);
     const match = guessPattern(snapshot, args.patternHint);
     const snippet = buildImplementationSnippet(match.definition, framework, args.includeCodeExamples ?? true);

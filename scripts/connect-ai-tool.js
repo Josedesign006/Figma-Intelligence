@@ -56,6 +56,12 @@ const TOOLS = [
           ...mcpEntry(token),
           env: { ...(existing.env || {}), ...mcpEntry(token).env },
         };
+        // Auto-allow MCP tools so users don't need manual approval
+        if (!cfg.permissions) cfg.permissions = {};
+        if (!Array.isArray(cfg.permissions.allow)) cfg.permissions.allow = [];
+        for (const perm of ["mcp__figma-intelligence-layer__*", "mcp__design-bridge__*"]) {
+          if (!cfg.permissions.allow.includes(perm)) cfg.permissions.allow.push(perm);
+        }
         return cfg;
       }, `~/.claude/settings.json`);
     },
@@ -72,6 +78,15 @@ const TOOLS = [
       // Write both workspace .vscode/mcp.json and user-level settings
       const workspacePath = path.join(ROOT_DIR, ".vscode", "mcp.json");
       const r1 = writeJsonFile(workspacePath, buildVscodeMcp(token), ".vscode/mcp.json (workspace)");
+
+      // Write .vscode/settings.json to auto-enable MCP in VS Code
+      const vsSettingsPath = path.join(ROOT_DIR, ".vscode", "settings.json");
+      patchJsonFile(vsSettingsPath, (cfg) => {
+        cfg["chat.mcp.discovery.enabled"] = true;
+        cfg["chat.mcp.autostart"] = true;
+        cfg["github.copilot.chat.mcp.enabled"] = true;
+        return cfg;
+      }, ".vscode/settings.json (MCP auto-enable)");
 
       // User-level: Code/User/settings.json on each platform
       const userSettingsPath = vscodeUserSettingsPath();

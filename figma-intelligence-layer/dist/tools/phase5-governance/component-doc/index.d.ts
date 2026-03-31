@@ -232,5 +232,8 @@ export interface ComponentDocResult {
     logEntryId: string;
     hint?: string;
 }
+export declare function captureSpacingStructure(nodeId: string): Promise<SpacingEntry[]>;
+export declare function captureColorTokenMap(nodeId: string): Promise<ColorTokenEntry[]>;
+export declare function captureTypographySpec(nodeId: string): Promise<TypographyEntry[]>;
 export declare function componentDocHandler(args: ComponentDocArgs): Promise<ComponentDocResult>;
 //# sourceMappingURL=index.d.ts.map
