@@ -55,6 +55,7 @@ const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
 const index_js_2 = require("./tools/phase1-vision/screen-cloner/index.js");
 const index_js_3 = require("./tools/phase1-vision/visual-audit/index.js");
 const index_js_4 = require("./tools/phase1-vision/a11y-audit/index.js");
+const keyboard_sr_order_handler_js_1 = require("./tools/phase1-vision/a11y-audit/keyboard-sr-order-handler.js");
 const index_js_5 = require("./tools/phase1-vision/sketch-to-design/index.js");
 const index_js_6 = require("./tools/phase1-vision/design-from-ref/index.js");
 // ─── Phase 2: Design System Accuracy ────────────────────────────────────────
@@ -95,7 +96,7 @@ const figma_bridge_js_1 = require("./shared/figma-bridge.js");
 // ─── P0: Response compression ───────────────────────────────────────────────
 const response_compression_js_1 = require("./shared/response-compression.js");
 // ─────────────────────────────────────────────────────────────────────────────
-// Tool registry — 22 tools
+// Tool registry — 23 tools
 // ─────────────────────────────────────────────────────────────────────────────
 const TOOLS = [
     // ── Phase 1 ──────────────────────────────────────────────────────────────
@@ -134,17 +135,30 @@ const TOOLS = [
     },
     {
         name: "figma_a11y_audit",
-        description: "Automated WCAG 2.2 compliance audit. Checks text contrast, touch targets, focus indicators, reading order, and more. Optionally simulates 4 color-blindness profiles. Works without Figma Enterprise.",
+        description: "Comprehensive WCAG 2.2 accessibility audit producing a VPAT-style conformance report by default. Covers ALL success criteria at the requested level (A = ~30 SC, AA = ~50+ SC, AAA = ~78 SC). Each criterion gets a conformance status: Supports, Partially Supports, Does Not Support, Not Applicable, or Not Evaluated. Automated checks for contrast, target size, text spacing, non-text contrast, focus states, heading hierarchy, reading order, accessible names, and more. Manual-review criteria include actionable guidance. The result includes a formattedReport field with the full VPAT markdown table.",
         inputSchema: {
             type: "object",
             properties: {
                 nodeId: { type: "string", description: "Figma node ID to audit" },
-                wcagLevel: { type: "string", enum: ["A", "AA", "AAA"] },
-                includeColorBlindSim: { type: "boolean" },
-                outputFormat: { type: "string", enum: ["inline", "report", "both"] },
-                autoSuggestFixes: { type: "boolean" },
+                wcagLevel: { type: "string", enum: ["A", "AA", "AAA"], description: "WCAG conformance level. Level A checks ~30 criteria, AA checks ~50+, AAA checks all ~78." },
+                includeColorBlindSim: { type: "boolean", description: "Simulate 4 color blindness profiles (protanopia, deuteranopia, tritanopia, achromatopsia)" },
+                outputFormat: { type: "string", enum: ["inline", "report", "both"], description: "inline = Figma sticky notes, report = JSON, both = both" },
+                autoSuggestFixes: { type: "boolean", description: "Include fix suggestions in results" },
+                reportFormat: { type: "string", enum: ["issues-only", "vpat"], description: "vpat (default) returns a full VPAT-style conformance report with every SC at the requested level. issues-only returns only failing checks." },
             },
             required: ["nodeId", "wcagLevel", "outputFormat"],
+        },
+    },
+    {
+        name: "figma_a11y_keyboard_screenreader_order",
+        description: "Generate enterprise-level keyboard tab order and screen reader reading order annotations as a new Figma page. Analyzes all interactive elements, infers ARIA roles and labels, computes tab sequence, reading order by landmarks, interaction announcements, focus management rules, and developer implementation notes. Outputs a fully formatted annotation page following WAI-ARIA APG + WCAG 2.1 AA standards with 10 sections: Header, Scope, Assumptions, Keyboard Tab Order, Screen Reader Reading Order, Interaction Announcements, Focus Management, Implementation Notes (ARIA table, Keyboard Behaviour, Do/Don't), Warnings, and Audit Summary.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                nodeId: { type: "string", description: "Figma node ID of the frame/page to analyze" },
+                pageName: { type: "string", description: "Optional custom name for the generated annotation page" },
+            },
+            required: ["nodeId"],
         },
     },
     {
@@ -1246,7 +1260,16 @@ async function dispatch(name, args) {
         // Phase 1
         case "figma_screen_cloner": return (0, index_js_2.screenClonerHandler)(args);
         case "figma_visual_audit": return (0, index_js_3.visualAuditHandler)(args);
-        case "figma_a11y_audit": return (0, index_js_4.a11yAuditHandler)(args);
+        case "figma_a11y_audit": {
+            const a11yResult = await (0, index_js_4.a11yAuditHandler)(args);
+            // In VPAT mode, return the formatted markdown report directly as a string
+            // so the LLM presents the full VPAT table rather than summarising raw JSON.
+            if (a11yResult.vpatReport) {
+                return a11yResult.vpatReport.formattedReport;
+            }
+            return a11yResult;
+        }
+        case "figma_a11y_keyboard_screenreader_order": return (0, keyboard_sr_order_handler_js_1.keyboardSrOrderHandler)(args);
         case "figma_sketch_to_design": return (0, index_js_5.sketchToDesignHandler)(args);
         case "figma_design_from_ref": return (0, index_js_6.designFromRefHandler)(args);
         // Phase 2
