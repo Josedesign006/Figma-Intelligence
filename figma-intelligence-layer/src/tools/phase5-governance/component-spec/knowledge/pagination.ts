@@ -1,0 +1,248 @@
+/**
+ * pagination.ts — Gold-standard design knowledge for Pagination components
+ */
+import type { ComponentKnowledge } from "../types.js";
+
+export const paginationKnowledge: ComponentKnowledge = {
+  description:
+    "Page navigation control | Enables traversal across paged content | Supports numbered, compact, and load-more patterns",
+
+  stateSpecifications: [
+    {
+      state: "Default",
+      visualChange: "Page numbers displayed as clickable items; navigation arrows enabled; current page highlighted",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Resting state — pagination is ready for interaction with all navigable pages visible",
+    },
+    {
+      state: "Hover",
+      visualChange: "Background of hovered page number shifts to hover token; subtle elevation or underline may appear",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Mouse cursor enters a page number or navigation arrow hit area",
+    },
+    {
+      state: "Active-page",
+      visualChange: "Current page number uses primary fill with high-contrast text; non-interactive appearance",
+      opacity: "1",
+      cursorWeb: "default",
+      usage: "Indicates the currently displayed page — this item is not clickable",
+    },
+    {
+      state: "Disabled-nav",
+      visualChange: "Previous/Next arrows use muted color tokens; no hover effect",
+      opacity: "0.4",
+      cursorWeb: "not-allowed",
+      usage: "Navigation arrow is disabled because user is on the first or last page respectively",
+    },
+    {
+      state: "Focus",
+      visualChange: "2px focus ring offset by 2px around the focused page item, using $focus-ring token",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Page number or arrow receives keyboard focus via Tab or arrow key navigation",
+    },
+  ],
+
+  propertyDescriptions: {
+    totalPages: "Total number of pages available for navigation; determines the range of page numbers rendered",
+    currentPage: "The currently active page number; controls which item receives the active-page visual treatment",
+    type: "Pagination pattern variant — 'numbered' shows page numbers, 'loadMore' shows a single button, 'compact' shows current/total only",
+    size: "Dimensional preset controlling item height, padding, font-size, and icon-size (sm, md, lg)",
+    siblingCount: "Number of page numbers to show on each side of the current page before truncation ellipsis appears",
+    boundaryCount: "Number of page numbers always visible at the start and end of the range regardless of current page",
+    onPageChange: "Callback fired when a new page is selected; receives the target page number as argument",
+    disabled: "When true, the entire pagination component is non-interactive; all items appear muted",
+    showFirstLast: "When true, dedicated first-page and last-page navigation arrows are rendered alongside prev/next",
+  },
+
+  sizeSpecifications: [
+    {
+      size: "Small",
+      height: "28px",
+      paddingLR: "6px",
+      fontSize: "12px",
+      iconSize: "14px",
+      borderRadius: "4px",
+    },
+    {
+      size: "Medium",
+      height: "36px",
+      paddingLR: "10px",
+      fontSize: "14px",
+      iconSize: "18px",
+      borderRadius: "6px",
+    },
+    {
+      size: "Large",
+      height: "44px",
+      paddingLR: "14px",
+      fontSize: "16px",
+      iconSize: "22px",
+      borderRadius: "8px",
+    },
+  ],
+
+  designTokenBindings: [
+    {
+      property: "Page Item Background",
+      tokenName: "$pagination-item-bg",
+      role: "Default background for non-active page number items",
+      fallback: "transparent",
+    },
+    {
+      property: "Active Page Background",
+      tokenName: "$pagination-active-bg",
+      role: "Fill color for the currently selected page number",
+      fallback: "#2563EB",
+    },
+    {
+      property: "Active Page Text",
+      tokenName: "$pagination-active-text",
+      role: "Text color on the active page number for contrast",
+      fallback: "#FFFFFF",
+    },
+    {
+      property: "Page Item Text",
+      tokenName: "$pagination-item-text",
+      role: "Default text color for non-active page numbers",
+      fallback: "#344054",
+    },
+    {
+      property: "Hover Background",
+      tokenName: "$pagination-hover-bg",
+      role: "Background applied on hover for non-active page items",
+      fallback: "#F2F4F7",
+    },
+    {
+      property: "Disabled Color",
+      tokenName: "$pagination-disabled",
+      role: "Muted color for disabled navigation arrows",
+      fallback: "#D0D5DD",
+    },
+    {
+      property: "Border",
+      tokenName: "$pagination-border",
+      role: "Optional border around each page item for outlined variant",
+      fallback: "#E4E7EC",
+    },
+    {
+      property: "Focus Ring",
+      tokenName: "$focus-ring",
+      role: "Keyboard focus indicator ring on focused page item",
+      fallback: "0 0 0 2px #FFFFFF, 0 0 0 4px #2E90FA",
+    },
+    {
+      property: "Font Family",
+      tokenName: "$font-family-sans",
+      role: "Typeface for page number labels",
+      fallback: "Inter, system-ui, sans-serif",
+    },
+    {
+      property: "Gap",
+      tokenName: "$spacing-xs",
+      role: "Spacing between adjacent page items",
+      fallback: "4px",
+    },
+  ],
+
+  structureRules: [
+    "Container uses horizontal Auto Layout with center vertical alignment",
+    "Navigation arrows (prev/next) are the outermost children; page number items sit between them",
+    "Ellipsis truncation indicators are non-interactive text elements inserted when sibling/boundary counts cause omission",
+    "Each page item has equal width and height to form a square or near-square hit area",
+    "Active page item uses a different fill but same dimensions as other items — no layout shift on page change",
+    "Load-more variant replaces the numbered row with a single centered button component",
+    "Compact variant shows 'Page X of Y' text with prev/next arrows only — no individual page items",
+    "Touch targets for each item must be at least 44x44px; add transparent padding if visual size is smaller",
+  ],
+
+  typeHierarchyRules: [
+    "Page numbers use tabular (monospace) numerals for consistent width across digits",
+    "Font weight is Medium (500) for the active page, Regular (400) for inactive pages",
+    "Ellipsis uses the same font-size as page numbers but with reduced opacity",
+    "Compact variant label ('Page X of Y') uses Regular weight with the same font-size as the selected size preset",
+  ],
+
+  interactionRules: [
+    { event: "Click Page Number", trigger: "pointerup on a non-active page item", action: "Fire onPageChange with the clicked page number; update active-page visuals" },
+    { event: "Click Previous", trigger: "pointerup on prev arrow (when not disabled)", action: "Fire onPageChange with currentPage - 1" },
+    { event: "Click Next", trigger: "pointerup on next arrow (when not disabled)", action: "Fire onPageChange with currentPage + 1" },
+    { event: "Hover", trigger: "pointerenter on any interactive page item", action: "Apply hover background token; transition smoothly" },
+    { event: "Focus", trigger: "Tab or arrow key navigation", action: "Show focus ring on the focused page item" },
+    { event: "Keydown Enter", trigger: "Enter key while a page item is focused", action: "Fire onPageChange for the focused page number" },
+    { event: "Keydown Arrow", trigger: "Left/Right arrow keys within the pagination nav", action: "Move focus to the adjacent page item without activating it" },
+  ],
+
+  contentGuidance: [
+    "Always pair pagination with a clear indication of total results or total pages so users know the scope",
+    "Use numbered pagination for content where users need random access to specific pages (e.g. search results)",
+    "Use load-more for infinite-scroll-like patterns where sequential consumption is expected (e.g. feeds)",
+    "Use compact pagination when horizontal space is limited (e.g. mobile cards, embedded tables)",
+    "Navigation arrows should use chevron icons, not text labels, to save space; add aria-label for screen readers",
+    "Truncation ellipsis should appear when total pages exceed siblingCount + boundaryCount thresholds",
+  ],
+
+  responsiveBehaviour: [
+    { breakpoint: "Mobile (<768px)", behavior: "Switch to compact variant or show reduced siblingCount (1); prev/next arrows remain visible" },
+    { breakpoint: "Tablet (768-1023px)", behavior: "Show abbreviated page range with siblingCount of 1-2; navigation arrows visible" },
+    { breakpoint: "Desktop (1024-1439px)", behavior: "Full numbered pagination with standard siblingCount and boundaryCount" },
+    { breakpoint: "Ultra-wide (>=1440px)", behavior: "Pagination size remains capped; do not stretch to fill available width" },
+  ],
+
+  accessibilitySpec: {
+    intro:
+      "Pagination must be navigable by keyboard and clearly announce the current page to assistive technologies. It wraps in a landmark nav element for easy discovery.",
+    requirements: [
+      { requirement: "Landmark", level: "A", notes: "Wrap in <nav> element with aria-label='Pagination' for screen reader landmark navigation" },
+      { requirement: "Current Page", level: "A", notes: "Active page item must have aria-current='page' so screen readers announce it as the current page" },
+      { requirement: "Keyboard Navigation", level: "A", notes: "All page items and arrows must be focusable via Tab; Enter activates the focused item" },
+      { requirement: "Disabled State", level: "A", notes: "Disabled arrows use aria-disabled='true' and are excluded from tab order or made inert" },
+      { requirement: "Page Change Announcement", level: "AA", notes: "When a new page is selected, announce the change via aria-live='polite' region (e.g. 'Page 3 of 10')" },
+      { requirement: "Contrast Ratio", level: "AA", notes: "Active page indicator must have 3:1 contrast against surrounding surface; text must meet 4.5:1" },
+      { requirement: "Touch Target", level: "AA", notes: "Each page item must have at least 44x44px touch area per WCAG 2.5.5" },
+    ],
+    outro: [
+      "Ensure focus is not lost when the page list re-renders after a page change — focus should return to the newly active item or a predictable location",
+      "Truncation ellipsis elements should have aria-hidden='true' since they are not interactive and carry no semantic meaning",
+      "Screen readers should be able to determine the total number of pages from context (e.g. 'Page 3 of 10')",
+    ],
+  },
+
+  qaAcceptanceCriteria: [
+    { check: "Visual Regression", platform: "All", expectedResult: "Pagination renders pixel-perfect against baseline for each type and size variant" },
+    { check: "Active Page Highlight", platform: "All", expectedResult: "Current page is visually distinct with primary fill; changes on navigation" },
+    { check: "Disabled Arrow", platform: "All", expectedResult: "Prev disabled on page 1; Next disabled on last page; muted visuals and no click response" },
+    { check: "Hover State", platform: "Web", expectedResult: "Non-active page items show hover background on mouse enter; active page does not change" },
+    { check: "Focus State", platform: "Web", expectedResult: "Focus ring visible on Tab navigation; hidden on mouse click (focus-visible)" },
+    { check: "Keyboard Navigation", platform: "Web", expectedResult: "Tab moves between page items and arrows; Enter fires page change; arrow keys move focus" },
+    { check: "Screen Reader", platform: "Web", expectedResult: "Announces nav landmark, current page via aria-current, page change via aria-live" },
+    { check: "Truncation", platform: "Web", expectedResult: "Ellipsis appears when pages exceed sibling+boundary threshold; not focusable" },
+    { check: "Compact Variant", platform: "All", expectedResult: "'Page X of Y' label updates correctly; prev/next arrows function properly" },
+    { check: "Load More Variant", platform: "All", expectedResult: "Button triggers next page load; disabled/loading state during fetch" },
+    { check: "Touch Target Size", platform: "Mobile", expectedResult: "All interactive items have at least 44x44px hit area" },
+    { check: "Contrast", platform: "All", expectedResult: "Active page passes 4.5:1 text contrast; non-text indicator passes 3:1" },
+    { check: "RTL Support", platform: "Web", expectedResult: "Arrow directions swap; page order mirrors; layout alignment correct in RTL locales" },
+  ],
+
+  dos: [
+    "Use numbered pagination for data tables and search results where users need direct page access",
+    "Always show the first and last page numbers (boundaryCount >= 1) to give users a sense of total range",
+    "Highlight the active page clearly so users always know where they are in the result set",
+    "Pair pagination with a results summary (e.g. 'Showing 11-20 of 97 results')",
+    "Use consistent item sizing — each page number item should be the same width and height",
+    "Disable rather than hide navigation arrows when at the boundary to maintain spatial stability",
+    "Provide aria-current='page' on the active page item for assistive technology",
+  ],
+
+  donts: [
+    "Do not use pagination for fewer than 2 pages — hide the component entirely if totalPages <= 1",
+    "Do not show all page numbers when totalPages is large — use truncation with ellipsis",
+    "Do not change the page on hover — only on explicit click or Enter keypress",
+    "Do not remove disabled arrows from the DOM; keep them visible but inert for layout consistency",
+    "Do not rely solely on color to indicate the active page — use fill, weight, or shape differences",
+    "Do not use pagination for infinite scroll content — use load-more or virtual scrolling instead",
+    "Do not place pagination inside scrollable containers where it might be hidden from view",
+  ],
+};

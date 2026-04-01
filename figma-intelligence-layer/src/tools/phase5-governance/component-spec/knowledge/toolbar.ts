@@ -1,0 +1,267 @@
+/**
+ * toolbar.ts — Gold-standard design knowledge for Toolbar components
+ */
+import type { ComponentKnowledge } from "../types.js";
+
+export const toolbarKnowledge: ComponentKnowledge = {
+  description:
+    "Horizontal action bar | Grouped controls container | Provides quick access to contextual actions and tools",
+
+  stateSpecifications: [
+    {
+      state: "Default",
+      visualChange: "Toolbar renders as a horizontal bar with evenly spaced action items in their resting state",
+      opacity: "1",
+      cursorWeb: "default",
+      usage: "Standard resting state — all toolbar items are interactive and ready for activation",
+    },
+    {
+      state: "Item Hover",
+      visualChange: "Individual toolbar item background shifts to a subtle hover tint; icon/text color may intensify",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Mouse cursor enters a specific toolbar item's hit area",
+    },
+    {
+      state: "Item Active/Pressed",
+      visualChange: "Item background darkens further; slight depression effect for tactile feedback",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Mouse button is held down on a toolbar item",
+    },
+    {
+      state: "Item Selected/Toggled",
+      visualChange: "Item has filled background or bottom indicator bar; icon/text uses active/primary color",
+      opacity: "1",
+      cursorWeb: "default",
+      usage: "A toggle-type toolbar item is in its active/on state (e.g. Bold, Italic formatting)",
+    },
+    {
+      state: "Item Disabled",
+      visualChange: "Individual item icon and text are muted; no hover or click response",
+      opacity: "0.4",
+      cursorWeb: "not-allowed",
+      usage: "A specific action is unavailable in the current context (e.g. Undo with no history)",
+    },
+    {
+      state: "Item Focus",
+      visualChange: "2px focus ring around the focused item; achieved via arrow key or Tab navigation",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "A toolbar item receives keyboard focus via the roving tabindex pattern",
+    },
+    {
+      state: "Overflow",
+      visualChange: "Items that do not fit are hidden; an overflow menu button (three dots) appears at the end",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Container is too narrow to display all items — excess items move to an overflow dropdown",
+    },
+  ],
+
+  propertyDescriptions: {
+    items: "Array of toolbar item objects, each with a label, icon, onClick handler, type (button/toggle/separator), and optional disabled flag",
+    size: "Dimensional preset — Small, Medium, or Large — controlling item height, icon size, and padding",
+    overflow: "Overflow behavior — 'visible' keeps all items visible (may overflow container) or 'menu' moves excess items to a dropdown",
+    orientation: "Layout direction — 'horizontal' (default) for standard toolbars or 'vertical' for sidebar tool palettes",
+    ariaLabel: "Accessible label for the toolbar — describes the toolbar purpose (e.g. 'Text formatting', 'Drawing tools')",
+    variant: "Visual style — 'solid' with background fill, 'subtle' with transparent background, or 'outlined' with border",
+    groupSeparator: "When true, renders visual dividers between logical groups of toolbar items",
+  },
+
+  sizeSpecifications: [
+    {
+      size: "Small",
+      height: "32px",
+      paddingLR: "4px",
+      fontSize: "12px",
+      iconSize: "16px",
+      borderRadius: "6px",
+    },
+    {
+      size: "Medium",
+      height: "40px",
+      paddingLR: "6px",
+      fontSize: "14px",
+      iconSize: "20px",
+      borderRadius: "8px",
+    },
+    {
+      size: "Large",
+      height: "48px",
+      paddingLR: "8px",
+      fontSize: "16px",
+      iconSize: "24px",
+      borderRadius: "10px",
+    },
+  ],
+
+  designTokenBindings: [
+    {
+      property: "Toolbar Background",
+      tokenName: "$toolbar-bg",
+      role: "Background fill of the toolbar container",
+      fallback: "#FFFFFF",
+    },
+    {
+      property: "Toolbar Border",
+      tokenName: "$toolbar-border",
+      role: "Border around or below the toolbar for definition",
+      fallback: "#E4E7EC",
+    },
+    {
+      property: "Item Default Color",
+      tokenName: "$toolbar-item-color",
+      role: "Icon and text color for toolbar items in default state",
+      fallback: "#667085",
+    },
+    {
+      property: "Item Hover Background",
+      tokenName: "$toolbar-item-hover-bg",
+      role: "Background tint on individual item hover",
+      fallback: "#F2F4F7",
+    },
+    {
+      property: "Item Active Background",
+      tokenName: "$toolbar-item-active-bg",
+      role: "Background fill when an item is pressed or actively toggled",
+      fallback: "#E4E7EC",
+    },
+    {
+      property: "Item Selected Color",
+      tokenName: "$toolbar-item-selected-color",
+      role: "Icon and text color for a selected/toggled-on item",
+      fallback: "#2563EB",
+    },
+    {
+      property: "Item Selected Background",
+      tokenName: "$toolbar-item-selected-bg",
+      role: "Background fill for a selected/toggled-on item",
+      fallback: "#EFF8FF",
+    },
+    {
+      property: "Separator",
+      tokenName: "$toolbar-separator",
+      role: "Color of the vertical divider line between item groups",
+      fallback: "#E4E7EC",
+    },
+    {
+      property: "Focus Ring",
+      tokenName: "$focus-ring",
+      role: "Keyboard focus indicator around the focused toolbar item",
+      fallback: "0 0 0 2px #FFFFFF, 0 0 0 4px #2E90FA",
+    },
+    {
+      property: "Shadow",
+      tokenName: "$shadow-toolbar",
+      role: "Optional subtle shadow for floating toolbar variants",
+      fallback: "0 1px 3px rgba(0, 0, 0, 0.1)",
+    },
+  ],
+
+  structureRules: [
+    "Toolbar container uses horizontal Auto Layout (or vertical for sidebar variant) with items as direct children",
+    "Items within a logical group have $spacing-2xs (2px) gap; groups are separated by a visual divider",
+    "Separators are 1px vertical lines (horizontal toolbar) or 1px horizontal lines (vertical toolbar) using the separator token",
+    "Each item is a square or near-square button containing an icon centered both horizontally and vertically",
+    "Items with labels render the label below (horizontal) or beside (vertical) the icon in a compact arrangement",
+    "Overflow menu button is always the last visible item and uses a three-dot (ellipsis) icon",
+    "Overflow dropdown menu inherits the menu component pattern with the hidden items listed as menu items",
+    "Toolbar container has minimal internal padding (4-8px) to keep it compact",
+    "Toolbar should not wrap to multiple lines — use the overflow pattern when items exceed container width",
+  ],
+
+  typeHierarchyRules: [
+    "Item labels (when shown) use Medium weight (500) at one size smaller than the size preset fontSize",
+    "Labels are optional — icon-only toolbars are the most common pattern",
+    "Tooltip text for icon-only items uses Regular weight (400) at 12px",
+    "Overflow menu item text uses Regular weight (400) at the standard menu item font size",
+  ],
+
+  interactionRules: [
+    { event: "Click (Button Item)", trigger: "Pointer up on a button-type toolbar item", action: "Fire the item's onClick handler; provide brief visual active feedback" },
+    { event: "Click (Toggle Item)", trigger: "Pointer up on a toggle-type toolbar item", action: "Toggle the item's selected state; update visual treatment; fire onChange" },
+    { event: "Hover", trigger: "Pointer enters a toolbar item", action: "Item background transitions to hover tint; tooltip appears after delay" },
+    { event: "Focus (Tab)", trigger: "Tab key reaches the toolbar", action: "Focus lands on the first (or last-focused) item in the toolbar; focus ring appears" },
+    { event: "Arrow Right", trigger: "Right arrow while focused (horizontal)", action: "Move focus to the next item; skip separators; wrap from last to first" },
+    { event: "Arrow Left", trigger: "Left arrow while focused (horizontal)", action: "Move focus to the previous item; skip separators; wrap from first to last" },
+    { event: "Arrow Down", trigger: "Down arrow while focused (vertical)", action: "Move focus to the next item in a vertical toolbar" },
+    { event: "Arrow Up", trigger: "Up arrow while focused (vertical)", action: "Move focus to the previous item in a vertical toolbar" },
+    { event: "Home", trigger: "Home key while focused", action: "Move focus to the first interactive item in the toolbar" },
+    { event: "End", trigger: "End key while focused", action: "Move focus to the last interactive item in the toolbar" },
+    { event: "Overflow Toggle", trigger: "Click on the overflow menu button", action: "Open a dropdown menu containing the hidden overflow items" },
+  ],
+
+  contentGuidance: [
+    "Group related actions together — separate groups with visual dividers",
+    "Limit toolbar to 5-12 visible items — use overflow for additional actions",
+    "Icon-only toolbars must have tooltips on every item for discoverability",
+    "Use familiar, standard icons — avoid custom icons that require learning",
+    "Place the most frequently used actions at the beginning (left for horizontal, top for vertical)",
+    "Toggle items should have a clear selected vs. unselected visual distinction",
+    "Overflow menu should preserve the same item order as the visible toolbar",
+  ],
+
+  responsiveBehaviour: [
+    { breakpoint: "Mobile (<768px)", behavior: "Toolbar items collapse aggressively into overflow menu; only 3-4 most important items remain visible" },
+    { breakpoint: "Tablet (768-1023px)", behavior: "Most items visible; overflow handles 2-3 least-used items; touch targets are 44px minimum" },
+    { breakpoint: "Desktop (1024-1439px)", behavior: "All items visible in most cases; overflow activates only for very dense toolbars" },
+    { breakpoint: "Ultra-wide (>=1440px)", behavior: "Toolbar width remains capped at container width; items do not spread to fill extra space" },
+  ],
+
+  accessibilitySpec: {
+    intro:
+      "Toolbars group related controls for quick access. The WAI-ARIA toolbar pattern requires proper role assignment, arrow key navigation, and accessible names for all items.",
+    requirements: [
+      { requirement: "Role", level: "A", notes: "Container must have role='toolbar' with aria-label or aria-labelledby describing the toolbar purpose" },
+      { requirement: "Orientation", level: "A", notes: "Use aria-orientation='horizontal' or 'vertical' to inform screen readers of the navigation axis" },
+      { requirement: "Roving Tabindex", level: "A", notes: "Only one item has tabindex='0' at a time; arrow keys move focus; Tab exits the toolbar" },
+      { requirement: "Item Labels", level: "A", notes: "Icon-only items require aria-label; toggle items need aria-pressed='true'/'false'" },
+      { requirement: "Disabled Items", level: "A", notes: "Disabled items have aria-disabled='true'; they remain in the arrow key navigation but are not activatable" },
+      { requirement: "Keyboard Activation", level: "A", notes: "Enter and Space activate the focused toolbar item; toggle items change aria-pressed" },
+      { requirement: "Contrast", level: "AA", notes: "All item icons meet 3:1 non-text contrast; labels meet 4.5:1 text contrast" },
+      { requirement: "Touch Target", level: "AA", notes: "Each toolbar item has a minimum 44x44px touch area" },
+    ],
+    outro: [
+      "Test with screen readers to verify role='toolbar' is announced, along with the toolbar label and item count",
+      "Verify arrow keys navigate between items and wrap at boundaries",
+      "Ensure overflow menu items are announced with their original labels and states",
+    ],
+  },
+
+  qaAcceptanceCriteria: [
+    { check: "Default Render", platform: "All", expectedResult: "Toolbar displays all items in a horizontal row with correct spacing and separators" },
+    { check: "Item Hover", platform: "Web", expectedResult: "Individual items show hover background tint on pointer enter" },
+    { check: "Item Click", platform: "All", expectedResult: "Button items fire onClick; toggle items change selected state and fire onChange" },
+    { check: "Toggle State", platform: "All", expectedResult: "Toggled-on items show filled/selected visual; toggled-off items show default treatment" },
+    { check: "Arrow Key Navigation", platform: "Web", expectedResult: "Left/Right arrows move focus between items; Home/End jump to first/last" },
+    { check: "Tab Behavior", platform: "Web", expectedResult: "Tab enters toolbar on the last-focused item; next Tab exits to the next focusable element" },
+    { check: "Disabled Item", platform: "All", expectedResult: "Disabled items show muted visuals; not clickable; included in arrow key navigation but not activatable" },
+    { check: "Overflow Menu", platform: "Web", expectedResult: "Excess items move to overflow dropdown; dropdown opens on overflow button click" },
+    { check: "Separator Rendering", platform: "All", expectedResult: "Visual dividers appear between groups; correct color and spacing" },
+    { check: "Tooltip", platform: "Web", expectedResult: "Tooltips appear on hover/focus for icon-only items with correct label text" },
+    { check: "Screen Reader", platform: "Web", expectedResult: "Announces toolbar role, label, item labels, toggle states, and disabled states" },
+    { check: "Vertical Orientation", platform: "All", expectedResult: "Items stack vertically; Up/Down arrows navigate; aria-orientation is 'vertical'" },
+    { check: "RTL Support", platform: "Web", expectedResult: "Item order mirrors; arrow key direction reverses; separators position correctly" },
+  ],
+
+  dos: [
+    "Use role='toolbar' with a descriptive aria-label for the toolbar container",
+    "Group related actions and separate groups with visual dividers",
+    "Implement roving tabindex for single-Tab-stop keyboard navigation",
+    "Provide tooltips for all icon-only toolbar items",
+    "Use the overflow pattern when items exceed the available container width",
+    "Give toggle items a clear selected/unselected visual distinction with aria-pressed",
+    "Place the most frequently used actions first (leftmost or topmost)",
+  ],
+
+  donts: [
+    "Do not use a toolbar for navigation — use a navbar or tab bar instead",
+    "Do not allow the toolbar to wrap to multiple rows — use overflow instead",
+    "Do not make toolbar items smaller than the 44x44px minimum touch target",
+    "Do not use text-only toolbar items without icons — toolbars are primarily icon-driven",
+    "Do not mix unrelated actions in the same toolbar — separate into distinct toolbars",
+    "Do not use the toolbar pattern for a simple button group — toolbars imply the WAI-ARIA toolbar pattern",
+    "Do not hide the overflow indicator when items are clipped — users need to discover hidden actions",
+  ],
+};

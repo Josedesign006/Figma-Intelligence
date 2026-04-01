@@ -1,0 +1,261 @@
+/**
+ * empty-state.ts — Gold-standard design knowledge for Empty State components
+ */
+import type { ComponentKnowledge } from "../types.js";
+
+export const emptyStateKnowledge: ComponentKnowledge = {
+  description:
+    "Placeholder for zero-data views | Guides users toward their first action | Displays illustration, message, and CTA",
+
+  stateSpecifications: [
+    {
+      state: "Default",
+      visualChange: "Centered layout with illustration, heading, description text, and action button(s); all elements at full opacity",
+      opacity: "1",
+      cursorWeb: "default",
+      usage: "Primary state — displayed when a data list, table, or content area has no items to show",
+    },
+    {
+      state: "Action Hover",
+      visualChange: "Primary action button transitions to its hover state (darker background); secondary action shows underline or fill change",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Mouse cursor enters the action button within the empty state — standard button hover behavior applies",
+    },
+    {
+      state: "Action Focus",
+      visualChange: "Action button receives a 2px focus ring offset by 2px using $focus-ring token",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Action button receives keyboard focus via Tab key",
+    },
+    {
+      state: "Action Active",
+      visualChange: "Action button background darkens one additional step with subtle scale-down (0.98) for tactile feedback",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "User is pressing down on the action button before releasing",
+    },
+    {
+      state: "Loading",
+      visualChange: "Skeleton versions of heading and description pulse; illustration may show a simplified placeholder",
+      opacity: "0.6",
+      cursorWeb: "default",
+      usage: "The system is determining whether data exists — skeleton previews the eventual empty state layout",
+    },
+    {
+      state: "Error",
+      visualChange: "Illustration switches to an error graphic; heading and description communicate the failure; retry action is prominent",
+      opacity: "1",
+      cursorWeb: "default",
+      usage: "Data failed to load — the empty state communicates the error and provides a retry action",
+    },
+  ],
+
+  propertyDescriptions: {
+    illustration: "Optional visual element rendered above the heading — can be an SVG illustration, Lottie animation, or icon component",
+    heading: "Primary heading text that describes the empty state context — e.g., 'No projects yet' or 'Inbox is empty'",
+    description: "Supporting body text providing additional context and guidance — explains why the state is empty and what to do next",
+    primaryAction: "Main call-to-action button that initiates the first action — e.g., 'Create project', 'Upload file'",
+    secondaryAction: "Optional secondary action rendered below or beside the primary action — e.g., 'Learn more', 'Import data'",
+    size: "Layout preset controlling the overall dimensions and spacing — compact (200px), default (320px), or full (480px)",
+    alignment: "Horizontal alignment of the empty state content — center (default), left, or right",
+    illustrationSize: "Dimension override for the illustration — small (80px), medium (120px), or large (160px)",
+    variant: "Visual variant for different contexts — 'empty' (no data), 'search' (no results), 'error' (load failure), 'permission' (access denied)",
+    fullPage: "When true the empty state expands to fill the full viewport height, vertically centering all content",
+  },
+
+  sizeSpecifications: [
+    {
+      size: "Compact",
+      height: "200px (min)",
+      paddingLR: "16px",
+      fontSize: "14px (heading)",
+      iconSize: "48px (illustration)",
+      borderRadius: "0px",
+    },
+    {
+      size: "Default",
+      height: "320px (min)",
+      paddingLR: "24px",
+      fontSize: "18px (heading)",
+      iconSize: "80px (illustration)",
+      borderRadius: "0px",
+    },
+    {
+      size: "Full",
+      height: "480px (min)",
+      paddingLR: "32px",
+      fontSize: "24px (heading)",
+      iconSize: "120px (illustration)",
+      borderRadius: "0px",
+    },
+  ],
+
+  designTokenBindings: [
+    {
+      property: "Heading Color",
+      tokenName: "$empty-state-heading",
+      role: "Text color for the primary heading within the empty state",
+      fallback: "#1F2937",
+    },
+    {
+      property: "Description Color",
+      tokenName: "$empty-state-description",
+      role: "Muted text color for the supporting description paragraph",
+      fallback: "#6B7280",
+    },
+    {
+      property: "Illustration Color",
+      tokenName: "$empty-state-illustration",
+      role: "Primary color for monochrome illustrations or icon tint",
+      fallback: "#D1D5DB",
+    },
+    {
+      property: "Background",
+      tokenName: "$empty-state-bg",
+      role: "Optional background fill for the empty state container — often transparent to inherit parent surface",
+      fallback: "transparent",
+    },
+    {
+      property: "Primary Action BG",
+      tokenName: "$button-primary-bg",
+      role: "Background fill for the primary action button following standard button tokens",
+      fallback: "#2563EB",
+    },
+    {
+      property: "Primary Action Text",
+      tokenName: "$button-primary-text",
+      role: "Text color for the primary action button label",
+      fallback: "#FFFFFF",
+    },
+    {
+      property: "Secondary Action Text",
+      tokenName: "$button-tertiary-text",
+      role: "Text color for the secondary action link or tertiary button",
+      fallback: "#2563EB",
+    },
+    {
+      property: "Spacing Stack",
+      tokenName: "$spacing-lg",
+      role: "Vertical spacing between illustration, heading, description, and action elements",
+      fallback: "24px",
+    },
+    {
+      property: "Focus Ring",
+      tokenName: "$focus-ring",
+      role: "Keyboard focus indicator ring for the action button(s)",
+      fallback: "0 0 0 2px #FFFFFF, 0 0 0 4px #2E90FA",
+    },
+    {
+      property: "Skeleton Pulse",
+      tokenName: "$skeleton-pulse",
+      role: "Animation for skeleton loading state placeholders",
+      fallback: "pulse 1.5s ease-in-out infinite",
+    },
+  ],
+
+  structureRules: [
+    "Empty state uses vertical Auto Layout with center alignment on both axes",
+    "Element stacking order top-to-bottom: illustration, heading, description, action group",
+    "Action group uses horizontal Auto Layout with center alignment for primary + secondary buttons side by side",
+    "On compact size, action buttons may stack vertically if horizontal space is insufficient",
+    "Illustration is constrained to a maximum width/height matching the illustrationSize preset — preserves aspect ratio",
+    "The entire empty state block centers within its parent container — both horizontally and vertically when fullPage is true",
+    "Text content has a maxWidth of 480px to maintain comfortable reading line lengths regardless of container width",
+    "Spacing between elements follows the spacing token scale: illustration-to-heading uses $spacing-md, heading-to-description uses $spacing-sm, description-to-actions uses $spacing-lg",
+    "The container has no visible borders or background by default — it is a transparent compositional element",
+  ],
+
+  typeHierarchyRules: [
+    "Heading uses font-weight Semi-Bold (600) at the size-appropriate heading scale (14px compact, 18px default, 24px full)",
+    "Description uses font-weight Regular (400) at one step below the heading size with comfortable line height (1.5)",
+    "Action button labels follow standard button typography rules — Medium (500) weight, sentence case",
+    "Heading uses sentence case — 'No projects yet', not 'No Projects Yet'",
+    "Description may span 2-3 lines maximum — keep guidance concise and actionable",
+  ],
+
+  interactionRules: [
+    { event: "Click Primary Action", trigger: "pointerup on primary action button", action: "Fire the primaryAction onClick handler; typically navigates to creation flow or opens a modal" },
+    { event: "Click Secondary Action", trigger: "pointerup on secondary action button or link", action: "Fire the secondaryAction onClick handler; typically opens documentation or import flow" },
+    { event: "Hover Action", trigger: "pointerenter on action button", action: "Apply standard button hover state transition" },
+    { event: "Focus Action", trigger: "Tab key focuses the action button", action: "Show focus ring; announce button label to screen readers" },
+    { event: "Enter / Space", trigger: "Enter or Space on focused action button", action: "Fire the same action as a click on that button" },
+    { event: "Data Arrives", trigger: "Content data loads successfully with items", action: "Empty state is replaced by the actual content view; smooth crossfade transition recommended" },
+    { event: "Error Retry", trigger: "Click retry action in error variant", action: "Re-initiate the data fetch; show loading state while retrying" },
+  ],
+
+  contentGuidance: [
+    "Heading should clearly name what is empty — 'No projects yet' is better than 'Nothing here'",
+    "Description should explain why the area is empty and guide the user toward the primary action",
+    "Primary action label should be specific — 'Create your first project' is better than 'Get started'",
+    "Use a relevant illustration that matches the context — inbox icon for empty inbox, folder for empty file list",
+    "Keep illustration style consistent with the product's illustration system — do not mix 2D and 3D styles",
+    "Avoid negative language — 'Your inbox is waiting' is friendlier than 'You have no messages'",
+    "For search empty states, suggest adjusting filters or broadening the search query in the description text",
+    "Error variant should be honest about the failure and provide a clear retry path",
+  ],
+
+  responsiveBehaviour: [
+    { breakpoint: "Mobile (<768px)", behavior: "Use compact size; illustration scales down to 48px; action buttons stack vertically; full-width buttons" },
+    { breakpoint: "Tablet (768-1023px)", behavior: "Use default size; illustration at 80px; buttons inline with standard padding" },
+    { breakpoint: "Desktop (1024-1439px)", behavior: "Use default or full size depending on container; centered layout with 480px max text width" },
+    { breakpoint: "Ultra-wide (>=1440px)", behavior: "Empty state dimensions capped at full size preset — does not scale with viewport; remains centered" },
+  ],
+
+  accessibilitySpec: {
+    intro:
+      "Empty states must convey their message to all users including those using assistive technologies. The heading provides the accessible name, illustrations are decorative, and action buttons must be keyboard-accessible.",
+    requirements: [
+      { requirement: "Illustration Decorative", level: "A", notes: "Illustration/icon must use aria-hidden='true' and role='presentation' — it is decorative and the heading conveys the meaning" },
+      { requirement: "Heading as Accessible Name", level: "A", notes: "The heading should be an actual heading element (h2/h3) providing the accessible name for the empty state region" },
+      { requirement: "Region Landmark", level: "AA", notes: "Wrap the empty state in a region with aria-label matching the heading for screen reader landmark navigation" },
+      { requirement: "Action Buttons Focusable", level: "A", notes: "Primary and secondary action buttons must be reachable via Tab key and activatable with Enter/Space" },
+      { requirement: "Keyboard Activation", level: "A", notes: "Enter and Space keys must trigger the action buttons identically to a mouse click" },
+      { requirement: "Contrast Ratio", level: "AA", notes: "Heading text meets 4.5:1 contrast; description text meets 4.5:1 contrast; action buttons follow button contrast rules" },
+      { requirement: "Content Reflow", level: "AA", notes: "At 400% zoom the empty state reflows to a single-column stacked layout without horizontal scrolling" },
+      { requirement: "Animation Preference", level: "AAA", notes: "If the illustration is animated (Lottie), respect prefers-reduced-motion media query and provide a static fallback" },
+    ],
+    outro: [
+      "Test that screen readers announce the heading and description in sequence without the illustration interfering",
+      "Verify that the action button is the first focusable element within the empty state for efficient keyboard navigation",
+      "Ensure that when data arrives and the empty state is removed, focus is managed to avoid losing the user's position",
+    ],
+  },
+
+  qaAcceptanceCriteria: [
+    { check: "Visual Layout", platform: "All", expectedResult: "Illustration, heading, description, and actions stack vertically and center horizontally" },
+    { check: "Size Variants", platform: "All", expectedResult: "Compact, default, and full sizes render with correct dimensions, font sizes, and illustration sizes" },
+    { check: "Illustration Rendering", platform: "All", expectedResult: "SVG illustration renders at the correct size with proper aspect ratio; no distortion" },
+    { check: "Primary Action", platform: "Web", expectedResult: "Clicking the primary action button fires the callback; button follows standard hover/active states" },
+    { check: "Secondary Action", platform: "Web", expectedResult: "Secondary action renders as tertiary button or link; fires its callback on click" },
+    { check: "Keyboard Navigation", platform: "Web", expectedResult: "Tab focuses action buttons; Enter/Space activates them; focus ring is visible" },
+    { check: "Screen Reader", platform: "Web", expectedResult: "Illustration hidden; heading and description announced; action buttons labeled correctly" },
+    { check: "Error Variant", platform: "All", expectedResult: "Error illustration, error heading, and retry action render correctly" },
+    { check: "Search Variant", platform: "All", expectedResult: "Search-specific illustration and no-results message render with filter adjustment guidance" },
+    { check: "Responsive Reflow", platform: "Web", expectedResult: "Compact size on mobile; buttons stack vertically; text remains readable at all breakpoints" },
+    { check: "Content Transition", platform: "Web", expectedResult: "When data loads, empty state smoothly transitions out and content view appears" },
+    { check: "Contrast", platform: "All", expectedResult: "All text elements pass 4.5:1 contrast against the background surface" },
+    { check: "RTL Support", platform: "Web", expectedResult: "Text alignment and button order mirror correctly in RTL locales" },
+  ],
+
+  dos: [
+    "Use empty states to guide users toward their first action in a new or cleared-out view",
+    "Write clear, specific headings that name what is empty — context matters",
+    "Provide a prominent primary action that directly resolves the empty state",
+    "Match illustration style to the product's visual language for consistency",
+    "Include a secondary action (e.g., 'Learn more') for users who need guidance before acting",
+    "Use the appropriate variant (empty, search, error, permission) to match the context precisely",
+    "Keep description text to 2-3 lines — be concise and action-oriented",
+  ],
+
+  donts: [
+    "Do not use generic messages like 'Nothing to see here' or 'No data' — be specific and helpful",
+    "Do not omit the action button — an empty state without a CTA is a dead end for the user",
+    "Do not make illustrations the focal point at the expense of clear messaging — text is primary",
+    "Do not use animated illustrations without respecting prefers-reduced-motion",
+    "Do not reuse the same empty state illustration and message for every empty view — contextualize each one",
+    "Do not let the description text exceed 3 lines — truncate or simplify the guidance",
+    "Do not use negative or blame-oriented language — 'You haven't created anything' should be 'Create your first item'",
+  ],
+};

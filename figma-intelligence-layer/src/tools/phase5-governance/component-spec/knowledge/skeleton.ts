@@ -1,0 +1,256 @@
+/**
+ * skeleton.ts — Gold-standard design knowledge for Skeleton components
+ */
+import type { ComponentKnowledge } from "../types.js";
+
+export const skeletonKnowledge: ComponentKnowledge = {
+  description:
+    "Loading placeholder | Previews the shape and layout of content before it loads | Supports text, circle, rectangle, and card patterns with shimmer or pulse animation",
+
+  stateSpecifications: [
+    {
+      state: "Default",
+      visualChange: "Placeholder shapes rendered in a neutral gray fill with animated shimmer or pulse effect",
+      opacity: "1",
+      cursorWeb: "default",
+      usage: "Content is loading — skeleton approximates the final layout to reduce perceived wait time",
+    },
+    {
+      state: "Loaded",
+      visualChange: "Skeleton elements are removed and replaced by actual content; transition may include a brief fade-in",
+      opacity: "1",
+      cursorWeb: "default",
+      usage: "Data has finished loading — skeleton is no longer needed and must be removed from the DOM or hidden",
+    },
+    {
+      state: "Error",
+      visualChange: "Skeleton may remain briefly before being replaced by an error state or empty state component",
+      opacity: "1",
+      cursorWeb: "default",
+      usage: "Data fetch failed — skeleton should be replaced with an error message, not left indefinitely",
+    },
+  ],
+
+  propertyDescriptions: {
+    type: "Shape variant — 'text' (rectangular bars simulating text lines), 'circle' (round placeholder for avatars), 'rect' (generic rectangle), 'card' (full card layout with multiple placeholder elements)",
+    animation: "Animation style — 'shimmer' (left-to-right gradient sweep) or 'pulse' (opacity fade in/out)",
+    width: "Width of the skeleton element; can be a fixed value (e.g. '200px'), percentage ('100%'), or 'auto' to match parent",
+    height: "Height of the skeleton element; for text type, this is the line height; for circle, this equals width",
+    lines: "Number of text lines to render (text type only); last line is typically shorter (75% width) to simulate natural text",
+    borderRadius: "Corner rounding of the skeleton shape; circle type forces 50%; text and rect use small radius; card uses card radius",
+    speed: "Animation cycle duration in milliseconds; controls how fast the shimmer or pulse repeats; default 1500ms",
+    count: "Number of skeleton instances to render in a repeated layout (e.g. 3 list item skeletons)",
+  },
+
+  sizeSpecifications: [
+    {
+      size: "Text Line",
+      height: "12-16px per line",
+      paddingLR: "0px",
+      fontSize: "N/A",
+      iconSize: "N/A",
+      borderRadius: "4px",
+    },
+    {
+      size: "Circle Small",
+      height: "32px",
+      paddingLR: "0px",
+      fontSize: "N/A",
+      iconSize: "N/A",
+      borderRadius: "50%",
+    },
+    {
+      size: "Circle Medium",
+      height: "40px",
+      paddingLR: "0px",
+      fontSize: "N/A",
+      iconSize: "N/A",
+      borderRadius: "50%",
+    },
+    {
+      size: "Circle Large",
+      height: "48px",
+      paddingLR: "0px",
+      fontSize: "N/A",
+      iconSize: "N/A",
+      borderRadius: "50%",
+    },
+    {
+      size: "Rectangle",
+      height: "variable",
+      paddingLR: "0px",
+      fontSize: "N/A",
+      iconSize: "N/A",
+      borderRadius: "6px",
+    },
+    {
+      size: "Card",
+      height: "variable",
+      paddingLR: "16px internal",
+      fontSize: "N/A",
+      iconSize: "N/A",
+      borderRadius: "8px",
+    },
+  ],
+
+  designTokenBindings: [
+    {
+      property: "Base Color",
+      tokenName: "$skeleton-base",
+      role: "Static background fill for the skeleton placeholder shape",
+      fallback: "#E4E7EC",
+    },
+    {
+      property: "Shimmer Highlight",
+      tokenName: "$skeleton-shimmer",
+      role: "Lighter color used for the shimmer gradient sweep highlight",
+      fallback: "#F2F4F7",
+    },
+    {
+      property: "Pulse Min Opacity",
+      tokenName: "$skeleton-pulse-min",
+      role: "Minimum opacity during the pulse animation cycle",
+      fallback: "0.4",
+    },
+    {
+      property: "Pulse Max Opacity",
+      tokenName: "$skeleton-pulse-max",
+      role: "Maximum opacity during the pulse animation cycle",
+      fallback: "1",
+    },
+    {
+      property: "Animation Duration",
+      tokenName: "$skeleton-duration",
+      role: "Duration of one full shimmer or pulse animation cycle",
+      fallback: "1500ms",
+    },
+    {
+      property: "Animation Easing",
+      tokenName: "$skeleton-easing",
+      role: "Easing function for the animation; linear for shimmer, ease-in-out for pulse",
+      fallback: "linear",
+    },
+    {
+      property: "Border Radius Text",
+      tokenName: "$radius-sm",
+      role: "Corner rounding for text line skeletons",
+      fallback: "4px",
+    },
+    {
+      property: "Border Radius Rect",
+      tokenName: "$radius-md",
+      role: "Corner rounding for rectangle skeletons",
+      fallback: "6px",
+    },
+    {
+      property: "Border Radius Card",
+      tokenName: "$radius-card",
+      role: "Corner rounding for card skeleton matching actual card component",
+      fallback: "8px",
+    },
+    {
+      property: "Spacing Between Lines",
+      tokenName: "$spacing-xs",
+      role: "Vertical gap between text line skeletons",
+      fallback: "8px",
+    },
+  ],
+
+  structureRules: [
+    "Each skeleton element is a simple div with background-color and optional border-radius — no text content or interactive elements",
+    "Text type renders multiple horizontal bars stacked vertically with $spacing-xs gap between lines",
+    "The last text line should be 60-75% width to simulate the natural end of a text paragraph",
+    "Circle type uses equal width and height with border-radius 50% to form a perfect circle",
+    "Card type composes multiple skeleton elements: a rect for the image area, circle for avatar, and text lines for content",
+    "Shimmer animation uses a CSS gradient that translates from left to right across the element",
+    "Pulse animation uses a CSS keyframe that oscillates opacity between $skeleton-pulse-min and $skeleton-pulse-max",
+    "Skeleton elements should match the approximate dimensions and layout of the content they replace to prevent layout shift",
+    "When count > 1, render multiple skeleton instances with the same layout as the final repeated content (e.g. list items)",
+  ],
+
+  typeHierarchyRules: [
+    "Skeleton has no text content — all typography rules are N/A",
+    "Text line skeleton height should approximate the font-size + line-height of the content it replaces",
+    "Heading skeleton lines should be taller and wider than body text skeleton lines to match visual hierarchy",
+    "Label skeleton lines should be shorter in width than body text lines to approximate label length",
+  ],
+
+  interactionRules: [
+    { event: "None", trigger: "N/A", action: "Skeleton elements are non-interactive — no hover, click, focus, or keyboard events" },
+    { event: "Content Load", trigger: "Data becomes available", action: "Replace skeleton with actual content; optionally animate the transition with a fade-in" },
+    { event: "Prefers Reduced Motion", trigger: "User OS setting prefers-reduced-motion: reduce", action: "Disable shimmer/pulse animation; show static skeleton with base color only" },
+    { event: "Timeout", trigger: "Content fails to load within a reasonable time", action: "Replace skeleton with an error state or retry action — do not leave skeleton indefinitely" },
+  ],
+
+  contentGuidance: [
+    "Use skeleton loading instead of spinners when the layout of the incoming content is predictable",
+    "Match skeleton shapes to the actual content layout as closely as possible to reduce layout shift on load",
+    "Use text type skeletons for paragraphs, descriptions, and data fields with known line counts",
+    "Use circle type skeletons for avatars and profile images",
+    "Use rect type skeletons for images, thumbnails, and custom-sized content blocks",
+    "Use card type skeletons for card components, combining image, avatar, and text placeholders",
+    "Always set a loading timeout — never leave skeletons displayed indefinitely if content fails to load",
+    "Prefer shimmer animation for primary content areas; pulse for smaller or secondary elements",
+  ],
+
+  responsiveBehaviour: [
+    { breakpoint: "Mobile (<768px)", behavior: "Skeleton widths adapt to container; text lines are full-width; circle sizes may reduce to sm" },
+    { breakpoint: "Tablet (768-1023px)", behavior: "Standard skeleton layout; card skeletons may shift from grid to stack" },
+    { breakpoint: "Desktop (1024-1439px)", behavior: "Full skeleton layout matching the final content grid; multiple card skeletons in a row" },
+    { breakpoint: "Ultra-wide (>=1440px)", behavior: "Skeleton layout respects content max-width constraints; does not stretch to fill viewport" },
+  ],
+
+  accessibilitySpec: {
+    intro:
+      "Skeleton elements must be invisible to assistive technologies while the loading state is clearly communicated to screen readers through the parent container's ARIA attributes.",
+    requirements: [
+      { requirement: "Aria Busy", level: "A", notes: "The parent container of skeleton content must have aria-busy='true' while loading, removed when content appears" },
+      { requirement: "Aria Hidden", level: "A", notes: "Individual skeleton elements must have aria-hidden='true' so they are not announced by screen readers" },
+      { requirement: "Live Region", level: "AA", notes: "An aria-live='polite' region should announce when content has finished loading (e.g. 'Content loaded')" },
+      { requirement: "Reduced Motion", level: "AA", notes: "Animation must respect prefers-reduced-motion media query; show static skeleton when motion is reduced" },
+      { requirement: "Loading Announcement", level: "A", notes: "Screen readers should be informed that content is loading via aria-busy or a visually hidden 'Loading...' text" },
+      { requirement: "Not Focusable", level: "A", notes: "Skeleton elements must not be in the tab order — they are placeholder visuals only" },
+    ],
+    outro: [
+      "When skeleton is replaced by content, ensure focus management is handled correctly — focus should move to the first interactive element of the loaded content if triggered by a user action",
+      "Do not use skeleton as the only loading indicator for critical actions — pair with a screen reader announcement",
+      "Test with screen readers to verify that skeletons are truly invisible and the loading state is communicated through the parent aria-busy",
+    ],
+  },
+
+  qaAcceptanceCriteria: [
+    { check: "Visual Regression", platform: "All", expectedResult: "Skeleton shapes render at correct dimensions, color, and border-radius for each type" },
+    { check: "Shimmer Animation", platform: "Web", expectedResult: "Gradient sweeps left-to-right smoothly; animation loops infinitely; no visual glitches" },
+    { check: "Pulse Animation", platform: "Web", expectedResult: "Opacity oscillates between min and max values; timing is smooth with ease-in-out" },
+    { check: "Reduced Motion", platform: "Web", expectedResult: "Animation disabled when prefers-reduced-motion: reduce is set; static skeleton displayed" },
+    { check: "Text Line Layout", platform: "All", expectedResult: "Multiple lines stacked with correct spacing; last line is shorter (60-75% width)" },
+    { check: "Circle Shape", platform: "All", expectedResult: "Perfect circle rendered; width equals height; border-radius is 50%" },
+    { check: "Card Composition", platform: "All", expectedResult: "Card skeleton includes image rect, avatar circle, and text lines in correct layout" },
+    { check: "Content Replacement", platform: "Web", expectedResult: "Skeleton removed cleanly when data loads; no layout shift between skeleton and content" },
+    { check: "Aria Busy", platform: "Web", expectedResult: "Parent container has aria-busy='true' during loading; removed after content appears" },
+    { check: "Aria Hidden", platform: "Web", expectedResult: "Skeleton elements have aria-hidden='true'; not announced by screen readers" },
+    { check: "Screen Reader", platform: "Web", expectedResult: "Loading state announced; 'Content loaded' announced when skeleton is replaced" },
+    { check: "Not Focusable", platform: "Web", expectedResult: "Tab key skips all skeleton elements; no focus trap during loading" },
+    { check: "Timeout Handling", platform: "All", expectedResult: "Error state or retry action displayed if content does not load within timeout" },
+  ],
+
+  dos: [
+    "Use skeleton loading for predictable content layouts where the shape of the final content is known",
+    "Match skeleton dimensions to the actual content as closely as possible to minimize layout shift",
+    "Set aria-busy='true' on the parent container while skeleton is visible",
+    "Mark individual skeleton elements with aria-hidden='true'",
+    "Respect prefers-reduced-motion by disabling shimmer/pulse animation for users who prefer reduced motion",
+    "Use consistent animation speed across all skeletons on the same page for visual cohesion",
+    "Always provide a timeout and fallback for skeleton states — never display indefinitely",
+  ],
+
+  donts: [
+    "Do not use skeleton for content with unpredictable layouts — use a spinner or progress indicator instead",
+    "Do not make skeleton elements focusable or interactive — they are visual placeholders only",
+    "Do not leave skeletons visible indefinitely — always transition to content, error, or empty state",
+    "Do not animate skeleton elements when the user has prefers-reduced-motion enabled",
+    "Do not use skeleton as a design element or decorative pattern — it is strictly a loading indicator",
+    "Do not render hundreds of skeleton elements simultaneously — virtualize or limit to visible viewport",
+    "Do not place skeleton elements inside aria-live regions directly — use the parent container's aria-busy instead",
+  ],
+};

@@ -74,6 +74,84 @@ export function snapToTypeToken(px: number): TokenRef {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Z-index token snapping
+// ─────────────────────────────────────────────────────────────────────────────
+const Z_INDEX_SCALE = [0, 1000, 1100, 1300, 1400, 1500, 1600];
+const Z_INDEX_NAMES: Record<number, string> = {
+  0: "--z-index-base", 1000: "--z-index-dropdown", 1100: "--z-index-sticky",
+  1300: "--z-index-modal", 1400: "--z-index-popover", 1500: "--z-index-toast", 1600: "--z-index-tooltip",
+};
+
+export function snapToZIndexToken(value: number): TokenRef {
+  const nearest = Z_INDEX_SCALE.reduce((prev, curr) =>
+    Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev
+  );
+  return {
+    tokenName: Z_INDEX_NAMES[nearest] ?? `--z-index-${nearest}`,
+    tokenValue: nearest,
+    delta: value - nearest,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Opacity token snapping
+// ─────────────────────────────────────────────────────────────────────────────
+const OPACITY_SCALE = [0.08, 0.4, 0.5, 0.6, 1];
+const OPACITY_NAMES: Record<number, string> = {
+  0.08: "--opacity-hover-overlay", 0.4: "--opacity-disabled",
+  0.5: "--opacity-backdrop", 0.6: "--opacity-loading", 1: "--opacity-full",
+};
+
+export function snapToOpacityToken(value: number): TokenRef {
+  const nearest = OPACITY_SCALE.reduce((prev, curr) =>
+    Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev
+  );
+  return {
+    tokenName: OPACITY_NAMES[nearest] ?? `--opacity-${nearest}`,
+    tokenValue: nearest,
+    delta: value - nearest,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Border-width token snapping
+// ─────────────────────────────────────────────────────────────────────────────
+const BORDER_WIDTH_SCALE = [1, 2, 3];
+const BORDER_WIDTH_NAMES: Record<number, string> = {
+  1: "--border-width-thin", 2: "--border-width-medium", 3: "--border-width-thick",
+};
+
+export function snapToBorderWidthToken(px: number): TokenRef {
+  const nearest = BORDER_WIDTH_SCALE.reduce((prev, curr) =>
+    Math.abs(curr - px) < Math.abs(prev - px) ? curr : prev
+  );
+  return {
+    tokenName: BORDER_WIDTH_NAMES[nearest] ?? `--border-width-${nearest}`,
+    tokenValue: nearest,
+    delta: px - nearest,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Icon size token snapping
+// ─────────────────────────────────────────────────────────────────────────────
+const ICON_SIZE_SCALE = [16, 20, 24, 32];
+const ICON_SIZE_NAMES: Record<number, string> = {
+  16: "--icon-size-sm", 20: "--icon-size-md", 24: "--icon-size-lg", 32: "--icon-size-xl",
+};
+
+export function snapToIconSizeToken(px: number): TokenRef {
+  const nearest = ICON_SIZE_SCALE.reduce((prev, curr) =>
+    Math.abs(curr - px) < Math.abs(prev - px) ? curr : prev
+  );
+  return {
+    tokenName: ICON_SIZE_NAMES[nearest] ?? `--icon-size-${nearest}`,
+    tokenValue: nearest,
+    delta: px - nearest,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Color utilities
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -528,7 +528,7 @@ ${fontLoads}
 
 /**
  * Build the components page script using blueprint-driven generation.
- * Creates all 17 professional component stubs with auto-layout, typography
+ * Creates all 51 professional component stubs with auto-layout, typography
  * presets, and token bindings.
  */
 function buildComponentsScriptFromBlueprints(

@@ -1,8 +1,35 @@
 /**
  * lib/tokens.js — Design token generator
+ *
+ * Shadow values are kept in sync with the semantic token catalog
+ * (figma-intelligence-layer/src/shared/semantic-token-catalog.ts).
+ * When updating shadows, update both files.
  */
+
+// Canonical shadow values — single source shared with semantic-token-catalog.ts
+const SHADOW_TOKENS = {
+  light: {
+    xs: '0 1px 2px rgba(0,0,0,0.05)',
+    sm: '0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+    md: '0 4px 16px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04)',
+    lg: '0 8px 32px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.04)',
+    xl: '0 24px 64px rgba(0,0,0,0.14)',
+  },
+  dark: {
+    xs: '0 1px 2px rgba(0,0,0,0.20)',
+    sm: '0 2px 8px rgba(0,0,0,0.24), 0 1px 2px rgba(0,0,0,0.16)',
+    md: '0 4px 16px rgba(0,0,0,0.32), 0 2px 4px rgba(0,0,0,0.16)',
+    lg: '0 8px 32px rgba(0,0,0,0.40), 0 4px 8px rgba(0,0,0,0.16)',
+    xl: '0 24px 64px rgba(0,0,0,0.56)',
+  },
+};
+
+export { SHADOW_TOKENS };
+
 export class TokenGenerator {
   generate({ palette, fonts, theme, darkMode }) {
+    const shadowSet = darkMode ? SHADOW_TOKENS.dark : SHADOW_TOKENS.light;
+
     return {
       colors: {
         '--bg-primary':    palette.bgPrimary,
@@ -44,11 +71,11 @@ export class TokenGenerator {
         '--radius-xl': '24px',  '--radius-full': '9999px',
       },
       shadows: {
-        '--shadow-xs': '0 1px 2px rgba(0,0,0,0.05)',
-        '--shadow-sm': '0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-        '--shadow-md': '0 4px 16px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04)',
-        '--shadow-lg': '0 8px 32px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.04)',
-        '--shadow-xl': '0 24px 64px rgba(0,0,0,0.14)',
+        '--shadow-xs': shadowSet.xs,
+        '--shadow-sm': shadowSet.sm,
+        '--shadow-md': shadowSet.md,
+        '--shadow-lg': shadowSet.lg,
+        '--shadow-xl': shadowSet.xl,
       },
     }
   }

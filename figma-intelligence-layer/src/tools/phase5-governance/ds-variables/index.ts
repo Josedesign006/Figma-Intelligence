@@ -166,22 +166,30 @@ function buildSemanticVariableSpecs(
     return { Base: alias };
   };
 
+  // Category → Figma collection mapping (forward-compatible: add a line for new categories)
+  const CATEGORY_COLLECTION: Record<string, string> = {
+    // Color categories
+    actions: "Semantic Colors", surface: "Semantic Colors", text: "Semantic Colors",
+    border: "Semantic Colors", field: "Semantic Colors", feedback: "Semantic Colors",
+    focus: "Semantic Colors", interactive: "Semantic Colors",
+    // Float / String categories
+    spacing: "Semantic Space", radius: "Semantic Radius",
+    elevation: "Semantic Elevation", motion: "Semantic Motion",
+    "z-index": "Semantic Layout", opacity: "Semantic Opacity",
+    "border-width": "Semantic Border", typography: "Semantic Typography",
+    "icon-size": "Semantic Icon", breakpoint: "Semantic Layout",
+    grid: "Semantic Layout", density: "Semantic Density",
+  };
+
   // Iterate the full semantic token catalog
   for (const entry of SEMANTIC_TOKEN_CATALOG) {
-    // Determine collection name based on category
-    let collectionName: string;
-    if (entry.type === "COLOR") {
-      collectionName = `${brandName} Semantic Colors`;
-    } else if (entry.category === "spacing") {
-      collectionName = `${brandName} Semantic Space`;
-    } else if (entry.category === "radius") {
-      collectionName = `${brandName} Semantic Radius`;
-    } else {
-      collectionName = `${brandName} Semantic Colors`;
-    }
+    const collectionSuffix = CATEGORY_COLLECTION[entry.category] ?? "Semantic Colors";
+    const collectionName = `${brandName} ${collectionSuffix}`;
 
     // Convert token name to dot-notation for variable name
     const varName = entry.name.replace(/\//g, ".");
+
+    const resolvedType = entry.type === "COLOR" ? "COLOR" : entry.type === "STRING" ? "STRING" : "FLOAT";
 
     if (entry.type === "COLOR") {
       const valuesByMode = lightDark(entry.lightRef, entry.darkRef);
@@ -189,7 +197,7 @@ function buildSemanticVariableSpecs(
       specs.push({
         collectionName,
         name: varName,
-        resolvedType: "COLOR",
+        resolvedType,
         valuesByMode,
         description: entry.description,
       });
@@ -199,7 +207,7 @@ function buildSemanticVariableSpecs(
       specs.push({
         collectionName,
         name: varName,
-        resolvedType: "FLOAT",
+        resolvedType,
         valuesByMode,
         description: entry.description,
       });
@@ -402,6 +410,13 @@ export async function dsVariablesHandler(args: DsVariablesArgs): Promise<DsVaria
     await ensureCollection(bridge, `${brandName} Semantic Space`, "Base");
     await ensureCollection(bridge, `${brandName} Semantic Radius`, "Base");
     await ensureCollection(bridge, `${brandName} Semantic Typography`, "Base");
+    await ensureCollection(bridge, `${brandName} Semantic Elevation`, "Base");
+    await ensureCollection(bridge, `${brandName} Semantic Motion`, "Base");
+    await ensureCollection(bridge, `${brandName} Semantic Layout`, "Base");
+    await ensureCollection(bridge, `${brandName} Semantic Opacity`, "Base");
+    await ensureCollection(bridge, `${brandName} Semantic Border`, "Base");
+    await ensureCollection(bridge, `${brandName} Semantic Icon`, "Base");
+    await ensureCollection(bridge, `${brandName} Semantic Density`, "Base");
 
     const variableIndex = variableMapByName(await getAllCollections(bridge));
     const semanticSpecs = buildSemanticVariableSpecs(brandName, variableIndex, args.createDarkMode !== false);

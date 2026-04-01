@@ -1,0 +1,255 @@
+/**
+ * inline-message.ts — Gold-standard design knowledge for Inline Message components
+ */
+import type { ComponentKnowledge } from "../types.js";
+
+export const inlineMessageKnowledge: ComponentKnowledge = {
+  description:
+    "Contextual helper or validation message | Form field companion | Provides feedback, guidance, or error details inline",
+
+  stateSpecifications: [
+    {
+      state: "Info",
+      visualChange: "Neutral or blue icon with standard text color; no background fill or subtle blue tint",
+      opacity: "1",
+      cursorWeb: "default",
+      usage: "Provides supplementary guidance or contextual help for a form field or content area",
+    },
+    {
+      state: "Success",
+      visualChange: "Green checkmark icon; text may remain standard or shift to success color; optional green tint background",
+      opacity: "1",
+      cursorWeb: "default",
+      usage: "Confirms that a field value is valid or an action succeeded",
+    },
+    {
+      state: "Warning",
+      visualChange: "Yellow/amber triangle icon; text in warning color or standard; optional amber tint background",
+      opacity: "1",
+      cursorWeb: "default",
+      usage: "Alerts the user to a potential issue that does not prevent submission but warrants attention",
+    },
+    {
+      state: "Error",
+      visualChange: "Red circle-exclamation icon; text in error color; optional red tint background; associated field border turns red",
+      opacity: "1",
+      cursorWeb: "default",
+      usage: "Indicates a validation failure — the associated field must be corrected before submission",
+    },
+    {
+      state: "Hidden",
+      visualChange: "Message is not rendered in the DOM or has display:none; no space is reserved",
+      opacity: "0",
+      cursorWeb: "default",
+      usage: "No message is needed — field is in a neutral state without feedback",
+    },
+  ],
+
+  propertyDescriptions: {
+    type: "Message severity variant — 'info', 'success', 'warning', or 'error' — controls icon, color, and ARIA behavior",
+    message: "The text content of the inline message — should be concise and actionable",
+    icon: "Optional override for the default type-based icon; accepts an icon component or icon name string",
+    showIcon: "When true, displays the type-appropriate icon before the message text; defaults to true",
+    id: "HTML id attribute — used with aria-describedby on the associated form field for programmatic association",
+    role: "ARIA role override — defaults to 'status' for info/success/warning and 'alert' for error messages",
+    visible: "Controlled boolean to show/hide the message; when false, message is removed from the DOM",
+  },
+
+  sizeSpecifications: [
+    {
+      size: "Small",
+      height: "16px (line height)",
+      paddingLR: "0px",
+      fontSize: "12px",
+      iconSize: "14px",
+      borderRadius: "0px",
+    },
+    {
+      size: "Medium",
+      height: "20px (line height)",
+      paddingLR: "0px",
+      fontSize: "14px",
+      iconSize: "16px",
+      borderRadius: "0px",
+    },
+    {
+      size: "With Background",
+      height: "auto (padding based)",
+      paddingLR: "12px",
+      fontSize: "12px",
+      iconSize: "16px",
+      borderRadius: "4px",
+    },
+  ],
+
+  designTokenBindings: [
+    {
+      property: "Info Icon",
+      tokenName: "$inline-message-info-icon",
+      role: "Icon color for info-type messages",
+      fallback: "#2563EB",
+    },
+    {
+      property: "Info Text",
+      tokenName: "$inline-message-info-text",
+      role: "Text color for info-type messages (often same as standard text)",
+      fallback: "#667085",
+    },
+    {
+      property: "Success Icon",
+      tokenName: "$inline-message-success-icon",
+      role: "Icon color for success-type messages",
+      fallback: "#12B76A",
+    },
+    {
+      property: "Success Text",
+      tokenName: "$inline-message-success-text",
+      role: "Text color for success-type messages",
+      fallback: "#027A48",
+    },
+    {
+      property: "Warning Icon",
+      tokenName: "$inline-message-warning-icon",
+      role: "Icon color for warning-type messages",
+      fallback: "#F79009",
+    },
+    {
+      property: "Warning Text",
+      tokenName: "$inline-message-warning-text",
+      role: "Text color for warning-type messages",
+      fallback: "#B54708",
+    },
+    {
+      property: "Error Icon",
+      tokenName: "$inline-message-error-icon",
+      role: "Icon color for error-type messages",
+      fallback: "#F04438",
+    },
+    {
+      property: "Error Text",
+      tokenName: "$inline-message-error-text",
+      role: "Text color for error-type messages",
+      fallback: "#D92D20",
+    },
+    {
+      property: "Background (Info)",
+      tokenName: "$inline-message-info-bg",
+      role: "Optional background tint for info messages with background variant",
+      fallback: "#EFF8FF",
+    },
+    {
+      property: "Background (Error)",
+      tokenName: "$inline-message-error-bg",
+      role: "Optional background tint for error messages with background variant",
+      fallback: "#FEF3F2",
+    },
+    {
+      property: "Font Family",
+      tokenName: "$font-family-sans",
+      role: "Typeface for message text",
+      fallback: "Inter, system-ui, sans-serif",
+    },
+  ],
+
+  structureRules: [
+    "Container uses horizontal Auto Layout: icon (optional) → message text, vertically centered",
+    "Spacing between icon and text is $spacing-xs (4px default)",
+    "Message is positioned directly below the associated form field with $spacing-xs vertical gap",
+    "Message text wraps naturally — no truncation; multi-line messages are acceptable",
+    "When showIcon is false, only the text is rendered; icon space is not reserved",
+    "Background variant adds horizontal padding and a subtle rounded background fill",
+    "Message container width matches the associated form field width — no wider, no narrower",
+    "Multiple messages for the same field stack vertically with $spacing-2xs (2px) gap",
+    "Error messages should appear immediately below the field, above any helper text",
+  ],
+
+  typeHierarchyRules: [
+    "Message text uses Regular weight (400) — never bold to avoid competing with field labels",
+    "Font size is typically one step smaller than the field label (12px when label is 14px)",
+    "Text uses sentence case — 'Password must be at least 8 characters', not title case",
+    "Error messages start with the issue, not 'Error:' — say 'Must be at least 8 characters' not 'Error: Too short'",
+    "Line height is 1.4-1.5 for comfortable multi-line readability",
+  ],
+
+  interactionRules: [
+    { event: "Field Validation", trigger: "User blurs a form field or submits the form", action: "Inline message appears or updates based on validation result; type changes to match severity" },
+    { event: "Field Change", trigger: "User modifies the associated field value", action: "Error message may clear or update in real-time if live validation is enabled" },
+    { event: "Form Submit", trigger: "Form submission attempt with validation errors", action: "All error messages appear simultaneously; first error field receives focus" },
+    { event: "Appear", trigger: "Message becomes visible (e.g. validation triggers)", action: "Message fades in or slides down; screen reader announces via aria-live" },
+    { event: "Disappear", trigger: "Validation error is resolved", action: "Message fades out or is removed from DOM; screen reader may announce clearance" },
+    { event: "Link Click", trigger: "User clicks an inline link within the message text", action: "Navigate to help content or perform the suggested action" },
+  ],
+
+  contentGuidance: [
+    "Keep messages concise — one short sentence is ideal; two sentences maximum",
+    "Error messages should tell users what to do, not just what went wrong: 'Enter a valid email address' not 'Invalid email'",
+    "Warning messages should explain the consequence: 'This action cannot be undone'",
+    "Success messages should confirm the specific action: 'Username is available'",
+    "Info messages should provide helpful context: 'Password must contain at least one number'",
+    "Avoid technical jargon — use language that all users can understand",
+    "Do not include the field label in the message — context is clear from the field association",
+    "Use specific guidance over generic messages: 'Must be between 8-64 characters' not 'Invalid length'",
+  ],
+
+  responsiveBehaviour: [
+    { breakpoint: "Mobile (<768px)", behavior: "Messages span the full field width; font size remains 12px; icon may be hidden to save space" },
+    { breakpoint: "Tablet (768-1023px)", behavior: "Standard inline layout below the field; messages wrap at field width" },
+    { breakpoint: "Desktop (1024-1439px)", behavior: "Messages display below the field; width matches field width" },
+    { breakpoint: "Ultra-wide (>=1440px)", behavior: "No change from desktop; messages remain tied to their associated field width" },
+  ],
+
+  accessibilitySpec: {
+    intro:
+      "Inline messages provide critical feedback for form validation and contextual help. Proper ARIA associations and live region announcements ensure screen reader users receive timely and accurate feedback.",
+    requirements: [
+      { requirement: "Programmatic Association", level: "A", notes: "Message element id must be referenced by aria-describedby on the associated form field" },
+      { requirement: "Error Role", level: "A", notes: "Error messages should use role='alert' or aria-live='assertive' to immediately announce to screen readers" },
+      { requirement: "Status Role", level: "A", notes: "Info, success, and warning messages should use role='status' or aria-live='polite' for non-intrusive announcement" },
+      { requirement: "Error State on Field", level: "A", notes: "When an error message is shown, the associated field must have aria-invalid='true'" },
+      { requirement: "Contrast", level: "AA", notes: "Message text must meet 4.5:1 contrast ratio against its background; icon color must meet 3:1 non-text contrast" },
+      { requirement: "Not Color Alone", level: "A", notes: "Do not rely solely on color to convey message type — include an icon and descriptive text" },
+      { requirement: "Visible on Focus", level: "AA", notes: "When a field receives focus, its associated inline message should remain visible and not be obscured" },
+    ],
+    outro: [
+      "Test that screen readers announce error messages when they appear and when the associated field is focused",
+      "Verify that clearing an error (e.g. correcting the input) removes aria-invalid from the field",
+      "Ensure multiple messages for the same field are all referenced in aria-describedby (space-separated ids)",
+    ],
+  },
+
+  qaAcceptanceCriteria: [
+    { check: "Info Type", platform: "All", expectedResult: "Blue icon with neutral text; optional background tint renders correctly" },
+    { check: "Success Type", platform: "All", expectedResult: "Green checkmark icon with success text color" },
+    { check: "Warning Type", platform: "All", expectedResult: "Amber triangle icon with warning text color" },
+    { check: "Error Type", platform: "All", expectedResult: "Red exclamation icon with error text color; associated field border turns red" },
+    { check: "Field Association", platform: "Web", expectedResult: "Message id matches aria-describedby on the form field" },
+    { check: "aria-invalid", platform: "Web", expectedResult: "Associated field has aria-invalid='true' when error message is shown" },
+    { check: "Screen Reader", platform: "Web", expectedResult: "Error messages announced immediately; info/success/warning announced politely" },
+    { check: "Appear Animation", platform: "Web", expectedResult: "Message fades in smoothly without layout jump" },
+    { check: "Multi-line", platform: "All", expectedResult: "Long messages wrap correctly within field width; no horizontal overflow" },
+    { check: "Icon Toggle", platform: "All", expectedResult: "Setting showIcon to false hides the icon; text shifts left to fill space" },
+    { check: "Contrast", platform: "All", expectedResult: "All type variants pass 4.5:1 text contrast requirements" },
+    { check: "Responsive Width", platform: "Mobile", expectedResult: "Message width matches field width on all viewport sizes" },
+    { check: "Multiple Messages", platform: "All", expectedResult: "Multiple messages stack vertically with consistent spacing" },
+  ],
+
+  dos: [
+    "Always associate inline messages with their form field using aria-describedby",
+    "Use the correct message type for the severity: error for validation failures, warning for cautions, info for help",
+    "Make error messages actionable — tell users how to fix the problem",
+    "Show messages immediately after validation, not just on form submission",
+    "Include icons to reinforce the message type — do not rely on color alone",
+    "Keep messages under two sentences for quick scanning during form completion",
+    "Clear error messages as soon as the user corrects the field value",
+  ],
+
+  donts: [
+    "Do not use inline messages for system-level alerts — use a toast or alert banner instead",
+    "Do not use all caps or bold text in inline messages — they should be subtle, not alarming",
+    "Do not prefix messages with the type name ('Error:', 'Warning:') — the icon communicates severity",
+    "Do not show generic messages like 'This field is required' — be specific to the field content",
+    "Do not make messages wider than their associated form field",
+    "Do not use inline messages for instructional content that should be in a label or helper text",
+    "Do not remove error messages without the user taking corrective action",
+  ],
+};

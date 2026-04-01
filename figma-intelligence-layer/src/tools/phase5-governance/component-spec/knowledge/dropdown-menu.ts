@@ -1,0 +1,289 @@
+/**
+ * dropdown-menu.ts — Gold-standard design knowledge for Dropdown Menu components
+ */
+import type { ComponentKnowledge } from "../types.js";
+
+export const dropdownMenuKnowledge: ComponentKnowledge = {
+  description:
+    "Button-triggered action menu | Displays a list of actions or options | Primary command palette for contextual operations",
+
+  stateSpecifications: [
+    {
+      state: "Closed",
+      visualChange: "Menu panel is hidden; trigger button appears in its default resting state",
+      opacity: "0",
+      cursorWeb: "pointer",
+      usage: "Default state — menu is not visible and the trigger button awaits interaction",
+    },
+    {
+      state: "Open",
+      visualChange: "Menu panel drops down from the trigger with a subtle entry animation; trigger button shows active/pressed styling",
+      opacity: "1",
+      cursorWeb: "default",
+      usage: "User has clicked the trigger button and the menu items are displayed for selection",
+    },
+    {
+      state: "Item Hover",
+      visualChange: "Hovered menu item receives a highlighted background fill; text color may shift for contrast",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Mouse cursor enters a menu item's hit area; provides visual feedback before selection",
+    },
+    {
+      state: "Item Focus",
+      visualChange: "Focused menu item receives the same highlight as hover plus a focus ring indicator",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Keyboard navigation (arrow keys) has moved focus to this menu item",
+    },
+    {
+      state: "Item Active",
+      visualChange: "Menu item background darkens one additional step to indicate press; subtle scale-down feedback",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "User is pressing down on a menu item before releasing to confirm selection",
+    },
+    {
+      state: "Item Disabled",
+      visualChange: "Menu item text and icon switch to muted/disabled tokens; no hover or focus highlight",
+      opacity: "0.4",
+      cursorWeb: "not-allowed",
+      usage: "Action is unavailable due to permissions, prerequisites, or current context",
+    },
+    {
+      state: "Trigger Focused",
+      visualChange: "2px focus ring offset by 2px from the trigger button edge, using $focus-ring token",
+      opacity: "1",
+      cursorWeb: "pointer",
+      usage: "Trigger button receives keyboard focus via Tab key navigation",
+    },
+  ],
+
+  propertyDescriptions: {
+    trigger: "The button element that opens the menu on click; typically renders with a chevron-down icon indicating expandability",
+    items: "Array of menu item objects, each containing label, optional icon, optional shortcut hint, disabled flag, and onClick handler",
+    placement: "Preferred position of the menu relative to its trigger — bottom-start, bottom-end, top-start, or top-end",
+    alignment: "Horizontal alignment of the menu panel relative to the trigger — 'start' aligns left edges, 'end' aligns right edges",
+    size: "Dimensional preset controlling item height, padding, and font size (Small, Medium, Large)",
+    closeOnSelect: "When true the menu closes automatically after an item is selected; default is true",
+    dividers: "Array of indices after which a visual separator/divider line is rendered between menu item groups",
+    groups: "Named groups of menu items rendered with a group label header and optional divider below",
+    maxHeight: "Maximum height of the menu panel before overflow scrolling activates; default is 300px",
+    onOpenChange: "Callback fired when the menu opens or closes; receives the new boolean open state",
+    disabled: "When true the trigger button is non-interactive: muted visuals, pointer-events none, aria-disabled='true'",
+    typeAhead: "When true, typing characters while the menu is open moves focus to matching items by label prefix",
+  },
+
+  sizeSpecifications: [
+    {
+      size: "Small",
+      height: "28px (per item)",
+      paddingLR: "8px",
+      fontSize: "12px",
+      iconSize: "16px",
+      borderRadius: "6px",
+    },
+    {
+      size: "Medium",
+      height: "36px (per item)",
+      paddingLR: "12px",
+      fontSize: "14px",
+      iconSize: "20px",
+      borderRadius: "8px",
+    },
+    {
+      size: "Large",
+      height: "44px (per item)",
+      paddingLR: "16px",
+      fontSize: "16px",
+      iconSize: "24px",
+      borderRadius: "10px",
+    },
+  ],
+
+  designTokenBindings: [
+    {
+      property: "Panel Background",
+      tokenName: "$menu-bg",
+      role: "Menu panel surface color elevated above the page",
+      fallback: "#FFFFFF",
+    },
+    {
+      property: "Panel Border",
+      tokenName: "$menu-border",
+      role: "Subtle border on the menu panel for definition against the page surface",
+      fallback: "#E5E7EB",
+    },
+    {
+      property: "Panel Shadow",
+      tokenName: "$shadow-menu",
+      role: "Elevation shadow giving the menu a floating appearance",
+      fallback: "0 4px 12px rgba(0,0,0,0.1)",
+    },
+    {
+      property: "Item Text",
+      tokenName: "$menu-item-text",
+      role: "Default text color for menu item labels",
+      fallback: "#1F2937",
+    },
+    {
+      property: "Item Icon",
+      tokenName: "$menu-item-icon",
+      role: "Default icon color for leading icons in menu items",
+      fallback: "#6B7280",
+    },
+    {
+      property: "Item Hover Background",
+      tokenName: "$menu-item-hover-bg",
+      role: "Background fill on menu item hover and keyboard focus",
+      fallback: "#F3F4F6",
+    },
+    {
+      property: "Item Active Background",
+      tokenName: "$menu-item-active-bg",
+      role: "Background fill on menu item press/active state",
+      fallback: "#E5E7EB",
+    },
+    {
+      property: "Item Disabled Text",
+      tokenName: "$menu-item-disabled-text",
+      role: "Muted text color for disabled menu items",
+      fallback: "#9CA3AF",
+    },
+    {
+      property: "Divider",
+      tokenName: "$menu-divider",
+      role: "Color for horizontal divider lines between item groups",
+      fallback: "#E5E7EB",
+    },
+    {
+      property: "Radius",
+      tokenName: "$radius-menu",
+      role: "Corner rounding applied to the menu panel",
+      fallback: "8px",
+    },
+    {
+      property: "Shortcut Text",
+      tokenName: "$menu-shortcut-text",
+      role: "Muted color for keyboard shortcut hints displayed alongside item labels",
+      fallback: "#9CA3AF",
+    },
+    {
+      property: "Focus Ring",
+      tokenName: "$focus-ring",
+      role: "Keyboard focus indicator ring for trigger and menu items",
+      fallback: "0 0 0 2px #FFFFFF, 0 0 0 4px #2E90FA",
+    },
+  ],
+
+  structureRules: [
+    "Dropdown menu consists of a trigger button and a floating menu panel rendered via a portal",
+    "Menu panel uses vertical Auto Layout with no gap — items stack edge-to-edge with internal padding",
+    "Each menu item is a horizontal Auto Layout row: optional leading icon, label text, spacer, optional shortcut hint, optional trailing icon",
+    "Dividers are 1px horizontal lines spanning the full width of the panel with vertical margin of 4px",
+    "Group headers are non-interactive label rows rendered in a smaller, muted font above their group items",
+    "Panel maximum height triggers vertical scrolling with a subtle scroll indicator at the overflow edge",
+    "Trigger button follows standard button structure with an appended chevron-down icon to signal expandability",
+    "Menu items have a minimum width matching the trigger button width; panel may be wider if items require it",
+  ],
+
+  typeHierarchyRules: [
+    "Menu item labels use font-weight Regular (400) at the size-appropriate font scale",
+    "Group header labels use font-weight Semi-Bold (600) at one step smaller than item labels",
+    "Keyboard shortcut hints use font-weight Regular (400) in monospace or the system UI font at a muted color",
+    "Text uses sentence case — 'Edit item', not 'Edit Item' or 'EDIT ITEM'",
+    "Destructive items (e.g., 'Delete') use $danger-text token color to signal risk",
+  ],
+
+  interactionRules: [
+    { event: "Click Trigger", trigger: "pointerup on trigger button", action: "Toggle menu open/closed; if opening, focus first non-disabled item" },
+    { event: "Arrow Down", trigger: "ArrowDown key while menu is open", action: "Move focus to the next non-disabled menu item; wrap to first item at end" },
+    { event: "Arrow Up", trigger: "ArrowUp key while menu is open", action: "Move focus to the previous non-disabled menu item; wrap to last item at start" },
+    { event: "Enter / Space", trigger: "Enter or Space on a focused menu item", action: "Select the item, fire its onClick handler, and close the menu if closeOnSelect is true" },
+    { event: "Escape", trigger: "Escape key while menu is open", action: "Close the menu and return focus to the trigger button" },
+    { event: "Tab", trigger: "Tab key while menu is open", action: "Close the menu and move focus to the next focusable element on the page" },
+    { event: "Type-Ahead", trigger: "Printable character typed while menu is open", action: "Move focus to the first item whose label starts with the typed character(s)" },
+    { event: "Click Outside", trigger: "pointerdown outside menu panel and trigger", action: "Close the menu without selecting any item" },
+    { event: "Hover Item", trigger: "pointerenter on a menu item", action: "Highlight the item and move roving focus to it" },
+    { event: "Home Key", trigger: "Home key while menu is open", action: "Move focus to the first non-disabled menu item" },
+    { event: "End Key", trigger: "End key while menu is open", action: "Move focus to the last non-disabled menu item" },
+  ],
+
+  contentGuidance: [
+    "Menu item labels should be concise action verbs or short verb phrases: 'Edit', 'Duplicate', 'Move to trash'",
+    "Group related actions together and separate groups with dividers for scannability",
+    "Place destructive actions (Delete, Remove) at the bottom of the menu, visually separated by a divider",
+    "Include keyboard shortcut hints alongside frequently used items to educate users about hotkeys",
+    "Leading icons should be consistent in style — do not mix filled and outlined icons in the same menu",
+    "Limit menu items to 8-10 maximum per menu; if more actions are needed, consider sub-menus or a command palette",
+    "Disabled items should remain visible with reduced opacity to indicate the action exists but is currently unavailable",
+    "Dropdown Menu is similar to Menu but is always attached to a specific trigger button; standalone menus use the Menu component",
+  ],
+
+  responsiveBehaviour: [
+    { breakpoint: "Mobile (<768px)", behavior: "Menu may convert to a bottom action sheet with larger touch targets (48px item height minimum)" },
+    { breakpoint: "Tablet (768-1023px)", behavior: "Standard floating menu with auto placement; panel width adjusts to content" },
+    { breakpoint: "Desktop (1024-1439px)", behavior: "Floating menu panel positioned below the trigger with standard offset" },
+    { breakpoint: "Ultra-wide (>=1440px)", behavior: "Menu panel size remains capped — does not scale with viewport width" },
+  ],
+
+  accessibilitySpec: {
+    intro:
+      "Dropdown menus implement the ARIA menu pattern and must support full keyboard navigation including arrow keys, type-ahead, and Escape dismissal.",
+    requirements: [
+      { requirement: "ARIA Role (Panel)", level: "A", notes: "Menu panel must use role='menu'; each item uses role='menuitem'" },
+      { requirement: "ARIA Expanded", level: "A", notes: "Trigger button sets aria-expanded='true' when menu is open, 'false' when closed" },
+      { requirement: "ARIA Has Popup", level: "A", notes: "Trigger button must include aria-haspopup='menu' to announce menu availability" },
+      { requirement: "ARIA Controls", level: "A", notes: "Trigger must reference the menu panel id via aria-controls" },
+      { requirement: "ARIA Disabled", level: "A", notes: "Disabled menu items use aria-disabled='true' and are skipped by arrow key navigation" },
+      { requirement: "Keyboard Arrow Navigation", level: "A", notes: "ArrowUp/ArrowDown moves focus between menu items; Home/End jumps to first/last" },
+      { requirement: "Type-Ahead Search", level: "AA", notes: "Typing characters moves focus to matching items by label prefix for efficient navigation" },
+      { requirement: "Escape Dismissal", level: "A", notes: "Escape key closes the menu and returns focus to the trigger button" },
+      { requirement: "Contrast Ratio", level: "AA", notes: "All menu item text meets 4.5:1 contrast against panel background; disabled text meets 3:1" },
+      { requirement: "Touch Target", level: "AA", notes: "Trigger and each menu item must have a 44x44px minimum touch area" },
+      { requirement: "Focus Management", level: "A", notes: "Opening the menu moves focus to the first item; closing returns focus to the trigger" },
+    ],
+    outro: [
+      "Test arrow key navigation with NVDA, VoiceOver, and JAWS to ensure each menu item is announced correctly",
+      "Verify that disabled items are announced as 'dimmed' or 'unavailable' by screen readers",
+      "Ensure type-ahead works with accented characters and does not conflict with global keyboard shortcuts",
+    ],
+  },
+
+  qaAcceptanceCriteria: [
+    { check: "Open on Click", platform: "Web", expectedResult: "Menu panel appears below trigger on click with correct alignment" },
+    { check: "Close on Select", platform: "Web", expectedResult: "Menu closes after item selection and fires the item's onClick handler" },
+    { check: "Close on Escape", platform: "Web", expectedResult: "Menu closes on Escape key; focus returns to trigger button" },
+    { check: "Close on Click Outside", platform: "Web", expectedResult: "Menu dismisses when clicking outside the panel" },
+    { check: "Arrow Key Navigation", platform: "Web", expectedResult: "ArrowDown/ArrowUp moves focus through items; wraps at boundaries" },
+    { check: "Disabled Item Skip", platform: "Web", expectedResult: "Arrow keys skip disabled items; disabled items show muted styling" },
+    { check: "Type-Ahead", platform: "Web", expectedResult: "Typing 'd' focuses the first item starting with 'D'" },
+    { check: "Dividers", platform: "Web", expectedResult: "Dividers render as 1px lines between item groups; not focusable" },
+    { check: "Screen Reader", platform: "Web", expectedResult: "Announces role='menu', item count, and current item on focus" },
+    { check: "Shortcut Hints", platform: "Web", expectedResult: "Keyboard shortcuts are displayed right-aligned and announced by screen readers" },
+    { check: "RTL Support", platform: "Web", expectedResult: "Menu alignment mirrors; icons and shortcuts swap sides in RTL locales" },
+    { check: "Mobile Adaptation", platform: "Mobile", expectedResult: "Converts to bottom action sheet below 768px with swipe-to-dismiss" },
+    { check: "Contrast", platform: "All", expectedResult: "All item text passes 4.5:1 contrast; disabled items pass 3:1 minimum" },
+    { check: "Visual Regression", platform: "All", expectedResult: "Menu renders pixel-perfect against baseline for each size and state" },
+  ],
+
+  dos: [
+    "Use a dropdown menu for a set of contextual actions triggered from a single button",
+    "Include a visual chevron or arrow icon on the trigger to indicate expandability",
+    "Group related actions together and separate groups with dividers for quick scanning",
+    "Implement full keyboard navigation including arrow keys, Home/End, and type-ahead",
+    "Place destructive actions last in the menu, visually distinguished with danger color tokens",
+    "Include keyboard shortcut hints to help power users learn hotkeys over time",
+    "Maintain consistent item heights and padding across all menu items within the same menu",
+  ],
+
+  donts: [
+    "Do not use a dropdown menu for navigation — use a Navigation Menu or link list instead",
+    "Do not open the menu on hover — hover-triggered menus cause accessibility and usability issues",
+    "Do not place more than 10 items in a single menu level — consider sub-menus or a command palette",
+    "Do not mix different item heights or icon sizes within the same menu",
+    "Do not remove Escape key dismissal — it is a WCAG requirement for menu patterns",
+    "Do not hide the trigger's expandability indicator (chevron) — users need to know it opens a menu",
+    "Do not use a dropdown menu for single-selection from options — use a Select component instead",
+  ],
+};
