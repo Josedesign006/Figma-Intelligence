@@ -355,3 +355,132 @@ export function resolveFloatToken(
   }
   return { value: fallback, variableId: null };
 }
+
+// ─── Multi-mode variable binding ────────────────────────────────────────────
+
+export interface MultiModeBinding {
+  nodeId: string;
+  field: string;         // "fills" | "strokes" | "paddingLeft" | "cornerRadius" etc.
+  fillIndex?: number;
+  /** Variable ID of a semantic alias variable that already has Light/Dark values */
+  semanticVariableId: string;
+}
+
+/**
+ * Build a script that explicitly sets the *variable* mode on a frame and its
+ * descendants, ensuring components switch between Light/Dark (or any modes).
+ *
+ * Figma's mode switching works at the frame level via `setExplicitVariableModeForCollection`.
+ * This function:
+ *   1. Binds semantic variables to node properties (same as single-mode binding)
+ *   2. Sets the explicit variable mode on a container frame so all children
+ *      resolve the correct mode values automatically
+ *
+ * Usage: Call this after creating variables with ds-variables (which creates
+ * Light/Dark mode values). The semantic variable already has mode-specific
+ * values — this script binds it to nodes and sets which mode is active.
+ */
+export function buildMultiModeBindingScript(
+  bindings: MultiModeBinding[],
+  /** Frame node ID to set the explicit mode on (typically the root component frame) */
+  targetFrameId: string,
+  /** Collection ID the semantic variables belong to */
+  collectionId: string,
+  /** Mode ID to activate (e.g. the Dark mode ID) */
+  activeModeId: string
+): string {
+  if (bindings.length === 0 && !targetFrameId) return "";
+
+  const bindingData = JSON.stringify(bindings);
+
+  return `
+(async () => {
+  const bindings = ${bindingData};
+  let bound = 0;
+  const errors = [];
+
+  // Step 1: Bind semantic variables to node properties
+  for (const b of bindings) {
+    try {
+      const node = await figma.getNodeByIdAsync(b.nodeId);
+      if (!node) { errors.push('Node not found: ' + b.nodeId); continue; }
+
+      const variable = await figma.variables.getVariableByIdAsync(b.semanticVariableId);
+      if (!variable) { errors.push('Variable not found: ' + b.semanticVariableId); continue; }
+
+      if (b.field === 'fills' || b.field === 'strokes') {
+        const idx = b.fillIndex ?? 0;
+        if (node[b.field] && node[b.field].length > idx) {
+          const paints = [...node[b.field]];
+          paints[idx] = figma.variables.setBoundVariableForPaint(paints[idx], 'color', variable);
+          node[b.field] = paints;
+          bound++;
+        }
+      } else {
+        node.setBoundVariable(b.field, variable.id);
+        bound++;
+      }
+    } catch (e) {
+      errors.push('Bind error: ' + (e.message || e));
+    }
+  }
+
+  // Step 2: Set the explicit variable mode on the target frame
+  let modeSet = false;
+  if (${JSON.stringify(targetFrameId)} && ${JSON.stringify(collectionId)} && ${JSON.stringify(activeModeId)}) {
+    try {
+      const frame = await figma.getNodeByIdAsync(${JSON.stringify(targetFrameId)});
+      if (frame && 'setExplicitVariableModeForCollection' in frame) {
+        frame.setExplicitVariableModeForCollection(${JSON.stringify(collectionId)}, ${JSON.stringify(activeModeId)});
+        modeSet = true;
+      }
+    } catch (e) {
+      errors.push('Mode set error: ' + (e.message || e));
+    }
+  }
+
+  return { bound, total: bindings.length, modeSet, errors: errors.length > 0 ? errors : undefined };
+})();
+`.trim();
+}
+
+/**
+ * Build a script that resolves ALL modes for a collection and returns them,
+ * so callers can pick which mode ID to use for switching.
+ */
+export function buildListModesScript(collectionId: string): string {
+  return `
+(async () => {
+  const col = await figma.variables.getVariableCollectionByIdAsync(${JSON.stringify(collectionId)});
+  if (!col) return { error: 'Collection not found' };
+  return {
+    collectionId: col.id,
+    collectionName: col.name,
+    modes: col.modes.map(m => ({ modeId: m.modeId, name: m.name })),
+    variableCount: col.variableIds.length,
+  };
+})();
+`.trim();
+}
+
+/**
+ * Build a script that switches a frame (and all its children) to a different
+ * variable mode. This is the simplest "theme switch" operation.
+ */
+export function buildModeSwitchScript(
+  frameId: string,
+  collectionId: string,
+  modeId: string
+): string {
+  return `
+(async () => {
+  const frame = await figma.getNodeByIdAsync(${JSON.stringify(frameId)});
+  if (!frame) return { error: 'Frame not found: ${frameId}' };
+  if (!('setExplicitVariableModeForCollection' in frame)) {
+    return { error: 'Node does not support explicit variable modes (must be a frame-like node)' };
+  }
+  frame.setExplicitVariableModeForCollection(${JSON.stringify(collectionId)}, ${JSON.stringify(modeId)});
+  return { success: true, frameId: frame.id, frameName: frame.name, collectionId: ${JSON.stringify(collectionId)}, modeId: ${JSON.stringify(modeId)} };
+})();
+`.trim();
+}

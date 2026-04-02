@@ -1,4 +1,17 @@
 export type NodeKind = "frame" | "text" | "rect" | "ellipse" | "vector";
+export type IconSize = "xs" | "sm" | "md" | "lg" | "xl";
+export interface IconSlot {
+    /** Default icon name from the catalog (e.g. "icon/action/search") */
+    defaultIcon?: string;
+    /** Whether the slot is required or optional */
+    required: boolean;
+    /** Default size preset */
+    size?: IconSize;
+    /** Color semantic token override */
+    colorToken?: string;
+    /** Whether icon is decorative (aria-hidden) */
+    decorative?: boolean;
+}
 export interface BlueprintNode {
     name: string;
     kind: NodeKind;
@@ -35,6 +48,7 @@ export interface BlueprintNode {
     textContent?: string;
     textPreset?: string;
     textFillSemantic?: string;
+    iconSlot?: IconSlot;
     children?: BlueprintNode[];
 }
 export interface VariantProperty {
@@ -44,7 +58,7 @@ export interface VariantProperty {
 }
 export interface ComponentBlueprint {
     name: string;
-    category: "core" | "forms" | "navigation" | "data" | "feedback" | "overlay";
+    category: "core" | "forms" | "navigation" | "data" | "feedback" | "overlay" | "layout";
     description: string;
     root: BlueprintNode;
     variantProperties: VariantProperty[];
@@ -53,12 +67,19 @@ export interface ComponentBlueprint {
         property: "fills" | "strokes" | "cornerRadius" | "paddingLeft";
         semanticToken: string;
     }>;
+    /** Icon slots exposed as swappable properties */
+    iconSlots?: Array<{
+        nodePath: string;
+        propName: string;
+        defaultIcon?: string;
+        required: boolean;
+    }>;
 }
 export declare const COMPONENT_BLUEPRINTS: ComponentBlueprint[];
 /**
  * Get blueprints filtered by category.
  */
-export declare function getBlueprintsByCategory(categories: Array<"core" | "forms" | "navigation" | "data" | "feedback" | "overlay">): ComponentBlueprint[];
+export declare function getBlueprintsByCategory(categories: Array<"core" | "forms" | "navigation" | "data" | "feedback" | "overlay" | "layout">): ComponentBlueprint[];
 /**
  * Get a single blueprint by name.
  */

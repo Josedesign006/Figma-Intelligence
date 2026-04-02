@@ -2,7 +2,7 @@
 "use strict";
 /**
  * figma-intelligence-layer — MCP Server
- * 22 tools across 5 phases for pixel-accurate, bidirectional, context-aware AI ↔ Design collaboration.
+ * 28 tools across 5 phases for pixel-accurate, bidirectional, context-aware AI ↔ Design collaboration.
  *
  * Architecture:
  *   Claude Desktop / Claude Code
@@ -56,6 +56,7 @@ const index_js_2 = require("./tools/phase1-vision/screen-cloner/index.js");
 const index_js_3 = require("./tools/phase1-vision/visual-audit/index.js");
 const index_js_4 = require("./tools/phase1-vision/a11y-audit/index.js");
 const keyboard_sr_order_handler_js_1 = require("./tools/phase1-vision/a11y-audit/keyboard-sr-order-handler.js");
+const a11y_annotate_handler_js_1 = require("./tools/phase1-vision/a11y-audit/a11y-annotate-handler.js");
 const index_js_5 = require("./tools/phase1-vision/sketch-to-design/index.js");
 const index_js_6 = require("./tools/phase1-vision/design-from-ref/index.js");
 // ─── Phase 2: Design System Accuracy ────────────────────────────────────────
@@ -75,28 +76,35 @@ const index_js_18 = require("./tools/phase3-generation/system-drift/index.js");
 const index_js_19 = require("./tools/phase3-generation/prototype-map/index.js");
 const index_js_20 = require("./tools/phase3-generation/prototype-wire/index.js");
 const figma_animated_build_js_1 = require("./tools/phase3-generation/figma-animated-build.js");
+const index_js_21 = require("./tools/phase3-generation/composition-builder/index.js");
 // ─── Phase 4: Sync & Bidirectionality ───────────────────────────────────────
-const index_js_21 = require("./tools/phase4-sync/animation-specifier/index.js");
-const index_js_22 = require("./tools/phase4-sync/sync-from-code/index.js");
-const index_js_23 = require("./tools/phase4-sync/webhook-listener/index.js");
+const index_js_22 = require("./tools/phase4-sync/animation-specifier/index.js");
+const index_js_23 = require("./tools/phase4-sync/sync-from-code/index.js");
+const index_js_24 = require("./tools/phase4-sync/export-tokens/index.js");
+const index_js_25 = require("./tools/phase4-sync/generate-component-code/index.js");
+const index_js_26 = require("./tools/phase4-sync/webhook-listener/index.js");
+const index_js_27 = require("./tools/phase4-sync/handoff-spec/index.js");
+const index_js_28 = require("./tools/phase4-sync/ci-check/index.js");
+const index_js_29 = require("./tools/phase4-sync/watch-docs/index.js");
+const index_js_30 = require("./tools/phase4-sync/icon-library-sync/index.js");
 // ─── Phase 5: Memory, Governance & Health ───────────────────────────────────
-const index_js_24 = require("./tools/phase5-governance/ds-scaffolder/index.js");
-const index_js_25 = require("./tools/phase5-governance/ds-variables/index.js");
-const index_js_26 = require("./tools/phase5-governance/decision-log/index.js");
-const index_js_27 = require("./tools/phase5-governance/design-decision-log/index.js");
-const index_js_28 = require("./tools/phase5-governance/health-report/index.js");
-const index_js_29 = require("./tools/phase5-governance/component-spec/index.js");
-const index_js_30 = require("./tools/phase5-governance/apg-doc/index.js");
-const index_js_31 = require("./tools/phase5-governance/ds-primitives/index.js");
-const index_js_32 = require("./tools/phase5-governance/token-naming/index.js");
-const index_js_33 = require("./tools/phase5-governance/token-migrate/index.js");
+const index_js_31 = require("./tools/phase5-governance/ds-scaffolder/index.js");
+const index_js_32 = require("./tools/phase5-governance/ds-variables/index.js");
+const index_js_33 = require("./tools/phase5-governance/decision-log/index.js");
+const index_js_34 = require("./tools/phase5-governance/design-decision-log/index.js");
+const index_js_35 = require("./tools/phase5-governance/health-report/index.js");
+const index_js_36 = require("./tools/phase5-governance/component-spec/index.js");
+const index_js_37 = require("./tools/phase5-governance/apg-doc/index.js");
+const index_js_38 = require("./tools/phase5-governance/ds-primitives/index.js");
+const index_js_39 = require("./tools/phase5-governance/token-naming/index.js");
+const index_js_40 = require("./tools/phase5-governance/token-migrate/index.js");
 // component-doc removed — replaced by component-spec
 // ─── Bridge (for direct execute) ────────────────────────────────────────────
 const figma_bridge_js_1 = require("./shared/figma-bridge.js");
 // ─── P0: Response compression ───────────────────────────────────────────────
 const response_compression_js_1 = require("./shared/response-compression.js");
 // ─────────────────────────────────────────────────────────────────────────────
-// Tool registry — 23 tools
+// Tool registry — 29 tools
 // ─────────────────────────────────────────────────────────────────────────────
 const TOOLS = [
     // ── Phase 1 ──────────────────────────────────────────────────────────────
@@ -151,7 +159,7 @@ const TOOLS = [
     },
     {
         name: "figma_a11y_keyboard_screenreader_order",
-        description: "Generate enterprise-level keyboard tab order and screen reader reading order annotations as a new Figma page. Analyzes all interactive elements, infers ARIA roles and labels, computes tab sequence, reading order by landmarks, interaction announcements, focus management rules, and developer implementation notes. Outputs a fully formatted annotation page following WAI-ARIA APG + WCAG 2.1 AA standards with 10 sections: Header, Scope, Assumptions, Keyboard Tab Order, Screen Reader Reading Order, Interaction Announcements, Focus Management, Implementation Notes (ARIA table, Keyboard Behaviour, Do/Don't), Warnings, and Audit Summary.",
+        description: "Generate a TEXT-BASED DOCUMENTATION PAGE (NO visual markers) with enterprise-level keyboard and screen reader order specifications. Creates a NEW Figma page containing 10 written sections: Header, Scope, Assumptions, Keyboard Tab Order table, Screen Reader Reading Order list, Interaction Announcements, Focus Management rules, Implementation Notes (ARIA table, Keyboard Behaviour, Do/Don't), Warnings, and Audit Summary. This is a reference document for developers — it does NOT place any visual numbered markers, stamps, or circle badges on the design canvas. If you need visual numbered circle markers on the design with a Tab Order Sequence chart, use figma_a11y_annotate instead.",
         inputSchema: {
             type: "object",
             properties: {
@@ -159,6 +167,25 @@ const TOOLS = [
                 pageName: { type: "string", description: "Optional custom name for the generated annotation page" },
             },
             required: ["nodeId"],
+        },
+    },
+    {
+        name: "figma_a11y_annotate",
+        description: "Place VISUAL numbered circle markers on a Figma design and generate a Tab Order Sequence chart. This is the tool for 'focus order annotation with markers', 'annotate focus order', 'tab order with markers', or 'add accessibility markers to my design'. Creates a NEW Figma page with: (1) a clone of the design showing numbered purple circle badges at each interactive element, (2) a Tab Order Sequence table with columns #, Element, Role, ARIA/Notes, and (3) Implementation Notes with keyboard behavior details. Supports 7 annotation types: focus-order (keyboard tab sequence), reading-order (screen reader sequence), input (form fields), landmark (ARIA landmarks), heading (heading levels H1-H6), link, button. Unlike figma_a11y_keyboard_screenreader_order which creates a text-only reference document, this tool places visual numbered markers directly on a design clone.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                nodeId: { type: "string", description: "Figma node ID of the frame to annotate" },
+                annotationType: {
+                    type: "string",
+                    enum: ["focus-order", "reading-order", "input", "landmark", "heading", "link", "button", "all"],
+                    description: "Which annotation type to render. Use 'all' for complete accessibility annotation.",
+                },
+                showDetails: { type: "boolean", description: "Whether to render details cards beside each element (default: false)" },
+                showLasso: { type: "boolean", description: "Whether to draw dotted borders around target elements (default: true)" },
+                placement: { type: "string", enum: ["left", "right", "auto"], description: "Stamp placement side relative to elements (default: left)" },
+            },
+            required: ["nodeId", "annotationType"],
         },
     },
     {
@@ -555,6 +582,57 @@ const TOOLS = [
                 syncDirection: { type: "string", enum: ["report", "update-figma", "update-code-stub"] },
             },
             required: ["storybookUrl", "figmaLibraryFileKey", "syncDirection"],
+        },
+    },
+    {
+        name: "figma_export_tokens",
+        description: "Export Figma design variables/tokens to code-ready formats: CSS custom properties, SCSS, Tailwind config, Style Dictionary JSON, W3C DTCG JSON, Swift, Kotlin, or raw JSON. Reads live variables from the connected Figma file. Supports mode filtering (Light/Dark), collection filtering, alias chain comments, and multi-format export in a single call. Falls back to the built-in semantic token catalog when offline.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                format: {
+                    type: "string",
+                    enum: ["css", "scss", "tailwind", "style-dictionary", "dtcg", "swift", "kotlin", "json", "all"],
+                    description: "Output format. Use 'all' to generate every format at once.",
+                },
+                collectionFilter: { type: "string", description: "Filter by collection name (substring match)" },
+                tokenTypes: {
+                    type: "array",
+                    items: { type: "string", enum: ["COLOR", "FLOAT", "STRING", "BOOLEAN"] },
+                    description: "Filter by variable type",
+                },
+                mode: { type: "string", description: "Export a single mode only (e.g. 'Light' or 'Dark'). Omit for all modes." },
+                includeAliasChains: { type: "boolean", description: "Add comments showing semantic → primitive → raw value chains" },
+                cssSelector: { type: "string", description: "CSS selector for custom properties (default ':root')" },
+                tailwindPrefix: { type: "string", description: "Tailwind namespace prefix (default 'ds')" },
+            },
+            required: ["format"],
+        },
+    },
+    {
+        name: "figma_generate_component_code",
+        description: "Generate production-ready component code from a Figma component or component set. Extracts real variant axes, states, spacing, color tokens, and typography, then outputs a typed component file + CSS Module + Storybook stories. Supports React TSX, Vue SFC, Svelte, and HTML. Falls back to built-in blueprints (52 components) when no Figma connection is available.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                nodeId: { type: "string", description: "Figma node ID of the component/component set. Uses current selection if omitted." },
+                componentName: { type: "string", description: "Fallback: match a built-in blueprint by name (Button, Input, Modal, etc.)" },
+                framework: {
+                    type: "string",
+                    enum: ["react", "vue", "svelte", "html"],
+                    description: "Target framework",
+                },
+                includeStories: { type: "boolean", description: "Generate Storybook stories file (default true)" },
+                includeStyles: { type: "boolean", description: "Generate CSS Module file (default true)" },
+                cssStrategy: {
+                    type: "string",
+                    enum: ["css-modules", "tailwind", "styled-components"],
+                    description: "CSS approach (default css-modules)",
+                },
+                typescript: { type: "boolean", description: "Use TypeScript (default true for React/Vue)" },
+                tokenImportPath: { type: "string", description: "Import path for design tokens CSS (default '../../tokens.css')" },
+            },
+            required: ["framework"],
         },
     },
     {
@@ -1236,6 +1314,84 @@ const TOOLS = [
         },
     },
     {
+        name: "figma_get_node_deep",
+        description: "Get a node with full recursive child data up to maxDepth (default 10). Unlike figma_get_node which returns 1-level children, this returns the full property set for every descendant including fills, strokes, layout, typography, and variable bindings. Use for deep component analysis.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                nodeId: { type: "string", description: "The Figma node ID" },
+                maxDepth: { type: "number", description: "Max recursion depth (default 10, max 20)" },
+            },
+            required: ["nodeId"],
+        },
+    },
+    {
+        name: "figma_batch_get_nodes",
+        description: "Read up to 200 nodes in a single round-trip. Returns a map of nodeId → serialized node data. 10-50x faster than calling figma_get_node individually.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                nodeIds: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Array of node IDs to read (max 200)",
+                },
+                includeChildren: { type: "boolean", description: "Include 1-level child summaries (default true)" },
+            },
+            required: ["nodeIds"],
+        },
+    },
+    {
+        name: "figma_switch_mode",
+        description: "Switch a frame's variable mode (theme switching). All children with bound variables will resolve to the new mode's values (e.g. switch from Light to Dark). Use figma_list_modes to discover available modes first.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                frameId: { type: "string", description: "Frame node ID to set the mode on" },
+                collectionId: { type: "string", description: "Variable collection ID" },
+                modeId: { type: "string", description: "Mode ID to activate" },
+            },
+            required: ["frameId", "collectionId", "modeId"],
+        },
+    },
+    {
+        name: "figma_list_modes",
+        description: "List all modes (e.g. Light, Dark) for a variable collection. Returns mode IDs and names. Use before figma_switch_mode to discover which modes are available.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                collectionId: { type: "string", description: "Variable collection ID" },
+            },
+            required: ["collectionId"],
+        },
+    },
+    {
+        name: "figma_bind_variables_multi_mode",
+        description: "Bind semantic variables to node properties AND set the explicit variable mode on a container frame. Unlike basic variable binding, this ensures components actually switch between Light/Dark themes. Binds semantic alias variables (which have per-mode values) and activates a specific mode on the target frame.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                bindings: {
+                    type: "array",
+                    items: {
+                        type: "object",
+                        properties: {
+                            nodeId: { type: "string", description: "Target node ID" },
+                            field: { type: "string", description: "Property to bind: fills, strokes, paddingLeft, cornerRadius, etc." },
+                            variableId: { type: "string", description: "Semantic variable ID (must have mode values)" },
+                            fillIndex: { type: "number", description: "Paint array index for fills/strokes (default 0)" },
+                        },
+                        required: ["nodeId", "field", "variableId"],
+                    },
+                },
+                targetFrameId: { type: "string", description: "Container frame to set the explicit mode on" },
+                collectionId: { type: "string", description: "Variable collection ID" },
+                activeModeId: { type: "string", description: "Mode ID to activate (e.g. Dark mode ID)" },
+            },
+            required: ["bindings", "targetFrameId", "collectionId", "activeModeId"],
+        },
+    },
+    {
         name: "figma_get_pages",
         description: "List all pages in the current Figma file.",
         inputSchema: { type: "object", properties: {} },
@@ -1249,6 +1405,109 @@ const TOOLS = [
                 name: { type: "string", description: "Page name" },
             },
             required: ["name"],
+        },
+    },
+    // ── Tier 2: Competitive tools ─────────────────────────────────────────────
+    {
+        name: "figma_handoff_spec",
+        description: "Generate a developer-ready handoff specification for any component or frame. Produces measurements (width, height, padding, gap), token names mapped to every property, copy-paste CSS/SCSS snippets, redline annotations, asset export lists, and responsive notes. Outputs JSON, Markdown, or an annotated Figma page with visual redlines.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                nodeId: { type: "string", description: "Figma node ID of the component/frame to spec" },
+                outputFormat: { type: "string", enum: ["json", "markdown", "figma-page", "all"], description: "Output format" },
+                includeCss: { type: "boolean", description: "Include copy-paste CSS snippets (default true)" },
+                includeAssets: { type: "boolean", description: "Include asset export list (default true)" },
+                cssUnit: { type: "string", enum: ["px", "rem"], description: "CSS unit preference (default px)" },
+                remBase: { type: "number", description: "Base size for rem conversion (default 16)" },
+                maxDepth: { type: "number", description: "Max depth for element scanning (default 6)" },
+            },
+            required: ["nodeId", "outputFormat"],
+        },
+    },
+    {
+        name: "figma_ci_check",
+        description: "CI/CD integration for design system governance. Runs lint-rules + health-report and produces CI-friendly output: GitHub Actions annotations (::error, ::warning), SARIF for Code Scanning, PR comment markdown, and threshold gates. Can also generate a ready-to-use GitHub Action YAML workflow file.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                checks: {
+                    type: "array",
+                    items: { type: "string", enum: ["lint", "health", "tokens", "all"] },
+                    description: "Which checks to run",
+                },
+                outputFormat: { type: "string", enum: ["github-actions", "sarif", "pr-comment", "json", "all"], description: "Output format" },
+                healthThreshold: { type: "number", description: "Minimum health score to pass (0-100, default 70)" },
+                maxLintErrors: { type: "number", description: "Maximum allowed errors (default 0)" },
+                maxLintWarnings: { type: "number", description: "Maximum allowed warnings (default unlimited)" },
+                nodeId: { type: "string", description: "Scope to specific node (default: current page)" },
+                generateWorkflow: { type: "boolean", description: "Generate a GitHub Action YAML workflow file" },
+            },
+            required: ["checks", "outputFormat"],
+        },
+    },
+    {
+        name: "figma_watch_docs",
+        description: "Auto-updating documentation system. Monitors components for changes, detects documentation drift, auto-regenerates specs when stale, and produces changelogs. Actions: 'check' (compare current vs snapshot, find stale docs), 'regenerate' (force-rebuild specs), 'changelog' (generate human-readable change log), 'freshness' (report doc freshness scores), 'register-webhook' (configure automated updates).",
+        inputSchema: {
+            type: "object",
+            properties: {
+                action: { type: "string", enum: ["check", "regenerate", "changelog", "freshness", "register-webhook"], description: "Action to perform" },
+                nodeIds: { type: "array", items: { type: "string" }, description: "Component node IDs to watch (omit for all on current page)" },
+                snapshotDir: { type: "string", description: "Path to store spec snapshots for comparison" },
+                autoRegenerate: { type: "boolean", description: "Auto-regenerate specs that are stale (for check action)" },
+                specFormat: { type: "string", enum: ["json", "markdown", "figma-page", "all"], description: "Output format for regenerated specs" },
+                fileKey: { type: "string", description: "Figma file key (for webhook registration)" },
+            },
+            required: ["action"],
+        },
+    },
+    {
+        name: "figma_icon_library_sync",
+        description: "Bidirectional icon library synchronization between Figma and code. Export: Figma icon components → SVG files + React/Vue/Svelte icon components with typed catalog. Diff: Compare Figma icon set against existing icons and report added/removed/modified. Catalog: Generate a typed icon catalog with categories.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                action: { type: "string", enum: ["export", "diff", "catalog"], description: "Sync action" },
+                sourceNodeId: { type: "string", description: "Figma page/frame containing icons (default: auto-detect)" },
+                namePrefix: { type: "string", description: "Icon name prefix filter (e.g. 'icon/' or 'Icon/')" },
+                framework: { type: "string", enum: ["react", "vue", "svelte", "svg-only"], description: "Output framework (default react)" },
+                generateCatalog: { type: "boolean", description: "Generate TypeScript icon catalog (default true)" },
+                exportSize: { type: "number", description: "Export size in px (default 24)" },
+                includeSizeVariants: { type: "boolean", description: "Include size variants (16, 20, 24, 32)" },
+                existingIcons: { type: "array", items: { type: "string" }, description: "Existing icon names for diff comparison" },
+            },
+            required: ["action"],
+        },
+    },
+    {
+        name: "figma_composition_builder",
+        description: "Build composed multi-component patterns from natural language or explicit component lists. Examples: 'login form' → Modal + Inputs + Button, 'search with filters' → Search + Select + Button, 'card with actions' → Card + Image + Buttons. Supports 12 pre-built recipes plus custom compositions. Outputs a properly laid-out Figma frame with Auto Layout and token bindings.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                pattern: { type: "string", description: "Natural language pattern description (e.g. 'login form', 'nav bar', 'settings panel')" },
+                components: {
+                    type: "array",
+                    items: {
+                        type: "object",
+                        properties: {
+                            name: { type: "string", description: "Component name from blueprint catalog" },
+                            props: { type: "object", description: "Variant properties to apply" },
+                            count: { type: "number", description: "How many instances (default 1)" },
+                        },
+                        required: ["name"],
+                    },
+                    description: "Explicit component list (overrides pattern matching)",
+                },
+                frameWidth: { type: "number", description: "Container width in px (default 400)" },
+                layoutDirection: { type: "string", enum: ["VERTICAL", "HORIZONTAL"], description: "Layout direction (auto-detected if omitted)" },
+                spacing: { type: "number", description: "Gap between components in px (default 16)" },
+                padding: { type: "number", description: "Container padding in px (default 24)" },
+                includeBackground: { type: "boolean", description: "Add a white background fill" },
+                targetPage: { type: "string", description: "Figma page name to place the composition" },
+            },
+            required: ["pattern"],
         },
     },
 ];
@@ -1270,6 +1529,7 @@ async function dispatch(name, args) {
             return a11yResult;
         }
         case "figma_a11y_keyboard_screenreader_order": return (0, keyboard_sr_order_handler_js_1.keyboardSrOrderHandler)(args);
+        case "figma_a11y_annotate": return (0, a11y_annotate_handler_js_1.a11yAnnotateHandler)(args);
         case "figma_sketch_to_design": return (0, index_js_5.sketchToDesignHandler)(args);
         case "figma_design_from_ref": return (0, index_js_6.designFromRefHandler)(args);
         // Phase 2
@@ -1291,20 +1551,28 @@ async function dispatch(name, args) {
         case "figma_prototype_wire": return (0, index_js_20.prototypeWireHandler)(args);
         case "figma_animated_build": return (0, figma_animated_build_js_1.animatedBuildHandler)(args);
         // Phase 4
-        case "figma_animation_specifier": return (0, index_js_21.animationSpecifierHandler)(args);
-        case "figma_sync_from_code": return (0, index_js_22.syncFromCodeHandler)(args);
-        case "figma_webhook_listener": return (0, index_js_23.webhookListenerHandler)(args);
+        case "figma_animation_specifier": return (0, index_js_22.animationSpecifierHandler)(args);
+        case "figma_sync_from_code": return (0, index_js_23.syncFromCodeHandler)(args);
+        case "figma_export_tokens": return (0, index_js_24.exportTokensHandler)(args);
+        case "figma_generate_component_code": return (0, index_js_25.generateComponentCodeHandler)(args);
+        case "figma_webhook_listener": return (0, index_js_26.webhookListenerHandler)(args);
+        case "figma_handoff_spec": return (0, index_js_27.handoffSpecHandler)(args);
+        case "figma_ci_check": return (0, index_js_28.ciCheckHandler)(args);
+        case "figma_watch_docs": return (0, index_js_29.watchDocsHandler)(args);
+        case "figma_icon_library_sync": return (0, index_js_30.iconLibrarySyncHandler)(args);
+        // Phase 3 (Tier 2)
+        case "figma_composition_builder": return (0, index_js_21.compositionBuilderHandler)(args);
         // Phase 5
-        case "figma_design_system_scaffolder": return (0, index_js_24.dsScaffolderHandler)(args);
-        case "figma_design_system_primitives": return (0, index_js_31.dsPrimitivesHandler)(args);
-        case "figma_design_system_variables": return (0, index_js_25.dsVariablesHandler)(args);
-        case "figma_token_naming_convention": return (0, index_js_32.tokenNamingHandler)(args);
-        case "figma_token_migrate": return (0, index_js_33.tokenMigrateHandler)(args);
-        case "figma_decision_log": return (0, index_js_26.decisionLogToolHandler)(args);
-        case "figma_design_decision_log": return (0, index_js_27.designDecisionLogHandler)(args);
-        case "figma_health_report": return (0, index_js_28.healthReportHandler)(args);
-        case "figma_component_spec": return (0, index_js_29.componentSpecHandler)(args);
-        case "figma_apg_doc": return (0, index_js_30.figmaApgDocHandler)(args);
+        case "figma_design_system_scaffolder": return (0, index_js_31.dsScaffolderHandler)(args);
+        case "figma_design_system_primitives": return (0, index_js_38.dsPrimitivesHandler)(args);
+        case "figma_design_system_variables": return (0, index_js_32.dsVariablesHandler)(args);
+        case "figma_token_naming_convention": return (0, index_js_39.tokenNamingHandler)(args);
+        case "figma_token_migrate": return (0, index_js_40.tokenMigrateHandler)(args);
+        case "figma_decision_log": return (0, index_js_33.decisionLogToolHandler)(args);
+        case "figma_design_decision_log": return (0, index_js_34.designDecisionLogHandler)(args);
+        case "figma_health_report": return (0, index_js_35.healthReportHandler)(args);
+        case "figma_component_spec": return (0, index_js_36.componentSpecHandler)(args);
+        case "figma_apg_doc": return (0, index_js_37.figmaApgDocHandler)(args);
         // Direct execute
         case "figma_execute": {
             const code = args.code;
@@ -1479,6 +1747,31 @@ async function dispatch(name, args) {
             const bridge = await (0, figma_bridge_js_1.getBridge)();
             const a = args;
             return bridge.createChild(a.childType, a.parentId, a.name, a.width, a.height, a.x, a.y, a.characters);
+        }
+        case "figma_get_node_deep": {
+            const bridge = await (0, figma_bridge_js_1.getBridge)();
+            const a = args;
+            return bridge.getNodeDeep(a.nodeId, a.maxDepth);
+        }
+        case "figma_batch_get_nodes": {
+            const bridge = await (0, figma_bridge_js_1.getBridge)();
+            const a = args;
+            return bridge.batchGetNodes(a.nodeIds, a.includeChildren);
+        }
+        case "figma_switch_mode": {
+            const bridge = await (0, figma_bridge_js_1.getBridge)();
+            const a = args;
+            return bridge.switchMode(a.frameId, a.collectionId, a.modeId);
+        }
+        case "figma_list_modes": {
+            const bridge = await (0, figma_bridge_js_1.getBridge)();
+            const a = args;
+            return bridge.listModes(a.collectionId);
+        }
+        case "figma_bind_variables_multi_mode": {
+            const bridge = await (0, figma_bridge_js_1.getBridge)();
+            const a = args;
+            return bridge.bindVariablesMultiMode(a.bindings, a.targetFrameId, a.collectionId, a.activeModeId);
         }
         case "figma_get_pages": {
             const bridge = await (0, figma_bridge_js_1.getBridge)();

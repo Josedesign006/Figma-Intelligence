@@ -4,7 +4,7 @@ exports.getDefaultTokenNamingRules = getDefaultTokenNamingRules;
 exports.analyzeTokenName = analyzeTokenName;
 exports.analyzeTokenNames = analyzeTokenNames;
 const DEFAULT_RULES = {
-    primitiveCategories: ["color", "space", "typography", "radius", "elevation", "border", "opacity"],
+    primitiveCategories: ["color", "space", "typography", "radius", "elevation", "border", "opacity", "motion", "z-index", "border-width", "icon-size", "breakpoint", "grid", "density"],
     semanticCategories: ["text", "surface", "icon", "action", "feedback", "field", "chart", "overlay", "stroke"],
     componentPrefix: "component",
     semanticPrefix: "semantic",

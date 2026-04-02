@@ -112,6 +112,50 @@ export declare class FigmaBridge {
     getVariables(collectionId?: string, verbosity?: string): Promise<unknown[]>;
     getStyles(): Promise<Record<string, unknown>>;
     /**
+     * Get a node with full recursive child data up to maxDepth.
+     * Unlike getNode() which returns 1-level children as {id, name, type},
+     * this returns the full property set for every descendant.
+     */
+    getNodeDeep(nodeId: string, maxDepth?: number): Promise<unknown>;
+    /**
+     * Batch read multiple nodes in a single round-trip.
+     * Returns a map of nodeId → serialized node data (1-level deep children).
+     */
+    batchGetNodes(nodeIds: string[], includeChildren?: boolean): Promise<Record<string, unknown>>;
+    /**
+     * Bind semantic variables to nodes AND set the explicit variable mode on a
+     * container frame. This is the key method for theme-switching support.
+     *
+     * Unlike bindVariables() which just binds variables without mode awareness,
+     * this method:
+     *   1. Binds semantic variables (which have Light/Dark mode values)
+     *   2. Sets the explicit mode on the target frame so children resolve correctly
+     */
+    bindVariablesMultiMode(bindings: Array<{
+        nodeId: string;
+        field: string;
+        variableId: string;
+        fillIndex?: number;
+    }>, targetFrameId: string, collectionId: string, activeModeId: string): Promise<{
+        bound: number;
+        total: number;
+        modeSet: boolean;
+        errors?: string[];
+    }>;
+    /**
+     * Switch a frame's variable mode (theme switching).
+     * All children with bound variables will resolve to the new mode's values.
+     */
+    switchMode(frameId: string, collectionId: string, modeId: string): Promise<{
+        success: boolean;
+        error?: string;
+    }>;
+    /**
+     * List all modes for a variable collection.
+     * Returns mode IDs and names so callers can pick one for switchMode().
+     */
+    listModes(collectionId: string): Promise<unknown>;
+    /**
      * Get enriched design system data — tokens organized semantically,
      * components categorized, relationships mapped. Cached for 5 minutes.
      */

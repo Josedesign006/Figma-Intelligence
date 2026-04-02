@@ -1,5 +1,6 @@
 import Fuse from "fuse.js";
 import { ComponentManifest, ComponentSet } from "../../../shared/types.js";
+import { searchIcons, getIconByName, type IconEntry } from "../../../shared/icon-catalog.js";
 
 interface IconCandidate {
   nodeId: string;
@@ -13,6 +14,20 @@ export interface IconComponentMatch {
   name: string;
   confidence: number;
   nodeType: string;
+}
+
+/**
+ * Try to resolve an icon name against the catalog before falling back
+ * to Fuse.js component set matching.
+ */
+export function resolveFromCatalog(iconName: string): IconEntry | null {
+  // Try exact canonical name first
+  const exact = getIconByName(iconName);
+  if (exact) return exact;
+
+  // Try fuzzy search
+  const results = searchIcons(iconName, { limit: 1 });
+  return results.length > 0 ? results[0] : null;
 }
 
 function normalize(value: string | undefined): string {

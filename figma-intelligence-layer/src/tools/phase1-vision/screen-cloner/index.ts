@@ -16,6 +16,7 @@ import {
 } from "../../../shared/types.js";
 import { resolveFontStyleMatch, FontStyleMatch } from "./font-matcher.js";
 import { resolveIconComponentMatch, IconComponentMatch } from "./icon-resolver.js";
+import { searchIcons } from "../../../shared/icon-catalog.js";
 
 export interface ScreenClonerArgs {
   image: string;
@@ -141,23 +142,6 @@ function pctToPx(value: number, total: number): number {
 
 function normalizeIconName(value: string | undefined): string | null {
   if (!value) return null;
-  const aliases: Record<string, string> = {
-    hamburger: "menu",
-    "hamburger menu": "menu",
-    magnifier: "search",
-    "magnifying glass": "search",
-    x: "close",
-    cross: "close",
-    cart: "shopping_cart",
-    trolley: "shopping_cart",
-    user: "person",
-    profile: "person",
-    account: "person",
-    settings: "settings",
-    filter: "filter_list",
-    info: "info",
-    warning: "warning",
-  };
 
   const normalized = value
     .trim()
@@ -166,21 +150,42 @@ function normalizeIconName(value: string | undefined): string | null {
     .replace(/^_+|_+$/g, "");
 
   if (!normalized) return null;
-  return aliases[normalized] ?? normalized;
+
+  // Try catalog search for alias resolution (e.g. "hamburger" → "menu")
+  const catalogResult = searchIcons(normalized, { limit: 1 });
+  if (catalogResult.length > 0) {
+    // Extract the Iconify slug from the catalog entry
+    const iconifyId = catalogResult[0].iconifyId;
+    const slug = iconifyId.split(":").pop();
+    if (slug) return slug;
+  }
+
+  return normalized;
 }
 
 async function fetchOpenSourceIconSvg(manifest: ComponentManifest): Promise<string | null> {
   if (!manifest.iconPresent) return null;
 
   const requestedLibrary = (manifest.preferredIconLibrary ?? "").trim().toLowerCase();
-  const library = requestedLibrary === "simple-icons" ? "simple-icons" : "material-symbols";
   const iconName = normalizeIconName(manifest.openSourceIconName ?? manifest.iconName);
   if (!iconName) return null;
 
-  const url =
-    library === "simple-icons"
-      ? `https://api.iconify.design/simple-icons/${encodeURIComponent(iconName)}.svg`
-      : `https://api.iconify.design/material-symbols/${encodeURIComponent(iconName)}.svg`;
+  // Resolve library: catalog entries use their own iconifyId prefix,
+  // fall back to requested library or material-symbols
+  const catalogResult = searchIcons(iconName, { limit: 1 });
+  let prefix: string;
+  let slug: string;
+
+  if (catalogResult.length > 0 && requestedLibrary !== "simple-icons") {
+    const parts = catalogResult[0].iconifyId.split(":");
+    prefix = parts[0];
+    slug = parts[1] ?? iconName;
+  } else {
+    prefix = requestedLibrary === "simple-icons" ? "simple-icons" : "material-symbols";
+    slug = iconName;
+  }
+
+  const url = `https://api.iconify.design/${encodeURIComponent(prefix)}/${encodeURIComponent(slug)}.svg`;
 
   try {
     const response = await fetch(url);

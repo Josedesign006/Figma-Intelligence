@@ -135,9 +135,9 @@ export function snapToBorderWidthToken(px: number): TokenRef {
 // ─────────────────────────────────────────────────────────────────────────────
 // Icon size token snapping
 // ─────────────────────────────────────────────────────────────────────────────
-const ICON_SIZE_SCALE = [16, 20, 24, 32];
+const ICON_SIZE_SCALE = [16, 20, 24, 32, 40];
 const ICON_SIZE_NAMES: Record<number, string> = {
-  16: "--icon-size-sm", 20: "--icon-size-md", 24: "--icon-size-lg", 32: "--icon-size-xl",
+  16: "--icon-size-xs", 20: "--icon-size-sm", 24: "--icon-size-md", 32: "--icon-size-lg", 40: "--icon-size-xl",
 };
 
 export function snapToIconSizeToken(px: number): TokenRef {

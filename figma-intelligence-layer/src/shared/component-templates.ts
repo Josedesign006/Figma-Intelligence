@@ -7,6 +7,21 @@
 
 export type NodeKind = "frame" | "text" | "rect" | "ellipse" | "vector";
 
+export type IconSize = "xs" | "sm" | "md" | "lg" | "xl";
+
+export interface IconSlot {
+  /** Default icon name from the catalog (e.g. "icon/action/search") */
+  defaultIcon?: string;
+  /** Whether the slot is required or optional */
+  required: boolean;
+  /** Default size preset */
+  size?: IconSize;
+  /** Color semantic token override */
+  colorToken?: string;
+  /** Whether icon is decorative (aria-hidden) */
+  decorative?: boolean;
+}
+
 export interface BlueprintNode {
   name: string;
   kind: NodeKind;
@@ -42,6 +57,9 @@ export interface BlueprintNode {
   textPreset?: string;          // typography preset name (e.g. "label/md")
   textFillSemantic?: string;    // semantic token for text fill
 
+  // Icon slot — marks this node as an icon placeholder with swap metadata
+  iconSlot?: IconSlot;
+
   // Children
   children?: BlueprintNode[];
 }
@@ -62,6 +80,13 @@ export interface ComponentBlueprint {
     nodePath: string;       // dot-separated path to child (e.g. "label")
     property: "fills" | "strokes" | "cornerRadius" | "paddingLeft";
     semanticToken: string;
+  }>;
+  /** Icon slots exposed as swappable properties */
+  iconSlots?: Array<{
+    nodePath: string;       // path to the icon slot node
+    propName: string;       // property name for the swap
+    defaultIcon?: string;   // default icon from catalog
+    required: boolean;
   }>;
 }
 
@@ -92,7 +117,8 @@ const BUTTON: ComponentBlueprint = {
         kind: "frame",
         width: 16,
         height: 16,
-        fillSemantic: "color/semantic/text/on-color",
+        fillSemantic: "color/semantic/icon/inverse",
+        iconSlot: { defaultIcon: "icon/action/add", required: false, size: "xs", colorToken: "color/semantic/icon/inverse", decorative: true },
       },
       {
         name: "Label",
@@ -112,6 +138,9 @@ const BUTTON: ComponentBlueprint = {
     { nodePath: "",      property: "fills",        semanticToken: "color/semantic/actions/primary/bg/default" },
     { nodePath: "",      property: "cornerRadius",  semanticToken: "radius/semantic/control/default" },
     { nodePath: "Label", property: "fills",         semanticToken: "color/semantic/text/on-color" },
+  ],
+  iconSlots: [
+    { nodePath: "Icon", propName: "leadingIcon", defaultIcon: "icon/action/add", required: false },
   ],
 };
 
@@ -157,7 +186,8 @@ const INPUT: ComponentBlueprint = {
             kind: "frame",
             width: 16,
             height: 16,
-            fillSemantic: "color/semantic/text/tertiary",
+            fillSemantic: "color/semantic/icon/secondary",
+            iconSlot: { defaultIcon: "icon/action/search", required: false, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: true },
           },
           {
             name: "Value",
@@ -178,6 +208,9 @@ const INPUT: ComponentBlueprint = {
     { nodePath: "Field", property: "fills",       semanticToken: "color/semantic/field/bg/default" },
     { nodePath: "Field", property: "strokes",     semanticToken: "color/semantic/field/border/default" },
     { nodePath: "Field", property: "cornerRadius", semanticToken: "radius/semantic/field/default" },
+  ],
+  iconSlots: [
+    { nodePath: "Field.LeadingIcon", propName: "leadingIcon", defaultIcon: "icon/action/search", required: false },
   ],
 };
 
@@ -229,7 +262,8 @@ const SELECT: ComponentBlueprint = {
             kind: "frame",
             width: 16,
             height: 16,
-            fillSemantic: "color/semantic/text/tertiary",
+            fillSemantic: "color/semantic/icon/secondary",
+            iconSlot: { defaultIcon: "icon/navigation/expand-more", required: true, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: true },
           },
         ],
       },
@@ -240,6 +274,9 @@ const SELECT: ComponentBlueprint = {
     { name: "Size",  values: ["sm", "md", "lg"], defaultValue: "md" },
   ],
   tokenBindings: [],
+  iconSlots: [
+    { nodePath: "Field.Chevron", propName: "chevronIcon", defaultIcon: "icon/navigation/expand-more", required: true },
+  ],
 };
 
 const CHECKBOX: ComponentBlueprint = {
@@ -579,6 +616,7 @@ const TOAST: ComponentBlueprint = {
         width: 20,
         height: 20,
         fillSemantic: "color/semantic/feedback/success/text",
+        iconSlot: { defaultIcon: "icon/status/info", required: true, size: "sm", colorToken: "color/semantic/feedback/success/text", decorative: false },
       },
       {
         name: "Message",
@@ -592,7 +630,8 @@ const TOAST: ComponentBlueprint = {
         kind: "frame",
         width: 16,
         height: 16,
-        fillSemantic: "color/semantic/text/tertiary",
+        fillSemantic: "color/semantic/icon/secondary",
+        iconSlot: { defaultIcon: "icon/action/close", required: false, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: false },
       },
     ],
   },
@@ -600,6 +639,10 @@ const TOAST: ComponentBlueprint = {
     { name: "Type", values: ["Success", "Warning", "Error", "Info"], defaultValue: "Success" },
   ],
   tokenBindings: [],
+  iconSlots: [
+    { nodePath: "StatusIcon", propName: "statusIcon", defaultIcon: "icon/status/info", required: true },
+    { nodePath: "CloseIcon", propName: "closeIcon", defaultIcon: "icon/action/close", required: false },
+  ],
 };
 
 const BADGE: ComponentBlueprint = {
@@ -858,7 +901,8 @@ const TAG: ComponentBlueprint = {
         kind: "frame",
         width: 12,
         height: 12,
-        fillSemantic: "color/semantic/text/tertiary",
+        fillSemantic: "color/semantic/icon/secondary",
+        iconSlot: { defaultIcon: "icon/action/close", required: false, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: false },
       },
     ],
   },
@@ -867,6 +911,9 @@ const TAG: ComponentBlueprint = {
     { name: "Removable", values: ["true", "false"], defaultValue: "true" },
   ],
   tokenBindings: [],
+  iconSlots: [
+    { nodePath: "RemoveIcon", propName: "removeIcon", defaultIcon: "icon/action/close", required: false },
+  ],
 };
 
 const NAVBAR: ComponentBlueprint = {
@@ -1043,7 +1090,7 @@ const ACCORDION: ComponentBlueprint = {
             fillSemantic: "color/semantic/surface/default",
             children: [
               { name: "Title", kind: "text", textContent: "Section title", textPreset: "label/md", textFillSemantic: "color/semantic/text/primary" },
-              { name: "Chevron", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/text/secondary" },
+              { name: "Chevron", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/navigation/expand-more", required: true, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: true } },
             ],
           },
           {
@@ -1069,6 +1116,9 @@ const ACCORDION: ComponentBlueprint = {
   tokenBindings: [
     { nodePath: "Item1.Header", property: "fills", semanticToken: "color/semantic/surface/default" },
     { nodePath: "Item1.Header.Title", property: "fills", semanticToken: "color/semantic/text/primary" },
+  ],
+  iconSlots: [
+    { nodePath: "Item1.Header.Chevron", propName: "chevronIcon", defaultIcon: "icon/navigation/expand-more", required: true },
   ],
 };
 
@@ -1143,7 +1193,7 @@ const ALERT: ComponentBlueprint = {
     strokeSemantic: "color/semantic/border/default",
     strokeWeight: 1,
     children: [
-      { name: "Icon", kind: "frame", width: 20, height: 20, fillSemantic: "color/semantic/feedback/info/text" },
+      { name: "Icon", kind: "frame", width: 20, height: 20, fillSemantic: "color/semantic/feedback/info/text", iconSlot: { defaultIcon: "icon/status/info", required: true, size: "sm", colorToken: "color/semantic/feedback/info/text", decorative: false } },
       {
         name: "Content",
         kind: "frame",
@@ -1156,7 +1206,7 @@ const ALERT: ComponentBlueprint = {
           { name: "Message", kind: "text", textContent: "This is an informational alert message.", textPreset: "body/sm", textFillSemantic: "color/semantic/text/primary" },
         ],
       },
-      { name: "Close", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/text/tertiary" },
+      { name: "Close", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/action/close", required: false, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: false } },
     ],
   },
   variantProperties: [
@@ -1167,6 +1217,10 @@ const ALERT: ComponentBlueprint = {
     { nodePath: "", property: "fills", semanticToken: "color/semantic/feedback/info/bg" },
     { nodePath: "Content.Title", property: "fills", semanticToken: "color/semantic/feedback/info/text" },
     { nodePath: "Icon", property: "fills", semanticToken: "color/semantic/feedback/info/text" },
+  ],
+  iconSlots: [
+    { nodePath: "Icon", propName: "statusIcon", defaultIcon: "icon/status/info", required: true },
+    { nodePath: "Close", propName: "closeIcon", defaultIcon: "icon/action/close", required: false },
   ],
 };
 
@@ -1188,9 +1242,9 @@ const CHIP: ComponentBlueprint = {
     cornerRadius: 16,
     fillSemantic: "color/semantic/surface/subtle",
     children: [
-      { name: "Icon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/text/secondary" },
+      { name: "Icon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/action/settings", required: false, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: true } },
       { name: "Label", kind: "text", textContent: "Chip label", textPreset: "label/sm", textFillSemantic: "color/semantic/text/primary" },
-      { name: "Close", kind: "frame", width: 14, height: 14, fillSemantic: "color/semantic/text/tertiary" },
+      { name: "Close", kind: "frame", width: 14, height: 14, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/action/close", required: false, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: false } },
     ],
   },
   variantProperties: [
@@ -1202,6 +1256,10 @@ const CHIP: ComponentBlueprint = {
     { nodePath: "", property: "fills", semanticToken: "color/semantic/surface/subtle" },
     { nodePath: "", property: "cornerRadius", semanticToken: "radius/semantic/pill" },
     { nodePath: "Label", property: "fills", semanticToken: "color/semantic/text/primary" },
+  ],
+  iconSlots: [
+    { nodePath: "Icon", propName: "leadingIcon", defaultIcon: "icon/action/settings", required: false },
+    { nodePath: "Close", propName: "closeIcon", defaultIcon: "icon/action/close", required: false },
   ],
 };
 
@@ -1296,7 +1354,7 @@ const SIDENAVIGATION: ComponentBlueprint = {
         cornerRadius: 8,
         fillSemantic: "color/semantic/actions/primary/bg/default",
         children: [
-          { name: "Icon", kind: "frame", width: 20, height: 20, fillSemantic: "color/semantic/text/on-color" },
+          { name: "Icon", kind: "frame", width: 20, height: 20, fillSemantic: "color/semantic/icon/inverse", iconSlot: { defaultIcon: "icon/navigation/home", required: true, size: "sm", colorToken: "color/semantic/icon/inverse", decorative: true } },
           { name: "Label", kind: "text", textContent: "Dashboard", textPreset: "label/md", textFillSemantic: "color/semantic/text/on-color" },
         ],
       },
@@ -1312,7 +1370,7 @@ const SIDENAVIGATION: ComponentBlueprint = {
         itemSpacing: 8,
         cornerRadius: 8,
         children: [
-          { name: "Icon", kind: "frame", width: 20, height: 20, fillSemantic: "color/semantic/text/secondary" },
+          { name: "Icon", kind: "frame", width: 20, height: 20, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/action/search", required: true, size: "sm", colorToken: "color/semantic/icon/secondary", decorative: true } },
           { name: "Label", kind: "text", textContent: "Projects", textPreset: "label/md", textFillSemantic: "color/semantic/text/primary" },
         ],
       },
@@ -1328,7 +1386,7 @@ const SIDENAVIGATION: ComponentBlueprint = {
         itemSpacing: 8,
         cornerRadius: 8,
         children: [
-          { name: "Icon", kind: "frame", width: 20, height: 20, fillSemantic: "color/semantic/text/secondary" },
+          { name: "Icon", kind: "frame", width: 20, height: 20, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/social/person", required: true, size: "sm", colorToken: "color/semantic/icon/secondary", decorative: true } },
           { name: "Label", kind: "text", textContent: "Settings", textPreset: "label/md", textFillSemantic: "color/semantic/text/primary" },
         ],
       },
@@ -1341,30 +1399,40 @@ const SIDENAVIGATION: ComponentBlueprint = {
     { nodePath: "", property: "fills", semanticToken: "color/semantic/surface/default" },
     { nodePath: "NavItem1", property: "fills", semanticToken: "color/semantic/actions/primary/bg/default" },
   ],
+  iconSlots: [
+    { nodePath: "NavItem1.Icon", propName: "navItem1Icon", defaultIcon: "icon/navigation/home", required: true },
+    { nodePath: "NavItem2.Icon", propName: "navItem2Icon", defaultIcon: "icon/action/search", required: true },
+    { nodePath: "NavItem3.Icon", propName: "navItem3Icon", defaultIcon: "icon/social/person", required: true },
+  ],
 };
 
 const ICON: ComponentBlueprint = {
   name: "Icon",
   category: "core",
-  description: "Vector graphic primitive for visual communication and UI affordances",
+  description: "SVG-based vector graphic primitive for visual communication and UI affordances",
   root: {
     name: "Icon",
     kind: "frame",
     width: 24,
     height: 24,
+    layoutMode: "HORIZONTAL",
     primaryAxisAlign: "CENTER",
     counterAxisAlign: "CENTER",
+    primaryAxisSizing: "FIXED",
+    counterAxisSizing: "FIXED",
     children: [
-      { name: "Vector", kind: "vector", width: 20, height: 20, fillSemantic: "color/semantic/text/primary" },
+      { name: "Vector", kind: "vector", width: 20, height: 20, fillSemantic: "color/semantic/icon/default" },
     ],
   },
   variantProperties: [
-    { name: "Size", values: ["xs", "sm", "md", "lg", "xl"], defaultValue: "md" },
-    { name: "Type", values: ["Filled", "Outlined"], defaultValue: "Filled" },
+    { name: "Size",  values: ["xs", "sm", "md", "lg", "xl"], defaultValue: "md" },
+    { name: "Type",  values: ["Filled", "Outlined"], defaultValue: "Filled" },
+    { name: "Color", values: ["default", "primary", "secondary", "disabled", "inverse", "error", "success"], defaultValue: "default" },
   ],
   tokenBindings: [
-    { nodePath: "Vector", property: "fills", semanticToken: "color/semantic/text/primary" },
+    { nodePath: "Vector", property: "fills", semanticToken: "color/semantic/icon/default" },
   ],
+  iconSlots: [],
 };
 
 const LINK: ComponentBlueprint = {
@@ -1381,7 +1449,7 @@ const LINK: ComponentBlueprint = {
     counterAxisAlign: "CENTER",
     children: [
       { name: "Label", kind: "text", textContent: "Learn more", textPreset: "body/md", textFillSemantic: "color/semantic/actions/primary/bg/default" },
-      { name: "ExternalIcon", kind: "frame", width: 14, height: 14, fillSemantic: "color/semantic/actions/primary/bg/default", opacity: 0 },
+      { name: "ExternalIcon", kind: "frame", width: 14, height: 14, fillSemantic: "color/semantic/actions/primary/bg/default", opacity: 0, iconSlot: { defaultIcon: "icon/action/open-in-new", required: false, size: "xs", colorToken: "color/semantic/actions/primary/bg/default", decorative: true } },
     ],
   },
   variantProperties: [
@@ -1392,6 +1460,9 @@ const LINK: ComponentBlueprint = {
   tokenBindings: [
     { nodePath: "Label", property: "fills", semanticToken: "color/semantic/actions/primary/bg/default" },
     { nodePath: "ExternalIcon", property: "fills", semanticToken: "color/semantic/actions/primary/bg/default" },
+  ],
+  iconSlots: [
+    { nodePath: "ExternalIcon", propName: "externalIcon", defaultIcon: "icon/action/open-in-new", required: false },
   ],
 };
 
@@ -1425,7 +1496,7 @@ const MENU: ComponentBlueprint = {
         paddingX: 12,
         itemSpacing: 8,
         children: [
-          { name: "Icon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/text/secondary" },
+          { name: "Icon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/action/settings", required: false, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: true } },
           { name: "Label", kind: "text", textContent: "Edit", textPreset: "body/sm", textFillSemantic: "color/semantic/text/primary" },
           { name: "Shortcut", kind: "text", textContent: "⌘E", textPreset: "body/sm", textFillSemantic: "color/semantic/text/tertiary" },
         ],
@@ -1448,7 +1519,7 @@ const MENU: ComponentBlueprint = {
         paddingX: 12,
         itemSpacing: 8,
         children: [
-          { name: "Icon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/text/secondary" },
+          { name: "Icon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/action/settings", required: false, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: true } },
           { name: "Label", kind: "text", textContent: "Delete", textPreset: "body/sm", textFillSemantic: "color/semantic/feedback/danger/text" },
         ],
       },
@@ -1460,6 +1531,10 @@ const MENU: ComponentBlueprint = {
   tokenBindings: [
     { nodePath: "", property: "fills", semanticToken: "color/semantic/surface/raised" },
     { nodePath: "", property: "cornerRadius", semanticToken: "radius/semantic/surface/default" },
+  ],
+  iconSlots: [
+    { nodePath: "MenuItem1.Icon", propName: "menuItem1Icon", defaultIcon: "icon/action/settings", required: false },
+    { nodePath: "MenuItem2.Icon", propName: "menuItem2Icon", defaultIcon: "icon/action/settings", required: false },
   ],
 };
 
@@ -1568,9 +1643,9 @@ const SEARCH: ComponentBlueprint = {
     strokeSemantic: "color/semantic/field/border/default",
     strokeWeight: 1,
     children: [
-      { name: "SearchIcon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/text/tertiary" },
+      { name: "SearchIcon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/action/search", required: true, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: true } },
       { name: "Value", kind: "text", textContent: "Search...", textPreset: "body/md", textFillSemantic: "color/semantic/text/tertiary" },
-      { name: "ClearIcon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/text/tertiary", opacity: 0 },
+      { name: "ClearIcon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/icon/secondary", opacity: 0, iconSlot: { defaultIcon: "icon/action/close", required: false, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: false } },
     ],
   },
   variantProperties: [
@@ -1581,6 +1656,10 @@ const SEARCH: ComponentBlueprint = {
     { nodePath: "", property: "fills", semanticToken: "color/semantic/field/bg/default" },
     { nodePath: "", property: "strokes", semanticToken: "color/semantic/field/border/default" },
     { nodePath: "", property: "cornerRadius", semanticToken: "radius/semantic/field/default" },
+  ],
+  iconSlots: [
+    { nodePath: "SearchIcon", propName: "searchIcon", defaultIcon: "icon/action/search", required: true },
+    { nodePath: "ClearIcon", propName: "clearIcon", defaultIcon: "icon/action/close", required: false },
   ],
 };
 
@@ -1614,7 +1693,7 @@ const COMBOBOX: ComponentBlueprint = {
         strokeWeight: 1,
         children: [
           { name: "Value", kind: "text", textContent: "Type to search...", textPreset: "body/md", textFillSemantic: "color/semantic/text/tertiary" },
-          { name: "Chevron", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/text/tertiary" },
+          { name: "Chevron", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/navigation/expand-more", required: true, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: true } },
         ],
       },
     ],
@@ -1627,6 +1706,9 @@ const COMBOBOX: ComponentBlueprint = {
     { nodePath: "Field", property: "fills", semanticToken: "color/semantic/field/bg/default" },
     { nodePath: "Field", property: "strokes", semanticToken: "color/semantic/field/border/default" },
     { nodePath: "Field", property: "cornerRadius", semanticToken: "radius/semantic/field/default" },
+  ],
+  iconSlots: [
+    { nodePath: "Field.Chevron", propName: "chevronIcon", defaultIcon: "icon/navigation/expand-more", required: true },
   ],
 };
 
@@ -1660,7 +1742,7 @@ const DATEPICKER: ComponentBlueprint = {
         strokeWeight: 1,
         children: [
           { name: "Value", kind: "text", textContent: "MM/DD/YYYY", textPreset: "body/md", textFillSemantic: "color/semantic/text/tertiary" },
-          { name: "CalendarIcon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/text/tertiary" },
+          { name: "CalendarIcon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/status/pending", required: true, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: true } },
         ],
       },
     ],
@@ -1674,6 +1756,9 @@ const DATEPICKER: ComponentBlueprint = {
     { nodePath: "Trigger", property: "fills", semanticToken: "color/semantic/field/bg/default" },
     { nodePath: "Trigger", property: "strokes", semanticToken: "color/semantic/field/border/default" },
     { nodePath: "Trigger", property: "cornerRadius", semanticToken: "radius/semantic/field/default" },
+  ],
+  iconSlots: [
+    { nodePath: "Trigger.CalendarIcon", propName: "calendarIcon", defaultIcon: "icon/status/pending", required: true },
   ],
 };
 
@@ -1846,7 +1931,7 @@ const LIST: ComponentBlueprint = {
         counterAxisAlign: "CENTER",
         itemSpacing: 12,
         children: [
-          { name: "Icon", kind: "frame", width: 20, height: 20, fillSemantic: "color/semantic/text/secondary" },
+          { name: "Icon", kind: "frame", width: 20, height: 20, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/content/flag", required: false, size: "sm", colorToken: "color/semantic/icon/secondary", decorative: true } },
           { name: "Label", kind: "text", textContent: "List item one", textPreset: "body/md", textFillSemantic: "color/semantic/text/primary" },
         ],
       },
@@ -1862,7 +1947,7 @@ const LIST: ComponentBlueprint = {
         counterAxisAlign: "CENTER",
         itemSpacing: 12,
         children: [
-          { name: "Icon", kind: "frame", width: 20, height: 20, fillSemantic: "color/semantic/text/secondary" },
+          { name: "Icon", kind: "frame", width: 20, height: 20, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/content/flag", required: false, size: "sm", colorToken: "color/semantic/icon/secondary", decorative: true } },
           { name: "Label", kind: "text", textContent: "List item two", textPreset: "body/md", textFillSemantic: "color/semantic/text/primary" },
         ],
       },
@@ -1874,6 +1959,10 @@ const LIST: ComponentBlueprint = {
   ],
   tokenBindings: [
     { nodePath: "", property: "fills", semanticToken: "color/semantic/surface/default" },
+  ],
+  iconSlots: [
+    { nodePath: "ListItem1.Icon", propName: "listItem1Icon", defaultIcon: "icon/content/flag", required: false },
+    { nodePath: "ListItem2.Icon", propName: "listItem2Icon", defaultIcon: "icon/content/flag", required: false },
   ],
 };
 
@@ -1901,8 +1990,8 @@ const TREEVIEW: ComponentBlueprint = {
         itemSpacing: 4,
         cornerRadius: 6,
         children: [
-          { name: "ExpandIcon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/text/tertiary" },
-          { name: "FolderIcon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/text/secondary" },
+          { name: "ExpandIcon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/navigation/chevron-right", required: true, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: true } },
+          { name: "FolderIcon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/file/folder", required: true, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: true } },
           { name: "Label", kind: "text", textContent: "Documents", textPreset: "body/sm", textFillSemantic: "color/semantic/text/primary" },
         ],
       },
@@ -1919,7 +2008,7 @@ const TREEVIEW: ComponentBlueprint = {
         cornerRadius: 6,
         fillSemantic: "color/semantic/actions/primary/bg/default",
         children: [
-          { name: "FileIcon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/text/on-color" },
+          { name: "FileIcon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/icon/inverse", iconSlot: { defaultIcon: "icon/file/file", required: true, size: "xs", colorToken: "color/semantic/icon/inverse", decorative: true } },
           { name: "Label", kind: "text", textContent: "Report.pdf", textPreset: "body/sm", textFillSemantic: "color/semantic/text/on-color" },
         ],
       },
@@ -1931,6 +2020,11 @@ const TREEVIEW: ComponentBlueprint = {
   ],
   tokenBindings: [
     { nodePath: "Node1Child", property: "fills", semanticToken: "color/semantic/actions/primary/bg/default" },
+  ],
+  iconSlots: [
+    { nodePath: "Node1.ExpandIcon", propName: "expandIcon", defaultIcon: "icon/navigation/chevron-right", required: true },
+    { nodePath: "Node1.FolderIcon", propName: "folderIcon", defaultIcon: "icon/file/folder", required: true },
+    { nodePath: "Node1Child.FileIcon", propName: "fileIcon", defaultIcon: "icon/file/file", required: true },
   ],
 };
 
@@ -2041,7 +2135,7 @@ const POPOVER: ComponentBlueprint = {
         counterAxisSizing: "AUTO",
         children: [
           { name: "Title", kind: "text", textContent: "Popover title", textPreset: "label/md", textFillSemantic: "color/semantic/text/primary" },
-          { name: "Close", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/text/tertiary" },
+          { name: "Close", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/action/close", required: false, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: false } },
         ],
       },
       { name: "Body", kind: "text", textContent: "Popover content with interactive elements.", textPreset: "body/sm", textFillSemantic: "color/semantic/text/secondary" },
@@ -2054,6 +2148,9 @@ const POPOVER: ComponentBlueprint = {
   tokenBindings: [
     { nodePath: "", property: "fills", semanticToken: "color/semantic/surface/raised" },
     { nodePath: "", property: "cornerRadius", semanticToken: "radius/semantic/surface/default" },
+  ],
+  iconSlots: [
+    { nodePath: "Header.Close", propName: "closeIcon", defaultIcon: "icon/action/close", required: false },
   ],
 };
 
@@ -2075,8 +2172,8 @@ const DROPDOWNMENU: ComponentBlueprint = {
     strokeWeight: 1,
     effects: [{ type: "DROP_SHADOW", color: { r: 0, g: 0, b: 0, a: 0.1 }, offset: { x: 0, y: 4 }, radius: 12, spread: -2 }],
     children: [
-      { name: "Item1", kind: "frame", layoutMode: "HORIZONTAL", primaryAxisSizing: "AUTO", counterAxisSizing: "FIXED", height: 36, paddingX: 12, counterAxisAlign: "CENTER", itemSpacing: 8, children: [{ name: "Icon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/text/secondary" }, { name: "Label", kind: "text", textContent: "Action one", textPreset: "body/sm", textFillSemantic: "color/semantic/text/primary" }] },
-      { name: "Item2", kind: "frame", layoutMode: "HORIZONTAL", primaryAxisSizing: "AUTO", counterAxisSizing: "FIXED", height: 36, paddingX: 12, counterAxisAlign: "CENTER", itemSpacing: 8, children: [{ name: "Icon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/text/secondary" }, { name: "Label", kind: "text", textContent: "Action two", textPreset: "body/sm", textFillSemantic: "color/semantic/text/primary" }] },
+      { name: "Item1", kind: "frame", layoutMode: "HORIZONTAL", primaryAxisSizing: "AUTO", counterAxisSizing: "FIXED", height: 36, paddingX: 12, counterAxisAlign: "CENTER", itemSpacing: 8, children: [{ name: "Icon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/action/settings", required: false, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: true } }, { name: "Label", kind: "text", textContent: "Action one", textPreset: "body/sm", textFillSemantic: "color/semantic/text/primary" }] },
+      { name: "Item2", kind: "frame", layoutMode: "HORIZONTAL", primaryAxisSizing: "AUTO", counterAxisSizing: "FIXED", height: 36, paddingX: 12, counterAxisAlign: "CENTER", itemSpacing: 8, children: [{ name: "Icon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/action/settings", required: false, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: true } }, { name: "Label", kind: "text", textContent: "Action two", textPreset: "body/sm", textFillSemantic: "color/semantic/text/primary" }] },
     ],
   },
   variantProperties: [
@@ -2085,6 +2182,10 @@ const DROPDOWNMENU: ComponentBlueprint = {
   ],
   tokenBindings: [
     { nodePath: "", property: "fills", semanticToken: "color/semantic/surface/raised" },
+  ],
+  iconSlots: [
+    { nodePath: "Item1.Icon", propName: "item1Icon", defaultIcon: "icon/action/settings", required: false },
+    { nodePath: "Item2.Icon", propName: "item2Icon", defaultIcon: "icon/action/settings", required: false },
   ],
 };
 
@@ -2199,10 +2300,10 @@ const BANNER: ComponentBlueprint = {
     itemSpacing: 12,
     fillSemantic: "color/semantic/feedback/info/bg",
     children: [
-      { name: "Icon", kind: "frame", width: 20, height: 20, fillSemantic: "color/semantic/feedback/info/text" },
+      { name: "Icon", kind: "frame", width: 20, height: 20, fillSemantic: "color/semantic/feedback/info/text", iconSlot: { defaultIcon: "icon/status/info", required: true, size: "sm", colorToken: "color/semantic/feedback/info/text", decorative: false } },
       { name: "Message", kind: "text", textContent: "New version available. Update now for the latest features.", textPreset: "body/sm", textFillSemantic: "color/semantic/feedback/info/text" },
       { name: "Action", kind: "text", textContent: "Update", textPreset: "label/sm", textFillSemantic: "color/semantic/actions/primary/bg/default" },
-      { name: "Close", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/feedback/info/text" },
+      { name: "Close", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/feedback/info/text", iconSlot: { defaultIcon: "icon/action/close", required: false, size: "xs", colorToken: "color/semantic/feedback/info/text", decorative: false } },
     ],
   },
   variantProperties: [
@@ -2211,6 +2312,10 @@ const BANNER: ComponentBlueprint = {
   ],
   tokenBindings: [
     { nodePath: "", property: "fills", semanticToken: "color/semantic/feedback/info/bg" },
+  ],
+  iconSlots: [
+    { nodePath: "Icon", propName: "statusIcon", defaultIcon: "icon/status/info", required: true },
+    { nodePath: "Close", propName: "closeIcon", defaultIcon: "icon/action/close", required: false },
   ],
 };
 
@@ -2231,7 +2336,7 @@ const DRAWER: ComponentBlueprint = {
     fillSemantic: "color/semantic/surface/default",
     effects: [{ type: "DROP_SHADOW", color: { r: 0, g: 0, b: 0, a: 0.16 }, offset: { x: -4, y: 0 }, radius: 24, spread: 0 }],
     children: [
-      { name: "Header", kind: "frame", layoutMode: "HORIZONTAL", primaryAxisAlign: "SPACE_BETWEEN", counterAxisAlign: "CENTER", primaryAxisSizing: "AUTO", counterAxisSizing: "FIXED", height: 56, paddingX: 20, strokeSemantic: "color/semantic/border/subtle", strokeWeight: 1, children: [{ name: "Title", kind: "text", textContent: "Drawer Title", textPreset: "heading/sm", textFillSemantic: "color/semantic/text/primary" }, { name: "Close", kind: "frame", width: 20, height: 20, fillSemantic: "color/semantic/text/secondary" }] },
+      { name: "Header", kind: "frame", layoutMode: "HORIZONTAL", primaryAxisAlign: "SPACE_BETWEEN", counterAxisAlign: "CENTER", primaryAxisSizing: "AUTO", counterAxisSizing: "FIXED", height: 56, paddingX: 20, strokeSemantic: "color/semantic/border/subtle", strokeWeight: 1, children: [{ name: "Title", kind: "text", textContent: "Drawer Title", textPreset: "heading/sm", textFillSemantic: "color/semantic/text/primary" }, { name: "Close", kind: "frame", width: 20, height: 20, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/action/close", required: true, size: "sm", colorToken: "color/semantic/icon/secondary", decorative: false } }] },
       { name: "Body", kind: "frame", layoutMode: "VERTICAL", primaryAxisSizing: "AUTO", counterAxisSizing: "AUTO", paddingX: 20, paddingY: 16, itemSpacing: 12, children: [{ name: "Content", kind: "text", textContent: "Drawer content goes here.", textPreset: "body/md", textFillSemantic: "color/semantic/text/secondary" }] },
     ],
   },
@@ -2241,6 +2346,9 @@ const DRAWER: ComponentBlueprint = {
   ],
   tokenBindings: [
     { nodePath: "", property: "fills", semanticToken: "color/semantic/surface/default" },
+  ],
+  iconSlots: [
+    { nodePath: "Header.Close", propName: "closeIcon", defaultIcon: "icon/action/close", required: true },
   ],
 };
 
@@ -2326,7 +2434,7 @@ const FILEUPLOADER: ComponentBlueprint = {
     strokeWeight: 2,
     fillSemantic: "color/semantic/surface/subtle",
     children: [
-      { name: "Icon", kind: "frame", width: 32, height: 32, fillSemantic: "color/semantic/text/tertiary" },
+      { name: "Icon", kind: "frame", width: 32, height: 32, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/content/inbox", required: true, size: "lg", colorToken: "color/semantic/icon/secondary", decorative: true } },
       { name: "Title", kind: "text", textContent: "Drag & drop files here", textPreset: "label/md", textFillSemantic: "color/semantic/text/primary" },
       { name: "Subtitle", kind: "text", textContent: "or click to browse (max 10MB)", textPreset: "body/sm", textFillSemantic: "color/semantic/text/tertiary" },
     ],
@@ -2338,6 +2446,9 @@ const FILEUPLOADER: ComponentBlueprint = {
   tokenBindings: [
     { nodePath: "", property: "fills", semanticToken: "color/semantic/surface/subtle" },
     { nodePath: "", property: "strokes", semanticToken: "color/semantic/border/default" },
+  ],
+  iconSlots: [
+    { nodePath: "Icon", propName: "uploadIcon", defaultIcon: "icon/content/inbox", required: true },
   ],
 };
 
@@ -2354,7 +2465,7 @@ const INLINEMESSAGE: ComponentBlueprint = {
     itemSpacing: 4,
     counterAxisAlign: "CENTER",
     children: [
-      { name: "Icon", kind: "frame", width: 14, height: 14, fillSemantic: "color/semantic/feedback/info/text" },
+      { name: "Icon", kind: "frame", width: 14, height: 14, fillSemantic: "color/semantic/feedback/info/text", iconSlot: { defaultIcon: "icon/status/info", required: true, size: "xs", colorToken: "color/semantic/feedback/info/text", decorative: false } },
       { name: "Message", kind: "text", textContent: "This field is required", textPreset: "body/sm", textFillSemantic: "color/semantic/feedback/info/text" },
     ],
   },
@@ -2364,6 +2475,9 @@ const INLINEMESSAGE: ComponentBlueprint = {
   tokenBindings: [
     { nodePath: "Icon", property: "fills", semanticToken: "color/semantic/feedback/info/text" },
     { nodePath: "Message", property: "fills", semanticToken: "color/semantic/feedback/info/text" },
+  ],
+  iconSlots: [
+    { nodePath: "Icon", propName: "statusIcon", defaultIcon: "icon/status/info", required: true },
   ],
 };
 
@@ -2386,10 +2500,10 @@ const TOOLBAR: ComponentBlueprint = {
     strokeWeight: 1,
     cornerRadius: 8,
     children: [
-      { name: "Action1", kind: "frame", width: 32, height: 32, cornerRadius: 6, primaryAxisAlign: "CENTER", counterAxisAlign: "CENTER", children: [{ name: "Icon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/text/primary" }] },
-      { name: "Action2", kind: "frame", width: 32, height: 32, cornerRadius: 6, primaryAxisAlign: "CENTER", counterAxisAlign: "CENTER", children: [{ name: "Icon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/text/primary" }] },
+      { name: "Action1", kind: "frame", width: 32, height: 32, cornerRadius: 6, primaryAxisAlign: "CENTER", counterAxisAlign: "CENTER", children: [{ name: "Icon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/icon/default", iconSlot: { defaultIcon: "icon/action/edit", required: true, size: "xs", colorToken: "color/semantic/icon/default", decorative: true } }] },
+      { name: "Action2", kind: "frame", width: 32, height: 32, cornerRadius: 6, primaryAxisAlign: "CENTER", counterAxisAlign: "CENTER", children: [{ name: "Icon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/icon/default", iconSlot: { defaultIcon: "icon/editor/format-bold", required: true, size: "xs", colorToken: "color/semantic/icon/default", decorative: true } }] },
       { name: "Separator", kind: "rect", width: 1, height: 20, fillSemantic: "color/semantic/border/subtle" },
-      { name: "Action3", kind: "frame", width: 32, height: 32, cornerRadius: 6, primaryAxisAlign: "CENTER", counterAxisAlign: "CENTER", children: [{ name: "Icon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/text/primary" }] },
+      { name: "Action3", kind: "frame", width: 32, height: 32, cornerRadius: 6, primaryAxisAlign: "CENTER", counterAxisAlign: "CENTER", children: [{ name: "Icon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/icon/default", iconSlot: { defaultIcon: "icon/editor/format-italic", required: true, size: "xs", colorToken: "color/semantic/icon/default", decorative: true } }] },
     ],
   },
   variantProperties: [
@@ -2398,6 +2512,11 @@ const TOOLBAR: ComponentBlueprint = {
   ],
   tokenBindings: [
     { nodePath: "", property: "fills", semanticToken: "color/semantic/surface/default" },
+  ],
+  iconSlots: [
+    { nodePath: "Action1.Icon", propName: "action1Icon", defaultIcon: "icon/action/edit", required: true },
+    { nodePath: "Action2.Icon", propName: "action2Icon", defaultIcon: "icon/editor/format-bold", required: true },
+    { nodePath: "Action3.Icon", propName: "action3Icon", defaultIcon: "icon/editor/format-italic", required: true },
   ],
 };
 
@@ -2465,7 +2584,7 @@ const TIMEPICKER: ComponentBlueprint = {
         strokeWeight: 1,
         children: [
           { name: "Value", kind: "text", textContent: "09:00 AM", textPreset: "body/md", textFillSemantic: "color/semantic/text/primary" },
-          { name: "ClockIcon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/text/tertiary" },
+          { name: "ClockIcon", kind: "frame", width: 16, height: 16, fillSemantic: "color/semantic/icon/secondary", iconSlot: { defaultIcon: "icon/status/pending", required: true, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: true } },
         ],
       },
     ],
@@ -2478,6 +2597,9 @@ const TIMEPICKER: ComponentBlueprint = {
   tokenBindings: [
     { nodePath: "Trigger", property: "fills", semanticToken: "color/semantic/field/bg/default" },
     { nodePath: "Trigger", property: "strokes", semanticToken: "color/semantic/field/border/default" },
+  ],
+  iconSlots: [
+    { nodePath: "Trigger.ClockIcon", propName: "clockIcon", defaultIcon: "icon/status/pending", required: true },
   ],
 };
 
@@ -2526,7 +2648,7 @@ const INLINEEDIT: ComponentBlueprint = {
     cornerRadius: 4,
     children: [
       { name: "Value", kind: "text", textContent: "Click to edit", textPreset: "body/md", textFillSemantic: "color/semantic/text/primary" },
-      { name: "EditIcon", kind: "frame", width: 14, height: 14, fillSemantic: "color/semantic/text/tertiary", opacity: 0 },
+      { name: "EditIcon", kind: "frame", width: 14, height: 14, fillSemantic: "color/semantic/icon/secondary", opacity: 0, iconSlot: { defaultIcon: "icon/action/edit", required: true, size: "xs", colorToken: "color/semantic/icon/secondary", decorative: true } },
     ],
   },
   variantProperties: [
@@ -2534,6 +2656,9 @@ const INLINEEDIT: ComponentBlueprint = {
     { name: "State", values: ["ReadMode", "EditMode", "Saving", "Error"], defaultValue: "ReadMode" },
   ],
   tokenBindings: [],
+  iconSlots: [
+    { nodePath: "EditIcon", propName: "editIcon", defaultIcon: "icon/action/edit", required: true },
+  ],
 };
 
 // ─── Batch 6: Final ─────────────────────────────────────────────────────────
@@ -2577,11 +2702,11 @@ const RATING: ComponentBlueprint = {
     itemSpacing: 4,
     counterAxisAlign: "CENTER",
     children: [
-      { name: "Star1", kind: "frame", width: 24, height: 24, fillSemantic: "color/semantic/feedback/warning/text" },
-      { name: "Star2", kind: "frame", width: 24, height: 24, fillSemantic: "color/semantic/feedback/warning/text" },
-      { name: "Star3", kind: "frame", width: 24, height: 24, fillSemantic: "color/semantic/feedback/warning/text" },
-      { name: "Star4", kind: "frame", width: 24, height: 24, fillSemantic: "color/semantic/border/default" },
-      { name: "Star5", kind: "frame", width: 24, height: 24, fillSemantic: "color/semantic/border/default" },
+      { name: "Star1", kind: "frame", width: 24, height: 24, fillSemantic: "color/semantic/feedback/warning/text", iconSlot: { defaultIcon: "icon/toggle/star", required: true, size: "md", colorToken: "color/semantic/feedback/warning/text", decorative: false } },
+      { name: "Star2", kind: "frame", width: 24, height: 24, fillSemantic: "color/semantic/feedback/warning/text", iconSlot: { defaultIcon: "icon/toggle/star", required: true, size: "md", colorToken: "color/semantic/feedback/warning/text", decorative: false } },
+      { name: "Star3", kind: "frame", width: 24, height: 24, fillSemantic: "color/semantic/feedback/warning/text", iconSlot: { defaultIcon: "icon/toggle/star", required: true, size: "md", colorToken: "color/semantic/feedback/warning/text", decorative: false } },
+      { name: "Star4", kind: "frame", width: 24, height: 24, fillSemantic: "color/semantic/border/default", iconSlot: { defaultIcon: "icon/toggle/star", required: true, size: "md", colorToken: "color/semantic/border/default", decorative: false } },
+      { name: "Star5", kind: "frame", width: 24, height: 24, fillSemantic: "color/semantic/border/default", iconSlot: { defaultIcon: "icon/toggle/star", required: true, size: "md", colorToken: "color/semantic/border/default", decorative: false } },
       { name: "Value", kind: "text", textContent: "3.0", textPreset: "label/sm", textFillSemantic: "color/semantic/text/secondary" },
     ],
   },
@@ -2592,6 +2717,13 @@ const RATING: ComponentBlueprint = {
   tokenBindings: [
     { nodePath: "Star1", property: "fills", semanticToken: "color/semantic/feedback/warning/text" },
     { nodePath: "Star4", property: "fills", semanticToken: "color/semantic/border/default" },
+  ],
+  iconSlots: [
+    { nodePath: "Star1", propName: "star1Icon", defaultIcon: "icon/toggle/star", required: true },
+    { nodePath: "Star2", propName: "star2Icon", defaultIcon: "icon/toggle/star", required: true },
+    { nodePath: "Star3", propName: "star3Icon", defaultIcon: "icon/toggle/star", required: true },
+    { nodePath: "Star4", propName: "star4Icon", defaultIcon: "icon/toggle/star", required: true },
+    { nodePath: "Star5", propName: "star5Icon", defaultIcon: "icon/toggle/star", required: true },
   ],
 };
 

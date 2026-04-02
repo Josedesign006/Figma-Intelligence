@@ -3,8 +3,23 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.resolveFromCatalog = resolveFromCatalog;
 exports.resolveIconComponentMatch = resolveIconComponentMatch;
 const fuse_js_1 = __importDefault(require("fuse.js"));
+const icon_catalog_js_1 = require("../../../shared/icon-catalog.js");
+/**
+ * Try to resolve an icon name against the catalog before falling back
+ * to Fuse.js component set matching.
+ */
+function resolveFromCatalog(iconName) {
+    // Try exact canonical name first
+    const exact = (0, icon_catalog_js_1.getIconByName)(iconName);
+    if (exact)
+        return exact;
+    // Try fuzzy search
+    const results = (0, icon_catalog_js_1.searchIcons)(iconName, { limit: 1 });
+    return results.length > 0 ? results[0] : null;
+}
 function normalize(value) {
     return (value ?? "").trim().toLowerCase();
 }

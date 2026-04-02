@@ -191,10 +191,23 @@ const TYPOGRAPHY: SemanticTokenEntry[] = [
 // ─── Icon size tokens ───────────────────────────────────────────────────────
 
 const ICON_SIZE: SemanticTokenEntry[] = [
-  { name: "icon-size/semantic/sm", category: "icon-size", type: "FLOAT", description: "Small icon (16px)",       lightRef: "16", darkRef: "16" },
-  { name: "icon-size/semantic/md", category: "icon-size", type: "FLOAT", description: "Medium icon (20px)",      lightRef: "20", darkRef: "20" },
-  { name: "icon-size/semantic/lg", category: "icon-size", type: "FLOAT", description: "Large icon (24px)",       lightRef: "24", darkRef: "24" },
-  { name: "icon-size/semantic/xl", category: "icon-size", type: "FLOAT", description: "Extra-large icon (32px)", lightRef: "32", darkRef: "32" },
+  { name: "icon-size/semantic/xs", category: "icon-size", type: "FLOAT", description: "Extra-small icon (16px)", lightRef: "16", darkRef: "16" },
+  { name: "icon-size/semantic/sm", category: "icon-size", type: "FLOAT", description: "Small icon (20px)",       lightRef: "20", darkRef: "20" },
+  { name: "icon-size/semantic/md", category: "icon-size", type: "FLOAT", description: "Medium icon (24px)",      lightRef: "24", darkRef: "24" },
+  { name: "icon-size/semantic/lg", category: "icon-size", type: "FLOAT", description: "Large icon (32px)",       lightRef: "32", darkRef: "32" },
+  { name: "icon-size/semantic/xl", category: "icon-size", type: "FLOAT", description: "Extra-large icon (40px)", lightRef: "40", darkRef: "40" },
+];
+
+// ─── Icon color tokens ─────────────────────────────────────────────────────
+
+const ICON_COLOR: SemanticTokenEntry[] = [
+  { name: "color/semantic/icon/default",   category: "icon", type: "COLOR", description: "Default icon color (inherits text)",  lightRef: "color/primitive/neutral/900", darkRef: "color/primitive/neutral/50" },
+  { name: "color/semantic/icon/primary",   category: "icon", type: "COLOR", description: "Brand primary icon color",            lightRef: "color/primitive/brand/500",   darkRef: "color/primitive/brand/400" },
+  { name: "color/semantic/icon/secondary", category: "icon", type: "COLOR", description: "Muted/supporting icon color",         lightRef: "color/primitive/neutral/500", darkRef: "color/primitive/neutral/400" },
+  { name: "color/semantic/icon/disabled",  category: "icon", type: "COLOR", description: "Disabled icon color",                 lightRef: "color/primitive/neutral/300", darkRef: "color/primitive/neutral/600" },
+  { name: "color/semantic/icon/inverse",   category: "icon", type: "COLOR", description: "Icon on dark/inverse backgrounds",    lightRef: "color/primitive/neutral/50",  darkRef: "color/primitive/neutral/900" },
+  { name: "color/semantic/icon/error",     category: "icon", type: "COLOR", description: "Error/destructive icon color",        lightRef: "color/primitive/danger/500",  darkRef: "color/primitive/danger/400" },
+  { name: "color/semantic/icon/success",   category: "icon", type: "COLOR", description: "Success/positive icon color",         lightRef: "color/primitive/success/500", darkRef: "color/primitive/success/400" },
 ];
 
 // ─── Breakpoint tokens ──────────────────────────────────────────────────────
@@ -248,6 +261,7 @@ export const SEMANTIC_TOKEN_CATALOG: SemanticTokenEntry[] = [
   ...BORDER_WIDTH,
   ...TYPOGRAPHY,
   ...ICON_SIZE,
+  ...ICON_COLOR,
   ...BREAKPOINT,
   ...GRID,
   ...DENSITY,

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * figma-intelligence-layer — MCP Server
- * 22 tools across 5 phases for pixel-accurate, bidirectional, context-aware AI ↔ Design collaboration.
+ * 28 tools across 5 phases for pixel-accurate, bidirectional, context-aware AI ↔ Design collaboration.
  *
  * Architecture:
  *   Claude Desktop / Claude Code

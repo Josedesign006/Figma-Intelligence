@@ -76,7 +76,7 @@ STEP 4 — VERIFY (MANDATORY):
 figma_navigate → figma_take_screenshot → inspect for: unfilled widths, clipped text, missing padding, overlaps, emoji icons, poor hierarchy. Fix + re-screenshot up to 3x.
 
 === RULES ===
-ICONS: Never use emoji. Use Material Icons text nodes ("menu","close","arrow_forward","search","settings"). No fallback to emoji.
+ICONS: Never use emoji. Use SVG-based Icon components from the design system. Specify icons using icon/{category}/{name} taxonomy (e.g. "icon/action/search", "icon/navigation/menu", "icon/action/close"). Categories: action, navigation, content, communication, status, media, file, social, editor, toggle, device. No text-node icons. No fallback to emoji.
 LAYOUT: Every frame needs Auto Layout + explicit layoutSizingHorizontal + layoutSizingVertical. No frames without both sizing properties set. No clipped text. Consistent spacing tokens.
 QUALITY: Production-ready, not wireframe. Headings 24-32px, body 14-16px, captions 12px. Proper contrast and hierarchy.
 

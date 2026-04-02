@@ -1,7 +1,7 @@
 export interface SemanticTokenEntry {
     name: string;
     category: string;
-    type: "COLOR" | "FLOAT";
+    type: "COLOR" | "FLOAT" | "STRING";
     description: string;
     /** Primitive token name for light mode */
     lightRef: string;
@@ -22,7 +22,23 @@ export declare function getCategories(): string[];
  */
 export declare function getColorSemanticTokens(): SemanticTokenEntry[];
 /**
- * Get only FLOAT-type semantic tokens (spacing, radius).
+ * Get only FLOAT-type semantic tokens (spacing, radius, z-index, etc.).
  */
 export declare function getFloatSemanticTokens(): SemanticTokenEntry[];
+/**
+ * Get only STRING-type semantic tokens (shadows, easing curves).
+ */
+export declare function getStringSemanticTokens(): SemanticTokenEntry[];
+/**
+ * Get elevation/shadow tokens.
+ */
+export declare function getElevationTokens(): SemanticTokenEntry[];
+/**
+ * Get motion tokens (durations and easing curves).
+ */
+export declare function getMotionTokens(): SemanticTokenEntry[];
+/**
+ * Get typography detail tokens (weights, line-heights, letter-spacing).
+ */
+export declare function getTypographyTokens(): SemanticTokenEntry[];
 //# sourceMappingURL=semantic-token-catalog.d.ts.map

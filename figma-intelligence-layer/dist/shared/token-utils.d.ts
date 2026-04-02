@@ -2,6 +2,10 @@ import { Token, TokenRef } from "./types.js";
 export declare function snapToSpacingToken(px: number): TokenRef;
 export declare function snapToRadiusToken(px: number): TokenRef;
 export declare function snapToTypeToken(px: number): TokenRef;
+export declare function snapToZIndexToken(value: number): TokenRef;
+export declare function snapToOpacityToken(value: number): TokenRef;
+export declare function snapToBorderWidthToken(px: number): TokenRef;
+export declare function snapToIconSizeToken(px: number): TokenRef;
 export declare function hexToRgb(hex: string): {
     r: number;
     g: number;

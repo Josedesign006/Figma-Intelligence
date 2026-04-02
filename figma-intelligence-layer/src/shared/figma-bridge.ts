@@ -969,6 +969,267 @@ export class FigmaBridge {
     return this.send("getStyles");
   }
 
+  // ─── Deep Node Serialization & Batch Read ──────────────────────────────
+
+  /**
+   * Get a node with full recursive child data up to maxDepth.
+   * Unlike getNode() which returns 1-level children as {id, name, type},
+   * this returns the full property set for every descendant.
+   */
+  async getNodeDeep(nodeId: string, maxDepth: number = 10): Promise<unknown> {
+    const result = await this.execute(`
+(async () => {
+  const maxDepth = ${Math.min(maxDepth, 20)};
+
+  function serializeNode(node, depth) {
+    const data = {
+      id: node.id,
+      name: node.name,
+      type: node.type,
+      visible: node.visible !== false,
+    };
+
+    // Geometry
+    if ('x' in node) { data.x = node.x; data.y = node.y; }
+    if ('width' in node) { data.width = node.width; data.height = node.height; }
+    if ('absoluteBoundingBox' in node) data.absoluteBoundingBox = node.absoluteBoundingBox;
+    if ('absoluteRenderBounds' in node) data.absoluteRenderBounds = node.absoluteRenderBounds;
+
+    // Visual (fills/strokes/effects can be figma.mixed Symbol — guard with try-catch)
+    try { if ('fills' in node && node.fills && typeof node.fills !== 'symbol') data.fills = JSON.parse(JSON.stringify(node.fills)); } catch (e) {}
+    try { if ('strokes' in node && node.strokes && typeof node.strokes !== 'symbol') data.strokes = JSON.parse(JSON.stringify(node.strokes)); } catch (e) {}
+    try { if ('effects' in node && node.effects && typeof node.effects !== 'symbol') data.effects = JSON.parse(JSON.stringify(node.effects)); } catch (e) {}
+    if ('opacity' in node) data.opacity = node.opacity;
+    try { if ('cornerRadius' in node && typeof node.cornerRadius !== 'symbol') data.cornerRadius = node.cornerRadius; } catch (e) {}
+    try { if ('strokeWeight' in node && typeof node.strokeWeight !== 'symbol') data.strokeWeight = node.strokeWeight; } catch (e) {}
+
+    // Layout
+    if ('layoutMode' in node) {
+      data.layoutMode = node.layoutMode;
+      data.primaryAxisSizingMode = node.primaryAxisSizingMode;
+      data.counterAxisSizingMode = node.counterAxisSizingMode;
+      data.paddingTop = node.paddingTop;
+      data.paddingRight = node.paddingRight;
+      data.paddingBottom = node.paddingBottom;
+      data.paddingLeft = node.paddingLeft;
+      data.itemSpacing = node.itemSpacing;
+      if (node.primaryAxisAlignItems) data.primaryAxisAlignItems = node.primaryAxisAlignItems;
+      if (node.counterAxisAlignItems) data.counterAxisAlignItems = node.counterAxisAlignItems;
+    }
+
+    // Text (all text properties can be figma.mixed Symbol for mixed-style text)
+    if (node.type === 'TEXT') {
+      data.characters = node.characters;
+      try {
+        if (typeof node.fontSize !== 'symbol') data.fontSize = node.fontSize;
+        if (typeof node.fontName !== 'symbol') data.fontName = JSON.parse(JSON.stringify(node.fontName));
+        if (typeof node.lineHeight !== 'symbol') data.lineHeight = node.lineHeight;
+        if (typeof node.letterSpacing !== 'symbol') data.letterSpacing = node.letterSpacing;
+        if (typeof node.textAlignHorizontal !== 'symbol') data.textAlignHorizontal = node.textAlignHorizontal;
+        if (typeof node.textAlignVertical !== 'symbol') data.textAlignVertical = node.textAlignVertical;
+      } catch (e) { /* mixed styles */ }
+    }
+
+    // Component metadata
+    if ('componentPropertyReferences' in node) data.componentPropertyReferences = node.componentPropertyReferences;
+    if ('variantProperties' in node && node.variantProperties) data.variantProperties = node.variantProperties;
+    if (node.type === 'INSTANCE' && node.mainComponent) {
+      data.mainComponentId = node.mainComponent.id;
+      data.mainComponentName = node.mainComponent.name;
+    }
+    if (node.description) data.description = node.description;
+
+    // Variable bindings
+    if ('boundVariables' in node && node.boundVariables) {
+      try {
+        const bv = {};
+        for (const [prop, binding] of Object.entries(node.boundVariables)) {
+          if (binding && typeof binding === 'object' && 'id' in binding) {
+            bv[prop] = { id: binding.id, type: binding.type };
+          } else if (Array.isArray(binding)) {
+            bv[prop] = binding.map(b => b && typeof b === 'object' && 'id' in b ? { id: b.id } : null).filter(Boolean);
+          }
+        }
+        if (Object.keys(bv).length > 0) data.boundVariables = bv;
+      } catch (e) { /* skip */ }
+    }
+
+    // Recursive children
+    if ('children' in node && node.children && depth < maxDepth) {
+      data.children = [];
+      for (const child of node.children) {
+        data.children.push(serializeNode(child, depth + 1));
+      }
+      data.childCount = node.children.length;
+    } else if ('children' in node && node.children) {
+      data.childCount = node.children.length;
+      data.children = node.children.map(c => ({ id: c.id, name: c.name, type: c.type }));
+      data.truncatedAtDepth = depth;
+    }
+
+    return data;
+  }
+
+  const root = await figma.getNodeByIdAsync(${JSON.stringify(nodeId)});
+  if (!root) throw new Error('Node not found: ' + ${JSON.stringify(nodeId)});
+  return serializeNode(root, 0);
+})();
+    `, 60000); // 60s timeout for deep trees
+
+    if (!result.success) throw new Error(result.error);
+    return result.result;
+  }
+
+  /**
+   * Batch read multiple nodes in a single round-trip.
+   * Returns a map of nodeId → serialized node data (1-level deep children).
+   */
+  async batchGetNodes(nodeIds: string[], includeChildren: boolean = true): Promise<Record<string, unknown>> {
+    if (nodeIds.length === 0) return {};
+
+    const result = await this.execute(`
+(async () => {
+  const ids = ${JSON.stringify(nodeIds.slice(0, 200))};
+  const includeChildren = ${includeChildren};
+  const results = {};
+
+  for (const id of ids) {
+    const node = await figma.getNodeByIdAsync(id);
+    if (!node) { results[id] = null; continue; }
+
+    const data = {
+      id: node.id,
+      name: node.name,
+      type: node.type,
+      visible: node.visible !== false,
+    };
+
+    if ('x' in node) { data.x = node.x; data.y = node.y; }
+    if ('width' in node) { data.width = node.width; data.height = node.height; }
+    if ('fills' in node && node.fills) data.fills = JSON.parse(JSON.stringify(node.fills));
+    if ('strokes' in node && node.strokes) data.strokes = JSON.parse(JSON.stringify(node.strokes));
+    if ('effects' in node && node.effects) data.effects = JSON.parse(JSON.stringify(node.effects));
+    if ('opacity' in node) data.opacity = node.opacity;
+    if ('cornerRadius' in node) data.cornerRadius = node.cornerRadius;
+
+    if ('layoutMode' in node) {
+      data.layoutMode = node.layoutMode;
+      data.paddingTop = node.paddingTop;
+      data.paddingRight = node.paddingRight;
+      data.paddingBottom = node.paddingBottom;
+      data.paddingLeft = node.paddingLeft;
+      data.itemSpacing = node.itemSpacing;
+    }
+
+    if (node.type === 'TEXT') {
+      data.characters = node.characters;
+      try {
+        data.fontSize = node.fontSize;
+        data.fontName = JSON.parse(JSON.stringify(node.fontName));
+      } catch (e) {}
+    }
+
+    if (includeChildren && 'children' in node && node.children) {
+      data.childCount = node.children.length;
+      data.children = node.children.map(c => ({
+        id: c.id,
+        name: c.name,
+        type: c.type,
+        visible: c.visible !== false,
+        x: 'x' in c ? c.x : undefined,
+        y: 'y' in c ? c.y : undefined,
+        width: 'width' in c ? c.width : undefined,
+        height: 'height' in c ? c.height : undefined,
+      }));
+    }
+
+    results[id] = data;
+  }
+
+  return results;
+})();
+    `, 60000);
+
+    if (!result.success) throw new Error(result.error);
+    return result.result as Record<string, unknown>;
+  }
+
+  // ─── Multi-Mode Variable Binding ──────────────────────────────────────────
+
+  /**
+   * Bind semantic variables to nodes AND set the explicit variable mode on a
+   * container frame. This is the key method for theme-switching support.
+   *
+   * Unlike bindVariables() which just binds variables without mode awareness,
+   * this method:
+   *   1. Binds semantic variables (which have Light/Dark mode values)
+   *   2. Sets the explicit mode on the target frame so children resolve correctly
+   */
+  async bindVariablesMultiMode(
+    bindings: Array<{ nodeId: string; field: string; variableId: string; fillIndex?: number }>,
+    targetFrameId: string,
+    collectionId: string,
+    activeModeId: string
+  ): Promise<{ bound: number; total: number; modeSet: boolean; errors?: string[] }> {
+    if (bindings.length === 0 && !targetFrameId) {
+      return { bound: 0, total: 0, modeSet: false };
+    }
+
+    await this.ensureVariablesApi();
+
+    // Import from token-binder for script generation
+    const { buildMultiModeBindingScript } = await import("./token-binder.js");
+    const script = buildMultiModeBindingScript(
+      bindings.map((b) => ({
+        nodeId: b.nodeId,
+        field: b.field,
+        fillIndex: b.fillIndex,
+        semanticVariableId: b.variableId,
+      })),
+      targetFrameId,
+      collectionId,
+      activeModeId
+    );
+
+    const result = await this.execute(script);
+    if (!result.success) {
+      return { bound: 0, total: bindings.length, modeSet: false, errors: [result.error ?? "Unknown error"] };
+    }
+    return result.result as { bound: number; total: number; modeSet: boolean; errors?: string[] };
+  }
+
+  /**
+   * Switch a frame's variable mode (theme switching).
+   * All children with bound variables will resolve to the new mode's values.
+   */
+  async switchMode(
+    frameId: string,
+    collectionId: string,
+    modeId: string
+  ): Promise<{ success: boolean; error?: string }> {
+    await this.ensureVariablesApi();
+    const { buildModeSwitchScript } = await import("./token-binder.js");
+    const script = buildModeSwitchScript(frameId, collectionId, modeId);
+    const result = await this.execute(script);
+    if (!result.success) {
+      return { success: false, error: result.error };
+    }
+    return result.result as { success: boolean; error?: string };
+  }
+
+  /**
+   * List all modes for a variable collection.
+   * Returns mode IDs and names so callers can pick one for switchMode().
+   */
+  async listModes(collectionId: string): Promise<unknown> {
+    await this.ensureVariablesApi();
+    const { buildListModesScript } = await import("./token-binder.js");
+    const script = buildListModesScript(collectionId);
+    const result = await this.execute(script);
+    if (!result.success) throw new Error(result.error);
+    return result.result;
+  }
+
   // ─── P0: Enrichment & Compression ─────────────────────────────────────
 
   /**

@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Button Component — Interactive Preview</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    /* ---------- Page ---------- */
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 40px;
+      font-family: 'IBM Plex Sans', sans-serif;
+      background: #1a1a2e; color: #e2e8f0;
+    }
+    h1 { font-size: 28px; font-weight: 600; margin: 0 0 8px; }
+    .subtitle { font-size: 14px; color: #94a3b8; margin: 0 0 40px; }
+    h2 { font-size: 18px; font-weight: 600; margin: 32px 0 16px; color: #f8fafc; }
+    h3 { font-size: 13px; font-weight: 500; margin: 0 0 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.6px; }
+    .section { background: #16213e; border-radius: 8px; padding: 24px; margin-bottom: 24px; }
+    .row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+    .row-label { width: 100px; font-size: 12px; color: #64748b; text-transform: capitalize; flex-shrink: 0; }
+
+    /* ---------- Button Tokens ---------- */
+    :root {
+      --btn-primary-bg: #2563eb;
+      --btn-primary-bg-hover: #1d4ed8;
+      --btn-primary-bg-pressed: #1e40af;
+      --btn-primary-text: #ffffff;
+      --btn-primary-disabled-bg: #e2e8f0;
+      --btn-primary-disabled-text: #94a3b8;
+
+      --btn-secondary-border: #2563eb;
+      --btn-secondary-border-hover: #1d4ed8;
+      --btn-secondary-border-pressed: #1e40af;
+      --btn-secondary-bg-hover: #f8fafc;
+      --btn-secondary-bg-pressed: #f1f5f9;
+      --btn-secondary-text: #2563eb;
+      --btn-secondary-text-hover: #1d4ed8;
+      --btn-secondary-text-pressed: #1e40af;
+      --btn-secondary-disabled-border: #e2e8f0;
+      --btn-secondary-disabled-text: #94a3b8;
+
+      --btn-ghost-text: #2563eb;
+      --btn-ghost-text-hover: #1d4ed8;
+      --btn-ghost-text-pressed: #1e40af;
+      --btn-ghost-bg-hover: #f8fafc;
+      --btn-ghost-bg-pressed: #f1f5f9;
+      --btn-ghost-disabled-text: #cbd5e1;
+
+      --btn-destructive-bg: #dc2626;
+      --btn-destructive-bg-hover: #b91c1c;
+      --btn-destructive-bg-pressed: #991b1b;
+      --btn-destructive-text: #ffffff;
+      --btn-destructive-disabled-bg: #e2e8f0;
+      --btn-destructive-disabled-text: #94a3b8;
+
+      --btn-focus-ring: #2563eb;
+      --btn-gap: 8px;
+    }
+
+    /* ---------- Button Base ---------- */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: var(--btn-gap); border: none; border-radius: 0;
+      cursor: pointer; font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 500; white-space: nowrap;
+      transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+      outline: none; position: relative;
+    }
+    .btn:focus-visible { outline: 2px solid var(--btn-focus-ring); outline-offset: 2px; }
+
+    /* Sizes */
+    .btn-sm  { height: 32px; padding: 7px 12px;  font-size: 12px; line-height: 16px; }
+    .btn-md  { height: 40px; padding: 11px 16px; font-size: 14px; line-height: 18px; }
+    .btn-lg  { height: 48px; padding: 13px 16px; font-size: 16px; line-height: 20px; }
+
+    /* Icon */
+    .btn-icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+    /* Full width */
+    .btn-full { width: 100%; }
+
+    /* Primary */
+    .btn-primary { background: var(--btn-primary-bg); color: var(--btn-primary-text); }
+    .btn-primary:hover:not(:disabled) { background: var(--btn-primary-bg-hover); }
+    .btn-primary:active:not(:disabled) { background: var(--btn-primary-bg-pressed); }
+    .btn-primary:disabled { background: var(--btn-primary-disabled-bg); color: var(--btn-primary-disabled-text); cursor: not-allowed; }
+
+    /* Secondary */
+    .btn-secondary { background: transparent; color: var(--btn-secondary-text); border: 1px solid var(--btn-secondary-border); }
+    .btn-secondary:hover:not(:disabled) { background: var(--btn-secondary-bg-hover); border-color: var(--btn-secondary-border-hover); color: var(--btn-secondary-text-hover); }
+    .btn-secondary:active:not(:disabled) { background: var(--btn-secondary-bg-pressed); border-color: var(--btn-secondary-border-pressed); color: var(--btn-secondary-text-pressed); }
+    .btn-secondary:disabled { background: transparent; border-color: var(--btn-secondary-disabled-border); color: var(--btn-secondary-disabled-text); cursor: not-allowed; }
+
+    /* Ghost */
+    .btn-ghost { background: transparent; color: var(--btn-ghost-text); }
+    .btn-ghost:hover:not(:disabled) { background: var(--btn-ghost-bg-hover); color: var(--btn-ghost-text-hover); }
+    .btn-ghost:active:not(:disabled) { background: var(--btn-ghost-bg-pressed); color: var(--btn-ghost-text-pressed); }
+    .btn-ghost:disabled { background: transparent; color: var(--btn-ghost-disabled-text); cursor: not-allowed; }
+
+    /* Destructive */
+    .btn-destructive { background: var(--btn-destructive-bg); color: var(--btn-destructive-text); }
+    .btn-destructive:hover:not(:disabled) { background: var(--btn-destructive-bg-hover); }
+    .btn-destructive:active:not(:disabled) { background: var(--btn-destructive-bg-pressed); }
+    .btn-destructive:disabled { background: var(--btn-destructive-disabled-bg); color: var(--btn-destructive-disabled-text); cursor: not-allowed; }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn-spinner { animation: spin 800ms linear infinite; }
+
+    /* ---------- Playground Controls ---------- */
+    .playground { display: flex; gap: 24px; flex-wrap: wrap; }
+    .control-group { display: flex; flex-direction: column; gap: 6px; }
+    .control-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+    select, .toggle-btn {
+      font-family: 'IBM Plex Sans', sans-serif; font-size: 13px;
+      background: #0f3460; color: #e2e8f0; border: 1px solid #334155;
+      border-radius: 4px; padding: 6px 10px; cursor: pointer; outline: none;
+    }
+    select:focus, .toggle-btn:focus { border-color: #2563eb; }
+    .toggle-btn { display: inline-flex; gap: 6px; align-items: center; }
+    .toggle-btn.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+    .preview-area { min-height: 80px; display: flex; align-items: center; justify-content: center; background: #0f3460; border-radius: 8px; padding: 32px; margin-top: 16px; }
+    .click-log { margin-top: 12px; font-size: 12px; color: #64748b; min-height: 20px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useCallback } = React;
+
+    /* ========== Arrow Icon SVG ========== */
+    const ArrowIcon = () => (
+      <svg className="btn-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M8.5 3L13.5 8L8.5 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M13 8H3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      </svg>
+    );
+
+    const Spinner = () => (
+      <svg className="btn-icon btn-spinner" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeDasharray="28" strokeDashoffset="8" strokeLinecap="round"/>
+      </svg>
+    );
+
+    /* ========== Button Component ========== */
+    function Button({ variant='primary', size='sm', children, leadingIcon=true, trailingIcon=false, loading=false, fullWidth=false, disabled=false, onClick, ...rest }) {
+      const cls = [
+        'btn',
+        `btn-${variant}`,
+        `btn-${size}`,
+        fullWidth ? 'btn-full' : '',
+      ].filter(Boolean).join(' ');
+
+      return (
+        <button className={cls} disabled={disabled || loading} onClick={onClick} {...rest}>
+          {leadingIcon && !loading && <ArrowIcon />}
+          {loading && <Spinner />}
+          <span>{children}</span>
+          {trailingIcon && !loading && <ArrowIcon />}
+        </button>
+      );
+    }
+
+    /* ========== App ========== */
+    function App() {
+      const variants = ['primary','secondary','ghost','destructive'];
+      const sizes = ['sm','md','lg'];
+
+      /* Playground state */
+      const [pgVariant, setPgVariant] = useState('primary');
+      const [pgSize, setPgSize] = useState('md');
+      const [pgLeading, setPgLeading] = useState(true);
+      const [pgTrailing, setPgTrailing] = useState(false);
+      const [pgDisabled, setPgDisabled] = useState(false);
+      const [pgLoading, setPgLoading] = useState(false);
+      const [pgFull, setPgFull] = useState(false);
+      const [pgLabel, setPgLabel] = useState('Button');
+      const [clickLog, setClickLog] = useState('');
+
+      const handleClick = useCallback(() => {
+        const ts = new Date().toLocaleTimeString();
+        setClickLog(`Clicked at ${ts}`);
+      }, []);
+
+      return (
+        <div>
+          <h1>Button Component</h1>
+          <p className="subtitle">IBM Carbon Design System — 4 types × 3 sizes × 5 states = 60 variants</p>
+
+          {/* ---- All Variants Grid ---- */}
+          <div className="section">
+            <h2>All Variants &amp; Sizes</h2>
+            {variants.map(v => (
+              <div key={v}>
+                <h3>{v}</h3>
+                <div className="row">
+                  {sizes.map(s => (
+                    <Button key={`${v}-${s}`} variant={v} size={s}>Button</Button>
+                  ))}
+                  <Button variant={v} size="md" disabled>Disabled</Button>
+                  <Button variant={v} size="md" loading>Loading</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ---- Size Comparison ---- */}
+          <div className="section">
+            <h2>Size Comparison</h2>
+            <div className="row" style={{gap: 24}}>
+              <div style={{textAlign:'center'}}>
+                <Button variant="primary" size="sm">Small 32px</Button>
+                <div style={{fontSize:11,color:'#64748b',marginTop:8}}>12px / 7px 12px</div>
+              </div>
+              <div style={{textAlign:'center'}}>
+                <Button variant="primary" size="md">Medium 40px</Button>
+                <div style={{fontSize:11,color:'#64748b',marginTop:8}}>14px / 11px 16px</div>
+              </div>
+              <div style={{textAlign:'center'}}>
+                <Button variant="primary" size="lg">Large 48px</Button>
+                <div style={{fontSize:11,color:'#64748b',marginTop:8}}>16px / 13px 16px</div>
+              </div>
+            </div>
+          </div>
+
+          {/* ---- Interactive States ---- */}
+          <div className="section">
+            <h2>Interactive States (hover, press, focus me!)</h2>
+            <div className="row" style={{gap: 24}}>
+              {variants.map(v => (
+                <div key={v} style={{display:'flex', flexDirection:'column', gap:8, alignItems:'flex-start'}}>
+                  <h3 style={{margin:0}}>{v}</h3>
+                  <Button variant={v} size="md">Hover me</Button>
+                  <Button variant={v} size="md" disabled>Disabled</Button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ---- Icon Options ---- */}
+          <div className="section">
+            <h2>Icon Options</h2>
+            <div className="row" style={{gap:16}}>
+              <div style={{textAlign:'center'}}>
+                <Button variant="primary" size="md" leadingIcon={true} trailingIcon={false}>Leading Icon</Button>
+                <div style={{fontSize:11,color:'#64748b',marginTop:6}}>Leading only</div>
+              </div>
+              <div style={{textAlign:'center'}}>
+                <Button variant="primary" size="md" leadingIcon={false} trailingIcon={true}>Trailing Icon</Button>
+                <div style={{fontSize:11,color:'#64748b',marginTop:6}}>Trailing only</div>
+              </div>
+              <div style={{textAlign:'center'}}>
+                <Button variant="primary" size="md" leadingIcon={true} trailingIcon={true}>Both Icons</Button>
+                <div style={{fontSize:11,color:'#64748b',marginTop:6}}>Both</div>
+              </div>
+              <div style={{textAlign:'center'}}>
+                <Button variant="primary" size="md" leadingIcon={false} trailingIcon={false}>No Icon</Button>
+                <div style={{fontSize:11,color:'#64748b',marginTop:6}}>Text only</div>
+              </div>
+            </div>
+          </div>
+
+          {/* ---- Full Width ---- */}
+          <div className="section">
+            <h2>Full Width</h2>
+            <div style={{maxWidth: 400}}>
+              <Button variant="primary" size="lg" fullWidth>Full Width Button</Button>
+              <div style={{height:12}}/>
+              <Button variant="secondary" size="lg" fullWidth>Full Width Secondary</Button>
+            </div>
+          </div>
+
+          {/* ---- Props Playground ---- */}
+          <div className="section">
+            <h2>Props Playground</h2>
+            <div className="playground">
+              <div className="control-group">
+                <span className="control-label">Variant</span>
+                <select value={pgVariant} onChange={e => setPgVariant(e.target.value)}>
+                  {variants.map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+              <div className="control-group">
+                <span className="control-label">Size</span>
+                <select value={pgSize} onChange={e => setPgSize(e.target.value)}>
+                  {sizes.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="control-group">
+                <span className="control-label">Label</span>
+                <input type="text" value={pgLabel} onChange={e => setPgLabel(e.target.value)}
+                  style={{fontFamily:'IBM Plex Sans',fontSize:13,background:'#0f3460',color:'#e2e8f0',border:'1px solid #334155',borderRadius:4,padding:'6px 10px',outline:'none',width:120}} />
+              </div>
+              <div className="control-group">
+                <span className="control-label">Leading Icon</span>
+                <button className={`toggle-btn ${pgLeading ? 'active' : ''}`} onClick={() => setPgLeading(!pgLeading)}>
+                  {pgLeading ? 'ON' : 'OFF'}
+                </button>
+              </div>
+              <div className="control-group">
+                <span className="control-label">Trailing Icon</span>
+                <button className={`toggle-btn ${pgTrailing ? 'active' : ''}`} onClick={() => setPgTrailing(!pgTrailing)}>
+                  {pgTrailing ? 'ON' : 'OFF'}
+                </button>
+              </div>
+              <div className="control-group">
+                <span className="control-label">Disabled</span>
+                <button className={`toggle-btn ${pgDisabled ? 'active' : ''}`} onClick={() => setPgDisabled(!pgDisabled)}>
+                  {pgDisabled ? 'ON' : 'OFF'}
+                </button>
+              </div>
+              <div className="control-group">
+                <span className="control-label">Loading</span>
+                <button className={`toggle-btn ${pgLoading ? 'active' : ''}`} onClick={() => setPgLoading(!pgLoading)}>
+                  {pgLoading ? 'ON' : 'OFF'}
+                </button>
+              </div>
+              <div className="control-group">
+                <span className="control-label">Full Width</span>
+                <button className={`toggle-btn ${pgFull ? 'active' : ''}`} onClick={() => setPgFull(!pgFull)}>
+                  {pgFull ? 'ON' : 'OFF'}
+                </button>
+              </div>
+            </div>
+            <div className="preview-area" style={{flexDirection: pgFull ? 'column' : 'row'}}>
+              <Button
+                variant={pgVariant}
+                size={pgSize}
+                leadingIcon={pgLeading}
+                trailingIcon={pgTrailing}
+                disabled={pgDisabled}
+                loading={pgLoading}
+                fullWidth={pgFull}
+                onClick={handleClick}
+              >
+                {pgLabel}
+              </Button>
+            </div>
+            <div className="click-log">{clickLog}</div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

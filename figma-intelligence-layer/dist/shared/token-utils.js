@@ -3,6 +3,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.snapToSpacingToken = snapToSpacingToken;
 exports.snapToRadiusToken = snapToRadiusToken;
 exports.snapToTypeToken = snapToTypeToken;
+exports.snapToZIndexToken = snapToZIndexToken;
+exports.snapToOpacityToken = snapToOpacityToken;
+exports.snapToBorderWidthToken = snapToBorderWidthToken;
+exports.snapToIconSizeToken = snapToIconSizeToken;
 exports.hexToRgb = hexToRgb;
 exports.rgbToHex = rgbToHex;
 exports.figmaRgbaToHex = figmaRgbaToHex;
@@ -71,6 +75,68 @@ function snapToTypeToken(px) {
         tokenName: nearest.name,
         tokenValue: nearest.value,
         delta: px - nearest.value,
+    };
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Z-index token snapping
+// ─────────────────────────────────────────────────────────────────────────────
+const Z_INDEX_SCALE = [0, 1000, 1100, 1300, 1400, 1500, 1600];
+const Z_INDEX_NAMES = {
+    0: "--z-index-base", 1000: "--z-index-dropdown", 1100: "--z-index-sticky",
+    1300: "--z-index-modal", 1400: "--z-index-popover", 1500: "--z-index-toast", 1600: "--z-index-tooltip",
+};
+function snapToZIndexToken(value) {
+    const nearest = Z_INDEX_SCALE.reduce((prev, curr) => Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev);
+    return {
+        tokenName: Z_INDEX_NAMES[nearest] ?? `--z-index-${nearest}`,
+        tokenValue: nearest,
+        delta: value - nearest,
+    };
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Opacity token snapping
+// ─────────────────────────────────────────────────────────────────────────────
+const OPACITY_SCALE = [0.08, 0.4, 0.5, 0.6, 1];
+const OPACITY_NAMES = {
+    0.08: "--opacity-hover-overlay", 0.4: "--opacity-disabled",
+    0.5: "--opacity-backdrop", 0.6: "--opacity-loading", 1: "--opacity-full",
+};
+function snapToOpacityToken(value) {
+    const nearest = OPACITY_SCALE.reduce((prev, curr) => Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev);
+    return {
+        tokenName: OPACITY_NAMES[nearest] ?? `--opacity-${nearest}`,
+        tokenValue: nearest,
+        delta: value - nearest,
+    };
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Border-width token snapping
+// ─────────────────────────────────────────────────────────────────────────────
+const BORDER_WIDTH_SCALE = [1, 2, 3];
+const BORDER_WIDTH_NAMES = {
+    1: "--border-width-thin", 2: "--border-width-medium", 3: "--border-width-thick",
+};
+function snapToBorderWidthToken(px) {
+    const nearest = BORDER_WIDTH_SCALE.reduce((prev, curr) => Math.abs(curr - px) < Math.abs(prev - px) ? curr : prev);
+    return {
+        tokenName: BORDER_WIDTH_NAMES[nearest] ?? `--border-width-${nearest}`,
+        tokenValue: nearest,
+        delta: px - nearest,
+    };
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Icon size token snapping
+// ─────────────────────────────────────────────────────────────────────────────
+const ICON_SIZE_SCALE = [16, 20, 24, 32, 40];
+const ICON_SIZE_NAMES = {
+    16: "--icon-size-xs", 20: "--icon-size-sm", 24: "--icon-size-md", 32: "--icon-size-lg", 40: "--icon-size-xl",
+};
+function snapToIconSizeToken(px) {
+    const nearest = ICON_SIZE_SCALE.reduce((prev, curr) => Math.abs(curr - px) < Math.abs(prev - px) ? curr : prev);
+    return {
+        tokenName: ICON_SIZE_NAMES[nearest] ?? `--icon-size-${nearest}`,
+        tokenValue: nearest,
+        delta: px - nearest,
     };
 }
 // ─────────────────────────────────────────────────────────────────────────────

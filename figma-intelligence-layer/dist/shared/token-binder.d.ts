@@ -101,4 +101,42 @@ export declare function resolveFloatToken(tokenName: string, tokens: Token[], fa
     value: number;
     variableId: string | null;
 };
+export interface MultiModeBinding {
+    nodeId: string;
+    field: string;
+    fillIndex?: number;
+    /** Variable ID of a semantic alias variable that already has Light/Dark values */
+    semanticVariableId: string;
+}
+/**
+ * Build a script that explicitly sets the *variable* mode on a frame and its
+ * descendants, ensuring components switch between Light/Dark (or any modes).
+ *
+ * Figma's mode switching works at the frame level via `setExplicitVariableModeForCollection`.
+ * This function:
+ *   1. Binds semantic variables to node properties (same as single-mode binding)
+ *   2. Sets the explicit variable mode on a container frame so all children
+ *      resolve the correct mode values automatically
+ *
+ * Usage: Call this after creating variables with ds-variables (which creates
+ * Light/Dark mode values). The semantic variable already has mode-specific
+ * values — this script binds it to nodes and sets which mode is active.
+ */
+export declare function buildMultiModeBindingScript(bindings: MultiModeBinding[], 
+/** Frame node ID to set the explicit mode on (typically the root component frame) */
+targetFrameId: string, 
+/** Collection ID the semantic variables belong to */
+collectionId: string, 
+/** Mode ID to activate (e.g. the Dark mode ID) */
+activeModeId: string): string;
+/**
+ * Build a script that resolves ALL modes for a collection and returns them,
+ * so callers can pick which mode ID to use for switching.
+ */
+export declare function buildListModesScript(collectionId: string): string;
+/**
+ * Build a script that switches a frame (and all its children) to a different
+ * variable mode. This is the simplest "theme switch" operation.
+ */
+export declare function buildModeSwitchScript(frameId: string, collectionId: string, modeId: string): string;
 //# sourceMappingURL=token-binder.d.ts.map

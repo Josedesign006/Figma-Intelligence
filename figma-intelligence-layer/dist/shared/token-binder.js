@@ -16,22 +16,25 @@ exports.buildBindingScript = buildBindingScript;
 exports.buildBatchBindingScript = buildBatchBindingScript;
 exports.resolveDesignPalette = resolveDesignPalette;
 exports.resolveFloatToken = resolveFloatToken;
+exports.buildMultiModeBindingScript = buildMultiModeBindingScript;
+exports.buildListModesScript = buildListModesScript;
+exports.buildModeSwitchScript = buildModeSwitchScript;
 // Semantic roles that map component types to the token groups they need
 const COMPONENT_TOKEN_ROLES = {
-    Button: ["color/semantic/actions/primary/bg/default", "color/semantic/text/on-color", "radius/semantic/control/default", "space/semantic/inset/control/md"],
-    Modal: ["color/semantic/surface/overlay", "color/semantic/border/default", "radius/semantic/surface/default", "color/semantic/text/primary"],
-    Card: ["color/semantic/surface/raised", "color/semantic/border/default", "radius/semantic/surface/default", "color/semantic/text/primary", "color/semantic/text/secondary"],
-    Input: ["color/semantic/field/bg/default", "color/semantic/field/border/default", "radius/semantic/field/default", "color/semantic/text/primary", "color/semantic/text/disabled"],
-    Select: ["color/semantic/field/bg/default", "color/semantic/field/border/default", "radius/semantic/field/default", "color/semantic/text/primary"],
+    Button: ["color/semantic/actions/primary/bg/default", "color/semantic/text/on-color", "radius/semantic/control/default", "space/semantic/inset/control/md", "opacity/semantic/disabled"],
+    Modal: ["color/semantic/surface/overlay", "color/semantic/border/default", "radius/semantic/surface/default", "color/semantic/text/primary", "elevation/semantic/shadow/lg", "z-index/semantic/modal"],
+    Card: ["color/semantic/surface/raised", "color/semantic/border/default", "radius/semantic/surface/default", "color/semantic/text/primary", "color/semantic/text/secondary", "elevation/semantic/shadow/sm"],
+    Input: ["color/semantic/field/bg/default", "color/semantic/field/border/default", "radius/semantic/field/default", "color/semantic/text/primary", "color/semantic/text/disabled", "border-width/semantic/thin"],
+    Select: ["color/semantic/field/bg/default", "color/semantic/field/border/default", "radius/semantic/field/default", "color/semantic/text/primary", "border-width/semantic/thin"],
     Checkbox: ["color/semantic/field/bg/default", "color/semantic/border/default", "color/semantic/text/primary"],
     Toggle: ["color/semantic/border/default", "color/semantic/surface/default", "color/semantic/actions/primary/bg/default"],
     Radio: ["color/semantic/field/bg/default", "color/semantic/border/default", "color/semantic/text/primary"],
-    Toast: ["color/semantic/feedback/success/bg", "color/semantic/feedback/success/text", "radius/semantic/control/default"],
-    NavBar: ["color/semantic/surface/default", "color/semantic/border/subtle", "color/semantic/text/primary"],
+    Toast: ["color/semantic/feedback/success/bg", "color/semantic/feedback/success/text", "radius/semantic/control/default", "elevation/semantic/shadow/md", "z-index/semantic/toast"],
+    NavBar: ["color/semantic/surface/default", "color/semantic/border/subtle", "color/semantic/text/primary", "elevation/semantic/shadow/xs"],
     Table: ["color/semantic/surface/default", "color/semantic/border/default", "color/semantic/text/primary", "color/semantic/surface/subtle"],
     Avatar: ["color/semantic/surface/subtle", "radius/semantic/pill"],
     Badge: ["color/semantic/actions/primary/bg/default", "color/semantic/text/on-color", "radius/semantic/pill"],
-    Tooltip: ["color/semantic/surface/inverse", "color/semantic/text/inverse"],
+    Tooltip: ["color/semantic/surface/inverse", "color/semantic/text/inverse", "elevation/semantic/shadow/md", "z-index/semantic/tooltip"],
     Tabs: ["color/semantic/border/subtle", "color/semantic/text/primary", "color/semantic/actions/primary/bg/default"],
     Breadcrumb: ["color/semantic/text/primary", "color/semantic/text/tertiary", "color/semantic/actions/primary/bg/default"],
     Tag: ["color/semantic/surface/subtle", "color/semantic/border/default", "color/semantic/text/primary"],
@@ -271,5 +274,114 @@ function resolveFloatToken(tokenName, tokens, fallback) {
         return { value: token.value, variableId: token.id };
     }
     return { value: fallback, variableId: null };
+}
+/**
+ * Build a script that explicitly sets the *variable* mode on a frame and its
+ * descendants, ensuring components switch between Light/Dark (or any modes).
+ *
+ * Figma's mode switching works at the frame level via `setExplicitVariableModeForCollection`.
+ * This function:
+ *   1. Binds semantic variables to node properties (same as single-mode binding)
+ *   2. Sets the explicit variable mode on a container frame so all children
+ *      resolve the correct mode values automatically
+ *
+ * Usage: Call this after creating variables with ds-variables (which creates
+ * Light/Dark mode values). The semantic variable already has mode-specific
+ * values — this script binds it to nodes and sets which mode is active.
+ */
+function buildMultiModeBindingScript(bindings, 
+/** Frame node ID to set the explicit mode on (typically the root component frame) */
+targetFrameId, 
+/** Collection ID the semantic variables belong to */
+collectionId, 
+/** Mode ID to activate (e.g. the Dark mode ID) */
+activeModeId) {
+    if (bindings.length === 0 && !targetFrameId)
+        return "";
+    const bindingData = JSON.stringify(bindings);
+    return `
+(async () => {
+  const bindings = ${bindingData};
+  let bound = 0;
+  const errors = [];
+
+  // Step 1: Bind semantic variables to node properties
+  for (const b of bindings) {
+    try {
+      const node = await figma.getNodeByIdAsync(b.nodeId);
+      if (!node) { errors.push('Node not found: ' + b.nodeId); continue; }
+
+      const variable = await figma.variables.getVariableByIdAsync(b.semanticVariableId);
+      if (!variable) { errors.push('Variable not found: ' + b.semanticVariableId); continue; }
+
+      if (b.field === 'fills' || b.field === 'strokes') {
+        const idx = b.fillIndex ?? 0;
+        if (node[b.field] && node[b.field].length > idx) {
+          const paints = [...node[b.field]];
+          paints[idx] = figma.variables.setBoundVariableForPaint(paints[idx], 'color', variable);
+          node[b.field] = paints;
+          bound++;
+        }
+      } else {
+        node.setBoundVariable(b.field, variable.id);
+        bound++;
+      }
+    } catch (e) {
+      errors.push('Bind error: ' + (e.message || e));
+    }
+  }
+
+  // Step 2: Set the explicit variable mode on the target frame
+  let modeSet = false;
+  if (${JSON.stringify(targetFrameId)} && ${JSON.stringify(collectionId)} && ${JSON.stringify(activeModeId)}) {
+    try {
+      const frame = await figma.getNodeByIdAsync(${JSON.stringify(targetFrameId)});
+      if (frame && 'setExplicitVariableModeForCollection' in frame) {
+        frame.setExplicitVariableModeForCollection(${JSON.stringify(collectionId)}, ${JSON.stringify(activeModeId)});
+        modeSet = true;
+      }
+    } catch (e) {
+      errors.push('Mode set error: ' + (e.message || e));
+    }
+  }
+
+  return { bound, total: bindings.length, modeSet, errors: errors.length > 0 ? errors : undefined };
+})();
+`.trim();
+}
+/**
+ * Build a script that resolves ALL modes for a collection and returns them,
+ * so callers can pick which mode ID to use for switching.
+ */
+function buildListModesScript(collectionId) {
+    return `
+(async () => {
+  const col = await figma.variables.getVariableCollectionByIdAsync(${JSON.stringify(collectionId)});
+  if (!col) return { error: 'Collection not found' };
+  return {
+    collectionId: col.id,
+    collectionName: col.name,
+    modes: col.modes.map(m => ({ modeId: m.modeId, name: m.name })),
+    variableCount: col.variableIds.length,
+  };
+})();
+`.trim();
+}
+/**
+ * Build a script that switches a frame (and all its children) to a different
+ * variable mode. This is the simplest "theme switch" operation.
+ */
+function buildModeSwitchScript(frameId, collectionId, modeId) {
+    return `
+(async () => {
+  const frame = await figma.getNodeByIdAsync(${JSON.stringify(frameId)});
+  if (!frame) return { error: 'Frame not found: ${frameId}' };
+  if (!('setExplicitVariableModeForCollection' in frame)) {
+    return { error: 'Node does not support explicit variable modes (must be a frame-like node)' };
+  }
+  frame.setExplicitVariableModeForCollection(${JSON.stringify(collectionId)}, ${JSON.stringify(modeId)});
+  return { success: true, frameId: frame.id, frameName: frame.name, collectionId: ${JSON.stringify(collectionId)}, modeId: ${JSON.stringify(modeId)} };
+})();
+`.trim();
 }
 //# sourceMappingURL=token-binder.js.map

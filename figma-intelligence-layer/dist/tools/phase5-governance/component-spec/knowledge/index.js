@@ -21,6 +21,43 @@ const chip_js_1 = require("./chip.js");
 const table_js_1 = require("./table.js");
 const navigation_js_1 = require("./navigation.js");
 const progress_js_1 = require("./progress.js");
+const icon_js_1 = require("./icon.js");
+const link_js_1 = require("./link.js");
+const menu_js_1 = require("./menu.js");
+const spinner_js_1 = require("./spinner.js");
+const breadcrumb_js_1 = require("./breadcrumb.js");
+const tag_js_1 = require("./tag.js");
+const navbar_js_1 = require("./navbar.js");
+const textarea_js_1 = require("./textarea.js");
+const search_js_1 = require("./search.js");
+const combobox_js_1 = require("./combobox.js");
+const datepicker_js_1 = require("./datepicker.js");
+const number_input_js_1 = require("./number-input.js");
+const form_js_1 = require("./form.js");
+const pagination_js_1 = require("./pagination.js");
+const list_js_1 = require("./list.js");
+const treeview_js_1 = require("./treeview.js");
+const typography_js_1 = require("./typography.js");
+const divider_js_1 = require("./divider.js");
+const skeleton_js_1 = require("./skeleton.js");
+const popover_js_1 = require("./popover.js");
+const dropdown_menu_js_1 = require("./dropdown-menu.js");
+const avatar_group_js_1 = require("./avatar-group.js");
+const grid_js_1 = require("./grid.js");
+const empty_state_js_1 = require("./empty-state.js");
+const banner_js_1 = require("./banner.js");
+const drawer_js_1 = require("./drawer.js");
+const segmented_control_js_1 = require("./segmented-control.js");
+const stepper_js_1 = require("./stepper.js");
+const file_uploader_js_1 = require("./file-uploader.js");
+const inline_message_js_1 = require("./inline-message.js");
+const toolbar_js_1 = require("./toolbar.js");
+const calendar_js_1 = require("./calendar.js");
+const time_picker_js_1 = require("./time-picker.js");
+const range_slider_js_1 = require("./range-slider.js");
+const inline_edit_js_1 = require("./inline-edit.js");
+const status_dot_js_1 = require("./status-dot.js");
+const rating_js_1 = require("./rating.js");
 const _default_js_1 = require("./_default.js");
 const KNOWLEDGE_MAP = {
     button: button_js_1.buttonKnowledge,
@@ -43,6 +80,43 @@ const KNOWLEDGE_MAP = {
     table: table_js_1.tableKnowledge,
     navigation: navigation_js_1.navigationKnowledge,
     progress: progress_js_1.progressKnowledge,
+    icon: icon_js_1.iconKnowledge,
+    link: link_js_1.linkKnowledge,
+    menu: menu_js_1.menuKnowledge,
+    spinner: spinner_js_1.spinnerKnowledge,
+    breadcrumb: breadcrumb_js_1.breadcrumbKnowledge,
+    tag: tag_js_1.tagKnowledge,
+    navbar: navbar_js_1.navbarKnowledge,
+    textarea: textarea_js_1.textareaKnowledge,
+    search: search_js_1.searchKnowledge,
+    combobox: combobox_js_1.comboboxKnowledge,
+    datepicker: datepicker_js_1.datepickerKnowledge,
+    numberinput: number_input_js_1.numberInputKnowledge,
+    form: form_js_1.formKnowledge,
+    pagination: pagination_js_1.paginationKnowledge,
+    list: list_js_1.listKnowledge,
+    treeview: treeview_js_1.treeviewKnowledge,
+    typography: typography_js_1.typographyKnowledge,
+    divider: divider_js_1.dividerKnowledge,
+    skeleton: skeleton_js_1.skeletonKnowledge,
+    popover: popover_js_1.popoverKnowledge,
+    dropdownmenu: dropdown_menu_js_1.dropdownMenuKnowledge,
+    avatargroup: avatar_group_js_1.avatarGroupKnowledge,
+    grid: grid_js_1.gridKnowledge,
+    emptystate: empty_state_js_1.emptyStateKnowledge,
+    banner: banner_js_1.bannerKnowledge,
+    drawer: drawer_js_1.drawerKnowledge,
+    segmentedcontrol: segmented_control_js_1.segmentedControlKnowledge,
+    stepper: stepper_js_1.stepperKnowledge,
+    fileuploader: file_uploader_js_1.fileUploaderKnowledge,
+    inlinemessage: inline_message_js_1.inlineMessageKnowledge,
+    toolbar: toolbar_js_1.toolbarKnowledge,
+    calendar: calendar_js_1.calendarKnowledge,
+    timepicker: time_picker_js_1.timePickerKnowledge,
+    rangeslider: range_slider_js_1.rangeSliderKnowledge,
+    inlineedit: inline_edit_js_1.inlineEditKnowledge,
+    statusdot: status_dot_js_1.statusDotKnowledge,
+    rating: rating_js_1.ratingKnowledge,
 };
 function getComponentKnowledge(type) {
     if (!type)

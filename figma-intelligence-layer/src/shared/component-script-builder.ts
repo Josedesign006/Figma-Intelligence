@@ -185,6 +185,20 @@ function buildNodeScript(
     lines.push(`${nv}.opacity = ${node.opacity};`);
   }
 
+  // Icon slot annotation
+  if (node.iconSlot) {
+    const slot = node.iconSlot;
+    const parts = [
+      slot.defaultIcon ? `icon: ${JSON.stringify(slot.defaultIcon)}` : null,
+      slot.size ? `size: ${JSON.stringify(slot.size)}` : null,
+      slot.decorative !== undefined ? `decorative: ${slot.decorative}` : null,
+      slot.colorToken ? `color: ${JSON.stringify(slot.colorToken)}` : null,
+      `required: ${slot.required}`,
+    ].filter(Boolean).join(", ");
+    lines.push(`// Icon slot: { ${parts} }`);
+    lines.push(`${nv}.setPluginData("iconSlot", ${JSON.stringify(JSON.stringify(slot))});`);
+  }
+
   // Text-specific
   if (node.kind === "text") {
     if (node.textPreset) {
