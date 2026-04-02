@@ -800,10 +800,41 @@ export class FigmaBridge {
     collectionId: string,
     resolvedType: string,
     valuesByMode?: Record<string, unknown>,
-    description?: string
+    description?: string,
+    scopes?: string[],
+    codeSyntax?: Record<string, string>
   ): Promise<Record<string, unknown>> {
     await this.ensureVariablesApi();
-    return this.send("createVariable", { name, collectionId, resolvedType, valuesByMode, description });
+    return this.send("createVariable", { name, collectionId, resolvedType, valuesByMode, description, scopes, codeSyntax });
+  }
+
+  /**
+   * Set variable scoping (which properties this variable can be applied to).
+   * Scopes: ALL_SCOPES, ALL_FILLS, FRAME_FILL, SHAPE_FILL, TEXT_FILL, STROKE_COLOR,
+   * EFFECT_COLOR, WIDTH_HEIGHT, GAP, CORNER_RADIUS, OPACITY, STROKE_FLOAT,
+   * EFFECT_FLOAT, FONT_SIZE, LINE_HEIGHT, LETTER_SPACING, PARAGRAPH_SPACING,
+   * PARAGRAPH_INDENT, FONT_WEIGHT, FONT_FAMILY, FONT_STYLE, TEXT_CONTENT
+   */
+  async setVariableScopes(variableId: string, scopes: string[]): Promise<Record<string, unknown>> {
+    await this.ensureVariablesApi();
+    return this.send("setVariableScopes", { variableId, scopes });
+  }
+
+  /**
+   * Set code syntax for a variable (platform-specific code identifiers).
+   * e.g. { WEB: "--color-brand-500", ANDROID: "colorBrand500", iOS: "Color.brand500" }
+   */
+  async setVariableCodeSyntax(variableId: string, codeSyntax: Record<string, string>): Promise<Record<string, unknown>> {
+    await this.ensureVariablesApi();
+    return this.send("setVariableCodeSyntax", { variableId, codeSyntax });
+  }
+
+  /**
+   * Set variable description.
+   */
+  async setVariableDescription(variableId: string, description: string): Promise<Record<string, unknown>> {
+    await this.ensureVariablesApi();
+    return this.send("setVariableDescription", { variableId, description });
   }
 
   async updateVariable(variableId: string, modeId: string, value: unknown): Promise<Record<string, unknown>> {
@@ -843,6 +874,8 @@ export class FigmaBridge {
       resolvedType: string;
       valuesByMode?: Record<string, unknown>;
       description?: string;
+      scopes?: string[];
+      codeSyntax?: Record<string, string>;
     }>
   ): Promise<Record<string, unknown>> {
     await this.ensureVariablesApi();

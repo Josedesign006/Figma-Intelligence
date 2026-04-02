@@ -3,6 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getDefaultTokenNamingRules = getDefaultTokenNamingRules;
 exports.analyzeTokenName = analyzeTokenName;
 exports.analyzeTokenNames = analyzeTokenNames;
+exports.detectCircularAliases = detectCircularAliases;
+exports.detectCrossModeGaps = detectCrossModeGaps;
+exports.findOrphanTokens = findOrphanTokens;
 const DEFAULT_RULES = {
     primitiveCategories: ["color", "space", "typography", "radius", "elevation", "border", "opacity", "motion", "z-index", "border-width", "icon-size", "breakpoint", "grid", "density"],
     semanticCategories: ["text", "surface", "icon", "action", "feedback", "field", "chart", "overlay", "stroke"],
@@ -163,5 +166,106 @@ function analyzeTokenName(name, rules = DEFAULT_RULES) {
 }
 function analyzeTokenNames(names, rules = DEFAULT_RULES) {
     return names.map((name) => analyzeTokenName(name, rules));
+}
+/**
+ * Detect circular references in token alias chains.
+ * Takes a map of variable ID → { name, aliasTarget (variable ID) }.
+ * Returns all cycles found via DFS.
+ */
+function detectCircularAliases(tokens) {
+    const cycles = [];
+    const visited = new Set();
+    const inStack = new Set();
+    function dfs(id, path) {
+        if (inStack.has(id)) {
+            // Found a cycle — extract it from the path
+            const node = tokens.get(id);
+            const cycleName = node?.name ?? id;
+            const cycleStart = path.indexOf(cycleName);
+            if (cycleStart >= 0) {
+                cycles.push(path.slice(cycleStart).concat(cycleName));
+            }
+            else {
+                cycles.push([...path, cycleName]);
+            }
+            return;
+        }
+        if (visited.has(id))
+            return;
+        const node = tokens.get(id);
+        if (!node)
+            return;
+        visited.add(id);
+        inStack.add(id);
+        if (node.aliasTarget && tokens.has(node.aliasTarget)) {
+            dfs(node.aliasTarget, [...path, node.name]);
+        }
+        inStack.delete(id);
+    }
+    for (const id of tokens.keys()) {
+        if (!visited.has(id)) {
+            dfs(id, []);
+        }
+    }
+    return { hasCircular: cycles.length > 0, cycles };
+}
+/**
+ * Check cross-mode consistency: find tokens that exist in some modes but not others.
+ * Takes raw Figma variable collections.
+ */
+function detectCrossModeGaps(collections) {
+    const issues = [];
+    for (const coll of collections) {
+        const allModeIds = coll.modes.map(m => m.modeId);
+        const modeNameMap = new Map(coll.modes.map(m => [m.modeId, m.name]));
+        for (const variable of coll.variables) {
+            const presentModeIds = Object.keys(variable.valuesByMode).filter(mid => variable.valuesByMode[mid] !== undefined && variable.valuesByMode[mid] !== null);
+            const missingModeIds = allModeIds.filter(mid => !presentModeIds.includes(mid));
+            if (missingModeIds.length > 0 && presentModeIds.length > 0) {
+                issues.push({
+                    tokenName: variable.name,
+                    collection: coll.name,
+                    presentModes: presentModeIds.map(mid => modeNameMap.get(mid) ?? mid),
+                    missingModes: missingModeIds.map(mid => modeNameMap.get(mid) ?? mid),
+                });
+            }
+        }
+    }
+    return issues;
+}
+/**
+ * Find orphan tokens — tokens that are neither bound to any node
+ * nor referenced as aliases by other tokens.
+ * Takes collections and a set of used variable IDs from the file.
+ */
+function findOrphanTokens(collections, usedVariableIds) {
+    // Build set of IDs that are alias targets
+    const aliasTargetIds = new Set();
+    for (const coll of collections) {
+        for (const v of coll.variables) {
+            for (const val of Object.values(v.valuesByMode)) {
+                if (val && typeof val === "object" && "type" in val) {
+                    const alias = val;
+                    if (alias.type === "VARIABLE_ALIAS" && alias.id) {
+                        aliasTargetIds.add(alias.id);
+                    }
+                }
+            }
+        }
+    }
+    const orphans = [];
+    for (const coll of collections) {
+        for (const v of coll.variables) {
+            if (!usedVariableIds.has(v.id) && !aliasTargetIds.has(v.id)) {
+                orphans.push({
+                    tokenName: v.name,
+                    collection: coll.name,
+                    type: v.resolvedType,
+                    isReferenced: false,
+                });
+            }
+        }
+    }
+    return orphans;
 }
 //# sourceMappingURL=token-naming.js.map

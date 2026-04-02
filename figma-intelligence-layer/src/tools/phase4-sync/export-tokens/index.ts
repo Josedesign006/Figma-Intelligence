@@ -3,7 +3,8 @@
 //
 // Reads all variables from the connected Figma file via the bridge and exports
 // them as CSS custom properties, SCSS, Tailwind config, Style Dictionary JSON,
-// DTCG (W3C Design Token Community Group) JSON, Swift, or Kotlin.
+// DTCG (W3C Design Token Community Group) JSON, Swift, Kotlin, Flutter, Android
+// XML, JS, TS, Less, React Native, Tailwind v4, CSS rem, or plain JSON.
 //
 // Falls back to the built-in semantic token catalog when no Figma connection
 // is available, so specs and code can still be generated offline.
@@ -12,11 +13,30 @@
 import { getBridge } from "../../../shared/figma-bridge.js";
 import { SEMANTIC_TOKEN_CATALOG, SemanticTokenEntry } from "../../../shared/semantic-token-catalog.js";
 import { figmaRgbaToHex } from "../../../shared/token-utils.js";
+import { formatCssColor } from "../../../shared/color-operations.js";
+import { pxToRem } from "../../../shared/token-math.js";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface ExportTokensArgs {
-  format: "css" | "scss" | "tailwind" | "style-dictionary" | "dtcg" | "swift" | "kotlin" | "json" | "all";
+  format:
+    | "css"
+    | "scss"
+    | "tailwind"
+    | "style-dictionary"
+    | "dtcg"
+    | "swift"
+    | "kotlin"
+    | "json"
+    | "flutter"
+    | "android-xml"
+    | "js"
+    | "ts"
+    | "less"
+    | "react-native"
+    | "tailwind-v4"
+    | "css-rem"
+    | "all";
   /** Filter by collection name (substring match, case-insensitive) */
   collectionFilter?: string;
   /** Filter by token type */
@@ -29,6 +49,12 @@ export interface ExportTokensArgs {
   cssSelector?: string;
   /** Tailwind: prefix for custom token keys (default "ds") */
   tailwindPrefix?: string;
+  /** Base font size for rem conversion (default 16) */
+  remBase?: number;
+  /** Include $deprecated field in DTCG output (default true) */
+  deprecated?: boolean;
+  /** Color space for DTCG output */
+  colorSpace?: "srgb" | "display-p3" | "oklch";
 }
 
 interface NormalizedToken {
@@ -63,6 +89,26 @@ function tokenNameToKotlinCase(name: string): string {
   return parts
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
     .join("");
+}
+
+function tokenNameToCamelCase(name: string): string {
+  const parts = name
+    .replace(/\//g, "-")
+    .replace(/\s+/g, "-")
+    .split("-")
+    .filter(Boolean);
+  return parts
+    .map((p, i) => (i === 0 ? p.toLowerCase() : p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()))
+    .join("");
+}
+
+function tokenNameToSnakeCase(name: string): string {
+  return name
+    .replace(/\//g, "_")
+    .replace(/\s+/g, "_")
+    .replace(/[^a-zA-Z0-9_]/g, "")
+    .replace(/([a-z])([A-Z])/g, "$1_$2")
+    .toLowerCase();
 }
 
 function tokenNameToDtcgPath(name: string): string[] {
@@ -103,6 +149,91 @@ function resolveValue(raw: unknown, type: string): string | number | boolean {
   }
 
   return String(raw);
+}
+
+// ─── DTCG composite type parsers ───────────────────────────────────────────
+
+function parseShadowString(val: string): Record<string, unknown> {
+  // Parse CSS shadow: "offsetX offsetY blur spread color" or "offsetX offsetY blur color"
+  const parts = val.trim().split(/\s+/);
+  if (parts.length >= 4) {
+    const color = parts.slice(3).join(" ") || parts[parts.length - 1];
+    return {
+      offsetX: { value: parseFloat(parts[0]) || 0, unit: "px" },
+      offsetY: { value: parseFloat(parts[1]) || 0, unit: "px" },
+      blur: { value: parseFloat(parts[2]) || 0, unit: "px" },
+      spread: { value: parts.length >= 5 ? parseFloat(parts[3]) || 0 : 0, unit: "px" },
+      color: parts.length >= 5 ? parts.slice(4).join(" ") || parts[4] : color,
+    };
+  }
+  return {
+    offsetX: { value: 0, unit: "px" },
+    offsetY: { value: 0, unit: "px" },
+    blur: { value: 0, unit: "px" },
+    spread: { value: 0, unit: "px" },
+    color: val,
+  };
+}
+
+function parseCubicBezierString(val: string): number[] {
+  // Parse "cubic-bezier(P1x, P1y, P2x, P2y)" or just "P1x, P1y, P2x, P2y"
+  const match = val.match(/cubic-bezier\(\s*([^)]+)\s*\)/i);
+  const inner = match ? match[1] : val;
+  const nums = inner.split(",").map((s) => parseFloat(s.trim()));
+  if (nums.length === 4 && nums.every((n) => !isNaN(n))) {
+    return nums;
+  }
+  return [0, 0, 1, 1]; // linear fallback
+}
+
+function parseTypographyString(val: string): Record<string, unknown> {
+  // Best-effort parse of typography composite strings
+  return {
+    fontFamily: val,
+    fontSize: { value: 16, unit: "px" },
+    fontWeight: 400,
+    letterSpacing: { value: 0, unit: "px" },
+    lineHeight: { value: 1.5, unit: "px" },
+  };
+}
+
+function parseBorderString(val: string): Record<string, unknown> {
+  // Parse "width style color" e.g. "1px solid #000"
+  const parts = val.trim().split(/\s+/);
+  return {
+    width: { value: parseFloat(parts[0]) || 1, unit: "px" },
+    style: parts[1] || "solid",
+    color: parts.slice(2).join(" ") || "#000000",
+  };
+}
+
+function parseGradientString(val: string): Array<Record<string, unknown>> {
+  // Best-effort gradient stop parse
+  const match = val.match(/linear-gradient\(\s*([^)]+)\s*\)/i);
+  if (!match) return [{ color: val, position: 0 }];
+  const inner = match[1];
+  const stopParts = inner.split(",").map((s) => s.trim());
+  const stops: Array<Record<string, unknown>> = [];
+  for (const part of stopParts) {
+    const m = part.match(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))\s*(\d+%)?/);
+    if (m) {
+      stops.push({
+        color: m[1],
+        position: m[2] ? parseFloat(m[2]) / 100 : stops.length === 0 ? 0 : 1,
+      });
+    }
+  }
+  return stops.length > 0 ? stops : [{ color: val, position: 0 }];
+}
+
+function parseTransitionString(val: string): Record<string, unknown> {
+  // Parse "duration delay timingFunction" e.g. "200ms 0ms ease-in-out"
+  const parts = val.trim().split(/\s+/);
+  return {
+    duration: { value: parseFloat(parts[0]) || 200, unit: "ms" },
+    delay: { value: parts.length > 1 ? parseFloat(parts[1]) || 0 : 0, unit: "ms" },
+    timingFunction: parts.length > 2 ? parseCubicBezierString(parts.slice(2).join(" ")) : [0, 0, 1, 1],
+  };
 }
 
 // ─── Figma variable fetcher ─────────────────────────────────────────────────
@@ -409,31 +540,148 @@ function generateStyleDictionary(tokens: NormalizedToken[], args: ExportTokensAr
   return JSON.stringify(result, null, 2);
 }
 
+// ─── DTCG v2025.10 compliant generator ─────────────────────────────────────
+
+function dtcgType(type: string, name: string): string {
+  if (type === "COLOR") return "color";
+
+  if (type === "FLOAT") {
+    if (name.includes("opacity") || name.includes("z-index")) return "number";
+    if (name.includes("font-weight") || name.includes("fontWeight")) return "fontWeight";
+    if (name.includes("duration")) return "duration";
+    // spacing, radius, border-width, font-size, letter-spacing, line-height, size, etc.
+    return "dimension";
+  }
+
+  if (type === "STRING") {
+    if (name.includes("easing") || name.includes("timing") || name.includes("cubic-bezier")) return "cubicBezier";
+    if (name.includes("shadow") || name.includes("elevation")) return "shadow";
+    if (name.includes("font-family") || name.includes("fontFamily")) return "fontFamily";
+    if (name.includes("typography")) return "typography";
+    if (name.includes("border") && !name.includes("border-width") && !name.includes("border-radius")) return "border";
+    if (name.includes("gradient")) return "gradient";
+    if (name.includes("transition")) return "transition";
+    return "string";
+  }
+
+  return "string";
+}
+
+function dtcgValue(
+  val: string | number | boolean,
+  type: string,
+  dtcgTypeName: string,
+): unknown {
+  switch (dtcgTypeName) {
+    case "color":
+      return typeof val === "string" ? val : String(val);
+
+    case "dimension":
+      return { value: typeof val === "number" ? val : parseFloat(String(val)) || 0, unit: "px" };
+
+    case "number":
+    case "fontWeight":
+      return typeof val === "number" ? val : parseFloat(String(val)) || 0;
+
+    case "duration":
+      return { value: typeof val === "number" ? val : parseFloat(String(val)) || 0, unit: "ms" };
+
+    case "cubicBezier":
+      return typeof val === "string" ? parseCubicBezierString(val) : [0, 0, 1, 1];
+
+    case "shadow":
+      return typeof val === "string" ? parseShadowString(val) : val;
+
+    case "fontFamily":
+      return typeof val === "string" ? val : String(val);
+
+    case "typography":
+      return typeof val === "string" ? parseTypographyString(val) : val;
+
+    case "border":
+      return typeof val === "string" ? parseBorderString(val) : val;
+
+    case "gradient":
+      return typeof val === "string" ? parseGradientString(val) : val;
+
+    case "transition":
+      return typeof val === "string" ? parseTransitionString(val) : val;
+
+    default:
+      return val;
+  }
+}
+
 function generateDTCG(tokens: NormalizedToken[], args: ExportTokensArgs): string {
+  const includeDeprecated = args.deprecated !== false; // default true
   const result: Record<string, unknown> = {};
+
+  // Group tokens by DTCG path prefix for $type inheritance
+  const groupTypes = new Map<string, Set<string>>();
 
   for (const token of tokens) {
     const path = tokenNameToDtcgPath(token.name);
     const val = Object.values(token.values)[0];
     if (val === undefined) continue;
 
+    const typeName = dtcgType(token.type, token.name);
+
+    // Track types per group for $type inheritance
+    if (path.length > 1) {
+      const groupKey = path.slice(0, -1).join("/");
+      if (!groupTypes.has(groupKey)) {
+        groupTypes.set(groupKey, new Set());
+      }
+      groupTypes.get(groupKey)!.add(typeName);
+    }
+
     const leaf: Record<string, unknown> = {
-      $value: formatRawValue(val, token.type),
-      $type: dtcgType(token.type, token.name),
+      $value: dtcgValue(val, token.type, typeName),
+      $type: typeName,
     };
 
     if (token.description) leaf.$description = token.description;
+
+    // $deprecated support
+    if (includeDeprecated && token.description?.toLowerCase().includes("deprecated")) {
+      leaf.$deprecated = true;
+    }
 
     // DTCG extensions for modes
     if (Object.keys(token.values).length > 1) {
       const extensions: Record<string, unknown> = {};
       for (const [mode, modeVal] of Object.entries(token.values)) {
-        extensions[mode.toLowerCase()] = formatRawValue(modeVal, token.type);
+        extensions[mode.toLowerCase()] = dtcgValue(modeVal, token.type, typeName);
       }
       leaf.$extensions = { "com.figma.modes": extensions };
     }
 
     setNestedValue(result, path, leaf);
+  }
+
+  // Apply $type inheritance: set $type on groups when all children share the same type,
+  // then remove $type from individual children
+  for (const [groupKey, types] of groupTypes.entries()) {
+    if (types.size === 1) {
+      const sharedType = [...types][0];
+      const groupPath = groupKey.split("/");
+      const group = getNestedValue(result, groupPath);
+      if (group && typeof group === "object" && group !== null) {
+        const groupObj = group as Record<string, unknown>;
+        // Set $type on the group
+        groupObj.$type = sharedType;
+        // Remove $type from children
+        for (const [childKey, childVal] of Object.entries(groupObj)) {
+          if (childKey.startsWith("$")) continue;
+          if (childVal && typeof childVal === "object" && childVal !== null) {
+            const child = childVal as Record<string, unknown>;
+            if (child.$type === sharedType) {
+              delete child.$type;
+            }
+          }
+        }
+      }
+    }
   }
 
   return JSON.stringify(result, null, 2);
@@ -612,6 +860,422 @@ function generateJSON(tokens: NormalizedToken[], _args: ExportTokensArgs): strin
   return JSON.stringify(output, null, 2);
 }
 
+// ─── New format generators ─────────────────────────────────────────────────
+
+function generateFlutter(tokens: NormalizedToken[], _args: ExportTokensArgs): string {
+  const colorTokens = tokens.filter((t) => t.type === "COLOR");
+  const floatTokens = tokens.filter((t) => t.type === "FLOAT");
+  const stringTokens = tokens.filter((t) => t.type === "STRING");
+
+  const lines: string[] = [
+    `// Design Tokens — Flutter/Dart`,
+    `// Generated by figma_export_tokens`,
+    `// ${tokens.length} tokens`,
+    ``,
+    `import 'package:flutter/material.dart';`,
+    ``,
+  ];
+
+  if (colorTokens.length > 0) {
+    lines.push(`class DSColors {`);
+    for (const token of colorTokens) {
+      const val = Object.values(token.values)[0];
+      if (val === undefined || typeof val !== "string") continue;
+      const name = tokenNameToCamelCase(token.name);
+      const hex = val.replace("#", "").toUpperCase();
+      const alpha = hex.length > 6 ? hex.slice(6, 8) : "FF";
+      const rgb = hex.slice(0, 6);
+      if (token.description) {
+        lines.push(`  /// ${token.description}`);
+      }
+      lines.push(`  static const ${name} = Color(0x${alpha}${rgb});`);
+    }
+    lines.push(`}`);
+    lines.push(``);
+  }
+
+  if (floatTokens.length > 0) {
+    lines.push(`class DSDimensions {`);
+    for (const token of floatTokens) {
+      const val = Object.values(token.values)[0];
+      if (val === undefined) continue;
+      const name = tokenNameToCamelCase(token.name);
+      const numVal = typeof val === "number" ? val : parseFloat(String(val)) || 0;
+      if (token.description) {
+        lines.push(`  /// ${token.description}`);
+      }
+      lines.push(`  static const ${name} = ${numVal.toFixed(1)};`);
+    }
+    lines.push(`}`);
+    lines.push(``);
+  }
+
+  if (stringTokens.length > 0) {
+    lines.push(`class DSStrings {`);
+    for (const token of stringTokens) {
+      const val = Object.values(token.values)[0];
+      if (val === undefined) continue;
+      const name = tokenNameToCamelCase(token.name);
+      lines.push(`  static const ${name} = '${String(val).replace(/'/g, "\\'")}';`);
+    }
+    lines.push(`}`);
+  }
+
+  return lines.join("\n");
+}
+
+function generateAndroidXml(tokens: NormalizedToken[], _args: ExportTokensArgs): string {
+  const lines: string[] = [
+    `<?xml version="1.0" encoding="utf-8"?>`,
+    `<!-- Design Tokens — Android Resources -->`,
+    `<!-- Generated by figma_export_tokens -->`,
+    `<!-- ${tokens.length} tokens -->`,
+    `<resources>`,
+  ];
+
+  for (const token of tokens) {
+    const val = Object.values(token.values)[0];
+    if (val === undefined) continue;
+
+    const xmlName = "ds_" + tokenNameToSnakeCase(token.name);
+
+    if (token.description) {
+      lines.push(`  <!-- ${token.description} -->`);
+    }
+
+    if (token.type === "COLOR" && typeof val === "string") {
+      // Android expects #AARRGGBB format
+      const hex = val.replace("#", "").toUpperCase();
+      const alpha = hex.length > 6 ? hex.slice(6, 8) : "FF";
+      const rgb = hex.slice(0, 6);
+      lines.push(`  <color name="${xmlName}">#${alpha}${rgb}</color>`);
+    } else if (token.type === "FLOAT") {
+      const numVal = typeof val === "number" ? val : parseFloat(String(val)) || 0;
+      if (token.name.includes("font-size") || token.name.includes("text")) {
+        lines.push(`  <dimen name="${xmlName}">${numVal}sp</dimen>`);
+      } else {
+        lines.push(`  <dimen name="${xmlName}">${numVal}dp</dimen>`);
+      }
+    } else if (token.type === "STRING") {
+      const escaped = String(val).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+      lines.push(`  <string name="${xmlName}">${escaped}</string>`);
+    } else if (token.type === "BOOLEAN") {
+      lines.push(`  <bool name="${xmlName}">${val}</bool>`);
+    }
+  }
+
+  lines.push(`</resources>`);
+  return lines.join("\n");
+}
+
+function generateJsModule(tokens: NormalizedToken[], _args: ExportTokensArgs): string {
+  const lines: string[] = [
+    `// Design Tokens — JavaScript ES Module`,
+    `// Generated by figma_export_tokens`,
+    `// ${tokens.length} tokens`,
+    ``,
+  ];
+
+  for (const token of tokens) {
+    const val = Object.values(token.values)[0];
+    if (val === undefined) continue;
+
+    const name = tokenNameToCamelCase(token.name);
+
+    if (token.description) {
+      lines.push(`/** ${token.description} */`);
+    }
+
+    if (typeof val === "string") {
+      lines.push(`export const ${name} = "${val.replace(/"/g, '\\"')}";`);
+    } else if (typeof val === "number") {
+      lines.push(`export const ${name} = ${val};`);
+    } else {
+      lines.push(`export const ${name} = ${JSON.stringify(val)};`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function generateTsModule(tokens: NormalizedToken[], _args: ExportTokensArgs): string {
+  const lines: string[] = [
+    `// Design Tokens — TypeScript Module`,
+    `// Generated by figma_export_tokens`,
+    `// ${tokens.length} tokens`,
+    ``,
+  ];
+
+  const tokenNames: string[] = [];
+  const colorNames: string[] = [];
+  const dimensionNames: string[] = [];
+
+  for (const token of tokens) {
+    const val = Object.values(token.values)[0];
+    if (val === undefined) continue;
+
+    const name = tokenNameToCamelCase(token.name);
+    tokenNames.push(name);
+
+    if (token.type === "COLOR") colorNames.push(name);
+    if (token.type === "FLOAT") dimensionNames.push(name);
+
+    if (token.description) {
+      lines.push(`/** ${token.description} */`);
+    }
+
+    if (typeof val === "string") {
+      lines.push(`export const ${name} = "${val.replace(/"/g, '\\"')}" as const;`);
+    } else if (typeof val === "number") {
+      lines.push(`export const ${name} = ${val} as const;`);
+    } else {
+      lines.push(`export const ${name} = ${JSON.stringify(val)} as const;`);
+    }
+  }
+
+  // Type declarations
+  lines.push(``);
+  if (tokenNames.length > 0) {
+    lines.push(`export type TokenName = ${tokenNames.map((n) => `"${n}"`).join(" | ")};`);
+  }
+  if (colorNames.length > 0) {
+    lines.push(`export type ColorToken = ${colorNames.map((n) => `typeof ${n}`).join(" | ")};`);
+  }
+  if (dimensionNames.length > 0) {
+    lines.push(`export type DimensionToken = ${dimensionNames.map((n) => `typeof ${n}`).join(" | ")};`);
+  }
+
+  return lines.join("\n");
+}
+
+function generateLess(tokens: NormalizedToken[], _args: ExportTokensArgs): string {
+  const modes = collectModes(tokens);
+  const lines: string[] = [
+    `// Design Tokens — Less Variables`,
+    `// Generated by figma_export_tokens`,
+    `// ${tokens.length} tokens`,
+    ``,
+  ];
+
+  for (const mode of modes) {
+    if (modes.length > 1) {
+      lines.push(`// ─── Mode: ${mode} ${"─".repeat(50)}`);
+    }
+
+    for (const token of tokens) {
+      const val = token.values[mode];
+      if (val === undefined) continue;
+
+      const lessName = "@" + token.cssName.replace(/^--/, "");
+      const suffix = modes.length > 1 && mode !== "Light" ? `-${mode.toLowerCase()}` : "";
+      const cssVal = formatCssValue(val, token.type);
+
+      if (token.description) {
+        lines.push(`// ${token.description}`);
+      }
+      lines.push(`${lessName}${suffix}: ${cssVal};`);
+    }
+    lines.push(``);
+  }
+
+  return lines.join("\n");
+}
+
+function generateReactNative(tokens: NormalizedToken[], _args: ExportTokensArgs): string {
+  const colorTokens = tokens.filter((t) => t.type === "COLOR");
+  const floatTokens = tokens.filter((t) => t.type === "FLOAT");
+
+  const lines: string[] = [
+    `// Design Tokens — React Native`,
+    `// Generated by figma_export_tokens`,
+    `// ${tokens.length} tokens`,
+    ``,
+    `import { StyleSheet } from 'react-native';`,
+    ``,
+  ];
+
+  // Colors object
+  if (colorTokens.length > 0) {
+    lines.push(`export const colors = {`);
+    for (const token of colorTokens) {
+      const val = Object.values(token.values)[0];
+      if (val === undefined || typeof val !== "string") continue;
+      const name = tokenNameToCamelCase(token.name);
+      lines.push(`  ${name}: '${val}',`);
+    }
+    lines.push(`};`);
+    lines.push(``);
+  }
+
+  // Categorize float tokens
+  const spacingTokens = floatTokens.filter((t) =>
+    t.name.includes("space") || t.name.includes("spacing") || t.name.includes("gap") || t.name.includes("padding") || t.name.includes("inset")
+  );
+  const radiusTokens = floatTokens.filter((t) => t.name.includes("radius"));
+  const fontSizeTokens = floatTokens.filter((t) => t.name.includes("font-size") || t.name.includes("text-"));
+  const otherFloats = floatTokens.filter((t) =>
+    !spacingTokens.includes(t) && !radiusTokens.includes(t) && !fontSizeTokens.includes(t)
+  );
+
+  if (spacingTokens.length > 0) {
+    lines.push(`export const spacing = {`);
+    for (const token of spacingTokens) {
+      const val = Object.values(token.values)[0];
+      if (val === undefined) continue;
+      const name = tokenNameToCamelCase(token.name);
+      lines.push(`  ${name}: ${typeof val === "number" ? val : parseFloat(String(val)) || 0},`);
+    }
+    lines.push(`};`);
+    lines.push(``);
+  }
+
+  if (radiusTokens.length > 0) {
+    lines.push(`export const borderRadius = {`);
+    for (const token of radiusTokens) {
+      const val = Object.values(token.values)[0];
+      if (val === undefined) continue;
+      const name = tokenNameToCamelCase(token.name);
+      lines.push(`  ${name}: ${typeof val === "number" ? val : parseFloat(String(val)) || 0},`);
+    }
+    lines.push(`};`);
+    lines.push(``);
+  }
+
+  if (fontSizeTokens.length > 0) {
+    lines.push(`export const fontSize = {`);
+    for (const token of fontSizeTokens) {
+      const val = Object.values(token.values)[0];
+      if (val === undefined) continue;
+      const name = tokenNameToCamelCase(token.name);
+      lines.push(`  ${name}: ${typeof val === "number" ? val : parseFloat(String(val)) || 0},`);
+    }
+    lines.push(`};`);
+    lines.push(``);
+  }
+
+  if (otherFloats.length > 0) {
+    lines.push(`export const dimensions = {`);
+    for (const token of otherFloats) {
+      const val = Object.values(token.values)[0];
+      if (val === undefined) continue;
+      const name = tokenNameToCamelCase(token.name);
+      lines.push(`  ${name}: ${typeof val === "number" ? val : parseFloat(String(val)) || 0},`);
+    }
+    lines.push(`};`);
+    lines.push(``);
+  }
+
+  return lines.join("\n");
+}
+
+function generateTailwindV4(tokens: NormalizedToken[], args: ExportTokensArgs): string {
+  const prefix = args.tailwindPrefix ?? "ds";
+
+  const lines: string[] = [
+    `/* Design Tokens — Tailwind CSS v4 @theme */`,
+    `/* Generated by figma_export_tokens */`,
+    `/* ${tokens.length} tokens */`,
+    ``,
+    `@theme {`,
+  ];
+
+  for (const token of tokens) {
+    const val = Object.values(token.values)[0];
+    if (val === undefined) continue;
+
+    const rawKey = token.name
+      .replace(/\//g, "-")
+      .replace(/\s+/g, "-")
+      .replace(/[^a-zA-Z0-9\-]/g, "")
+      .toLowerCase();
+
+    if (token.type === "COLOR") {
+      lines.push(`  --color-${prefix}-${rawKey}: ${typeof val === "string" ? val : String(val)};`);
+    } else if (token.name.includes("space") || token.name.includes("spacing") || token.name.includes("gap") || token.name.includes("padding") || token.name.includes("inset")) {
+      lines.push(`  --spacing-${prefix}-${rawKey}: ${typeof val === "number" ? `${val}px` : String(val)};`);
+    } else if (token.name.includes("radius")) {
+      lines.push(`  --radius-${prefix}-${rawKey}: ${typeof val === "number" ? `${val}px` : String(val)};`);
+    } else if (token.name.includes("font-size") || token.name.includes("text-")) {
+      lines.push(`  --font-size-${prefix}-${rawKey}: ${typeof val === "number" ? `${val}px` : String(val)};`);
+    } else if (token.name.includes("shadow") || token.name.includes("elevation")) {
+      lines.push(`  --shadow-${prefix}-${rawKey}: ${String(val)};`);
+    } else if (token.name.includes("duration")) {
+      lines.push(`  --duration-${prefix}-${rawKey}: ${typeof val === "number" ? `${val}ms` : String(val)};`);
+    } else if (token.name.includes("easing")) {
+      lines.push(`  --ease-${prefix}-${rawKey}: ${String(val)};`);
+    } else if (token.name.includes("border-width")) {
+      lines.push(`  --border-${prefix}-${rawKey}: ${typeof val === "number" ? `${val}px` : String(val)};`);
+    } else if (token.name.includes("z-index")) {
+      lines.push(`  --z-${prefix}-${rawKey}: ${String(val)};`);
+    } else if (token.name.includes("opacity")) {
+      lines.push(`  --opacity-${prefix}-${rawKey}: ${String(val)};`);
+    } else {
+      lines.push(`  --${prefix}-${rawKey}: ${typeof val === "number" ? `${val}px` : String(val)};`);
+    }
+  }
+
+  lines.push(`}`);
+  return lines.join("\n");
+}
+
+function generateCssRem(tokens: NormalizedToken[], args: ExportTokensArgs): string {
+  const selector = args.cssSelector ?? ":root";
+  const remBase = args.remBase ?? 16;
+  const modes = collectModes(tokens);
+  const lines: string[] = [
+    `/* Design Tokens — CSS Custom Properties (rem) */`,
+    `/* Generated by figma_export_tokens */`,
+    `/* Base font size: ${remBase}px */`,
+    `/* ${tokens.length} tokens across ${new Set(tokens.map((t) => t.collection)).size} collections */`,
+    ``,
+  ];
+
+  for (const mode of modes) {
+    const modeSelector = mode === "Light" || modes.length === 1
+      ? selector
+      : mode === "Dark"
+        ? `${selector === ":root" ? "[data-theme=\"dark\"]" : `${selector}[data-theme=\"dark\"]`}`
+        : `${selector === ":root" ? `[data-theme="${mode.toLowerCase()}"]` : `${selector}[data-theme="${mode.toLowerCase()}"]`}`;
+
+    const attrs = mode === "Dark" && selector === ":root"
+      ? `@media (prefers-color-scheme: dark) {\n  :root`
+      : modeSelector;
+
+    const isMediaWrapped = mode === "Dark" && selector === ":root";
+
+    lines.push(`${isMediaWrapped ? attrs : modeSelector} {`);
+
+    for (const token of tokens) {
+      const val = token.values[mode];
+      if (val === undefined) continue;
+
+      let cssVal: string;
+      if (token.type === "COLOR" && typeof val === "string") {
+        // Colors stay as-is
+        cssVal = val;
+      } else if (token.type === "FLOAT" && typeof val === "number") {
+        // Convert px to rem
+        cssVal = pxToRem(val, remBase);
+      } else {
+        cssVal = formatCssValue(val, token.type);
+      }
+
+      if (args.includeAliasChains && token.aliasOf) {
+        lines.push(`  /* alias: ${token.aliasOf} */`);
+      }
+      if (token.description) {
+        lines.push(`  /* ${token.description} */`);
+      }
+      lines.push(`  ${token.cssName}: ${cssVal};`);
+    }
+
+    lines.push(`${isMediaWrapped ? "  }\n}" : "}"}`);
+    lines.push(``);
+  }
+
+  return lines.join("\n");
+}
+
 // ─── Utility helpers ────────────────────────────────────────────────────────
 
 function collectModes(tokens: NormalizedToken[]): string[] {
@@ -653,25 +1317,6 @@ function sdType(type: string): string {
   }
 }
 
-function dtcgType(type: string, name: string): string {
-  if (type === "COLOR") return "color";
-  if (name.includes("spacing") || name.includes("space") || name.includes("gap") || name.includes("inset") || name.includes("padding")) return "dimension";
-  if (name.includes("radius")) return "dimension";
-  if (name.includes("border-width")) return "dimension";
-  if (name.includes("font-size") || name.includes("text-")) return "dimension";
-  if (name.includes("font-weight")) return "fontWeight";
-  if (name.includes("line-height")) return "number";
-  if (name.includes("letter-spacing")) return "dimension";
-  if (name.includes("opacity")) return "number";
-  if (name.includes("z-index")) return "number";
-  if (name.includes("duration")) return "duration";
-  if (name.includes("easing")) return "cubicBezier";
-  if (name.includes("shadow") || name.includes("elevation")) return "shadow";
-  if (type === "FLOAT") return "number";
-  if (type === "STRING") return "string";
-  return "string";
-}
-
 function setNestedValue(obj: Record<string, unknown>, path: string[], value: unknown): void {
   let current = obj;
   for (let i = 0; i < path.length - 1; i++) {
@@ -682,6 +1327,15 @@ function setNestedValue(obj: Record<string, unknown>, path: string[], value: unk
     current = current[key] as Record<string, unknown>;
   }
   current[path[path.length - 1]] = value;
+}
+
+function getNestedValue(obj: Record<string, unknown>, path: string[]): unknown {
+  let current: unknown = obj;
+  for (const key of path) {
+    if (current === null || current === undefined || typeof current !== "object") return undefined;
+    current = (current as Record<string, unknown>)[key];
+  }
+  return current;
 }
 
 // ─── Main handler ───────────────────────────────────────────────────────────
@@ -716,7 +1370,11 @@ export async function exportTokensHandler(args: ExportTokensArgs): Promise<unkno
   }
 
   const formats = args.format === "all"
-    ? ["css", "scss", "tailwind", "style-dictionary", "dtcg", "swift", "kotlin", "json"] as const
+    ? [
+        "css", "scss", "tailwind", "style-dictionary", "dtcg", "swift", "kotlin",
+        "json", "flutter", "android-xml", "js", "ts", "less", "react-native",
+        "tailwind-v4", "css-rem",
+      ] as const
     : [args.format] as const;
 
   const outputs: Record<string, string> = {};
@@ -747,6 +1405,30 @@ export async function exportTokensHandler(args: ExportTokensArgs): Promise<unkno
       case "json":
         outputs["tokens.json"] = generateJSON(tokens, args);
         break;
+      case "flutter":
+        outputs["design_tokens.dart"] = generateFlutter(tokens, args);
+        break;
+      case "android-xml":
+        outputs["tokens.xml"] = generateAndroidXml(tokens, args);
+        break;
+      case "js":
+        outputs["tokens.mjs"] = generateJsModule(tokens, args);
+        break;
+      case "ts":
+        outputs["tokens.ts"] = generateTsModule(tokens, args);
+        break;
+      case "less":
+        outputs["tokens.less"] = generateLess(tokens, args);
+        break;
+      case "react-native":
+        outputs["tokens.native.ts"] = generateReactNative(tokens, args);
+        break;
+      case "tailwind-v4":
+        outputs["tokens.tailwind-v4.css"] = generateTailwindV4(tokens, args);
+        break;
+      case "css-rem":
+        outputs["tokens.rem.css"] = generateCssRem(tokens, args);
+        break;
     }
   }
 
@@ -772,9 +1454,17 @@ export async function exportTokensHandler(args: ExportTokensArgs): Promise<unkno
       scss: "Import _tokens.scss in your main SCSS file: @use 'tokens';",
       tailwind: "Spread into tailwind.config.js: const dsTokens = require('./tokens.tailwind'); module.exports = { ...dsTokens, ... }",
       "style-dictionary": "Use as Style Dictionary source: https://amzn.github.io/style-dictionary/",
-      dtcg: "W3C Design Token Community Group format — compatible with Tokens Studio, Specify, and other tools.",
+      dtcg: "W3C Design Token Community Group v2025.10 format — compatible with Tokens Studio, Specify, and other tools. Supports composite types (shadow, typography, border, gradient, transition, cubicBezier) and $type inheritance.",
       swift: "Add DesignTokens.swift to your Xcode project. Requires Color+Hex extension.",
       kotlin: "Add DesignTokens.kt to your Compose project.",
+      flutter: "Add design_tokens.dart to your Flutter project. Uses Material Color class.",
+      "android-xml": "Add tokens.xml to res/values/. Colors use #AARRGGBB format, dimensions use dp/sp.",
+      js: "Import as ES module: import { colorPrimary, spacingSm } from './tokens.mjs';",
+      ts: "Import with full type safety: import { colorPrimary, type TokenName } from './tokens';",
+      less: "Import in your Less file: @import 'tokens.less';",
+      "react-native": "Import in your RN project: import { colors, spacing } from './tokens.native';",
+      "tailwind-v4": "Import in your Tailwind v4 CSS: @import './tokens.tailwind-v4.css'; Uses @theme directive.",
+      "css-rem": `CSS custom properties with rem units (base: ${args.remBase ?? 16}px). Colors remain as hex values.`,
     },
   };
 }

@@ -718,9 +718,35 @@ class FigmaBridge {
         await this.ensureVariablesApi();
         return this.send("createVariableCollection", { name, initialModeName });
     }
-    async createVariable(name, collectionId, resolvedType, valuesByMode, description) {
+    async createVariable(name, collectionId, resolvedType, valuesByMode, description, scopes, codeSyntax) {
         await this.ensureVariablesApi();
-        return this.send("createVariable", { name, collectionId, resolvedType, valuesByMode, description });
+        return this.send("createVariable", { name, collectionId, resolvedType, valuesByMode, description, scopes, codeSyntax });
+    }
+    /**
+     * Set variable scoping (which properties this variable can be applied to).
+     * Scopes: ALL_SCOPES, ALL_FILLS, FRAME_FILL, SHAPE_FILL, TEXT_FILL, STROKE_COLOR,
+     * EFFECT_COLOR, WIDTH_HEIGHT, GAP, CORNER_RADIUS, OPACITY, STROKE_FLOAT,
+     * EFFECT_FLOAT, FONT_SIZE, LINE_HEIGHT, LETTER_SPACING, PARAGRAPH_SPACING,
+     * PARAGRAPH_INDENT, FONT_WEIGHT, FONT_FAMILY, FONT_STYLE, TEXT_CONTENT
+     */
+    async setVariableScopes(variableId, scopes) {
+        await this.ensureVariablesApi();
+        return this.send("setVariableScopes", { variableId, scopes });
+    }
+    /**
+     * Set code syntax for a variable (platform-specific code identifiers).
+     * e.g. { WEB: "--color-brand-500", ANDROID: "colorBrand500", iOS: "Color.brand500" }
+     */
+    async setVariableCodeSyntax(variableId, codeSyntax) {
+        await this.ensureVariablesApi();
+        return this.send("setVariableCodeSyntax", { variableId, codeSyntax });
+    }
+    /**
+     * Set variable description.
+     */
+    async setVariableDescription(variableId, description) {
+        await this.ensureVariablesApi();
+        return this.send("setVariableDescription", { variableId, description });
     }
     async updateVariable(variableId, modeId, value) {
         await this.ensureVariablesApi();

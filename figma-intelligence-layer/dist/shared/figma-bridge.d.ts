@@ -70,7 +70,24 @@ export declare class FigmaBridge {
     getCapabilities(force?: boolean): Promise<Record<string, unknown>>;
     private ensureVariablesApi;
     createVariableCollection(name: string, initialModeName?: string): Promise<Record<string, unknown>>;
-    createVariable(name: string, collectionId: string, resolvedType: string, valuesByMode?: Record<string, unknown>, description?: string): Promise<Record<string, unknown>>;
+    createVariable(name: string, collectionId: string, resolvedType: string, valuesByMode?: Record<string, unknown>, description?: string, scopes?: string[], codeSyntax?: Record<string, string>): Promise<Record<string, unknown>>;
+    /**
+     * Set variable scoping (which properties this variable can be applied to).
+     * Scopes: ALL_SCOPES, ALL_FILLS, FRAME_FILL, SHAPE_FILL, TEXT_FILL, STROKE_COLOR,
+     * EFFECT_COLOR, WIDTH_HEIGHT, GAP, CORNER_RADIUS, OPACITY, STROKE_FLOAT,
+     * EFFECT_FLOAT, FONT_SIZE, LINE_HEIGHT, LETTER_SPACING, PARAGRAPH_SPACING,
+     * PARAGRAPH_INDENT, FONT_WEIGHT, FONT_FAMILY, FONT_STYLE, TEXT_CONTENT
+     */
+    setVariableScopes(variableId: string, scopes: string[]): Promise<Record<string, unknown>>;
+    /**
+     * Set code syntax for a variable (platform-specific code identifiers).
+     * e.g. { WEB: "--color-brand-500", ANDROID: "colorBrand500", iOS: "Color.brand500" }
+     */
+    setVariableCodeSyntax(variableId: string, codeSyntax: Record<string, string>): Promise<Record<string, unknown>>;
+    /**
+     * Set variable description.
+     */
+    setVariableDescription(variableId: string, description: string): Promise<Record<string, unknown>>;
     updateVariable(variableId: string, modeId: string, value: unknown): Promise<Record<string, unknown>>;
     deleteVariable(variableId: string): Promise<Record<string, unknown>>;
     renameVariable(variableId: string, newName: string): Promise<Record<string, unknown>>;
@@ -83,6 +100,8 @@ export declare class FigmaBridge {
         resolvedType: string;
         valuesByMode?: Record<string, unknown>;
         description?: string;
+        scopes?: string[];
+        codeSyntax?: Record<string, string>;
     }>): Promise<Record<string, unknown>>;
     batchUpdateVariables(updates: Array<{
         variableId: string;

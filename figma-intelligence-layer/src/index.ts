@@ -72,6 +72,9 @@ import { figmaApgDocHandler } from "./tools/phase5-governance/apg-doc/index.js";
 import { dsPrimitivesHandler } from "./tools/phase5-governance/ds-primitives/index.js";
 import { tokenNamingHandler } from "./tools/phase5-governance/token-naming/index.js";
 import { tokenMigrateHandler } from "./tools/phase5-governance/token-migrate/index.js";
+import { tokenAnalyticsHandler } from "./tools/phase5-governance/token-analytics/index.js";
+import { tokenDocsHandler } from "./tools/phase5-governance/token-docs/index.js";
+import { validateDtcg } from "./shared/dtcg-validator.js";
 // component-doc removed — replaced by component-spec
 
 // ─── Bridge (for direct execute) ────────────────────────────────────────────
@@ -596,13 +599,13 @@ const TOOLS: Tool[] = [
   {
     name: "figma_export_tokens",
     description:
-      "Export Figma design variables/tokens to code-ready formats: CSS custom properties, SCSS, Tailwind config, Style Dictionary JSON, W3C DTCG JSON, Swift, Kotlin, or raw JSON. Reads live variables from the connected Figma file. Supports mode filtering (Light/Dark), collection filtering, alias chain comments, and multi-format export in a single call. Falls back to the built-in semantic token catalog when offline.",
+      "Export Figma design variables/tokens to 16 code-ready formats: CSS, CSS (rem), SCSS, Less, Tailwind v3, Tailwind v4, Style Dictionary, W3C DTCG v2025.10 (full compliance with composite types, $deprecated, $type inheritance), JavaScript ES module, TypeScript module, Swift, Kotlin, Flutter/Dart, Android XML, React Native, or raw JSON. Supports mode filtering, collection filtering, alias chains, color spaces (sRGB, Display P3, Oklch), and multi-format export in a single call.",
     inputSchema: {
       type: "object",
       properties: {
         format: {
           type: "string",
-          enum: ["css", "scss", "tailwind", "style-dictionary", "dtcg", "swift", "kotlin", "json", "all"],
+          enum: ["css", "css-rem", "scss", "less", "tailwind", "tailwind-v4", "style-dictionary", "dtcg", "js", "ts", "swift", "kotlin", "flutter", "android-xml", "react-native", "json", "all"],
           description: "Output format. Use 'all' to generate every format at once.",
         },
         collectionFilter: { type: "string", description: "Filter by collection name (substring match)" },
@@ -615,6 +618,9 @@ const TOOLS: Tool[] = [
         includeAliasChains: { type: "boolean", description: "Add comments showing semantic → primitive → raw value chains" },
         cssSelector: { type: "string", description: "CSS selector for custom properties (default ':root')" },
         tailwindPrefix: { type: "string", description: "Tailwind namespace prefix (default 'ds')" },
+        remBase: { type: "number", description: "Base font size for rem conversion (default 16)" },
+        colorSpace: { type: "string", enum: ["srgb", "display-p3", "oklch"], description: "Color space for DTCG output (default srgb)" },
+        deprecated: { type: "boolean", description: "Include $deprecated field in DTCG output (default true)" },
       },
       required: ["format"],
     },
@@ -956,6 +962,136 @@ const TOOLS: Tool[] = [
         dryRun: { type: "boolean", description: "Preview apply output without writing changes." },
       },
       required: ["action"],
+    },
+  },
+
+  // ── Token Intelligence (New) ──────────────────────────────────────────
+  {
+    name: "figma_token_analytics",
+    description:
+      "Comprehensive design token usage analytics: usage counts per token, orphan/unused token detection, category coverage analysis, and adoption rate (% of nodes using tokens vs hardcoded values). Answers: which tokens are used, which are orphans, what's the token adoption rate?",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["usage", "orphans", "coverage", "adoption", "full-report"],
+          description: "Analysis type. 'full-report' runs all analyses.",
+        },
+        collectionFilter: { type: "string", description: "Filter by collection name" },
+        pageFilter: { type: "string", description: "Filter to a specific page" },
+        includeHidden: { type: "boolean", description: "Include hidden nodes in analysis (default false)" },
+      },
+      required: ["action"],
+    },
+  },
+  {
+    name: "figma_token_docs",
+    description:
+      "Generate living token documentation: visual token catalog with color swatches, spacing visualizers, typography specimens, shadow previews. Outputs as Figma page, Markdown, JSON, or self-contained HTML with search/filter and dark mode toggle.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        outputFormat: {
+          type: "string",
+          enum: ["figma", "markdown", "json", "html"],
+          description: "Documentation output format.",
+        },
+        categories: {
+          type: "array",
+          items: { type: "string" },
+          description: "Filter to specific categories (e.g. ['colors', 'spacing'])",
+        },
+        collectionFilter: { type: "string", description: "Filter by collection name" },
+        includeVisualSwatches: { type: "boolean", description: "Render color swatches in Figma output (default true)" },
+        includeUsageExamples: { type: "boolean", description: "Add CSS/code usage examples" },
+        includeAliasChains: { type: "boolean", description: "Show alias resolution chains" },
+        pageName: { type: "string", description: "Figma page name (default 'Token Documentation')" },
+      },
+      required: ["outputFormat"],
+    },
+  },
+  {
+    name: "figma_validate_dtcg",
+    description:
+      "Validate design token JSON against the W3C DTCG v2025.10 specification. Checks: $type correctness, $value structure per type (composite types, color spaces, dimensions), alias resolution, circular reference detection, $deprecated usage, and $type inheritance. Returns validation issues and statistics.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tokens: {
+          type: "object",
+          description: "DTCG token JSON object to validate. Can also pass a string to be parsed.",
+        },
+        strict: { type: "boolean", description: "Strict mode: treat warnings as errors (default false)" },
+      },
+      required: ["tokens"],
+    },
+  },
+  {
+    name: "figma_token_math",
+    description:
+      "Token math and scale generation: evaluate expressions ({spacing.base} * 2), generate modular type scales (major-third, golden-ratio, etc.), create spacing scales, generate responsive clamp() tokens, convert px to rem. Powers computed/derived token relationships.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["evaluate", "modular-scale", "spacing-scale", "clamp", "px-to-rem"],
+          description: "Operation to perform.",
+        },
+        expression: { type: "string", description: "Math expression with token refs: '{spacing.base} * 2'" },
+        scaleOptions: {
+          type: "object",
+          properties: {
+            base: { type: "number", description: "Base size (default 16)" },
+            ratio: { type: "string", description: "Named ratio or number: 'major-third', 1.25" },
+            steps: { type: "number", description: "Steps above base (default 6)" },
+            stepsBelow: { type: "number", description: "Steps below base (default 2)" },
+          },
+        },
+        spacingOptions: {
+          type: "object",
+          properties: {
+            base: { type: "number", description: "Base unit (default 4)" },
+            steps: { type: "array", items: { type: "number" }, description: "Multipliers (default [0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16])" },
+          },
+        },
+        clampOptions: {
+          type: "object",
+          properties: {
+            minValue: { type: "number" },
+            maxValue: { type: "number" },
+            minViewport: { type: "number", description: "Default 320" },
+            maxViewport: { type: "number", description: "Default 1440" },
+            unit: { type: "string", enum: ["px", "rem"] },
+          },
+        },
+        value: { type: "number", description: "Value for px-to-rem conversion" },
+        remBase: { type: "number", description: "Base font size for rem (default 16)" },
+      },
+      required: ["action"],
+    },
+  },
+  {
+    name: "figma_color_operations",
+    description:
+      "Color manipulation for design tokens: lighten, darken, mix, alpha, hue shift, saturate, desaturate, complement, invert. Also generates tint/shade scales (50-950), checks WCAG contrast, and suggests accessible color alternatives. Supports sRGB, Display P3, and Oklch color spaces.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["lighten", "darken", "mix", "alpha", "hue-shift", "saturate", "desaturate", "complement", "invert", "contrast-check", "suggest-accessible", "generate-scale", "tints", "shades", "format"],
+          description: "Color operation to perform.",
+        },
+        color: { type: "string", description: "Hex color (#RRGGBB or #RRGGBBAA)" },
+        color2: { type: "string", description: "Second color for mix/contrast operations" },
+        amount: { type: "number", description: "Operation amount (0-1 for lighten/darken/alpha, degrees for hue-shift)" },
+        steps: { type: "number", description: "Number of steps for scale generation (default 11)" },
+        targetRatio: { type: "number", description: "Target contrast ratio for suggest-accessible (default 4.5)" },
+        colorSpace: { type: "string", enum: ["srgb", "display-p3", "oklch"], description: "Output color space for format action" },
+      },
+      required: ["action", "color"],
     },
   },
 
@@ -1614,6 +1750,78 @@ async function dispatch(name: string, args: AnyArgs): Promise<unknown> {
     case "figma_design_system_variables": return dsVariablesHandler(args as never);
     case "figma_token_naming_convention": return tokenNamingHandler(args as never);
     case "figma_token_migrate":        return tokenMigrateHandler(args as never);
+    case "figma_token_analytics":      return tokenAnalyticsHandler(args as never);
+    case "figma_token_docs":           return tokenDocsHandler(args as never);
+    case "figma_validate_dtcg": {
+      const dtcgArgs = args as { tokens: Record<string, unknown>; strict?: boolean };
+      const result = validateDtcg(dtcgArgs.tokens);
+      if (dtcgArgs.strict) {
+        result.valid = result.issues.every(i => i.severity !== "error" && i.severity !== "warning");
+      }
+      return result;
+    }
+    case "figma_token_math": {
+      const { evaluateExpression, generateModularScale, generateSpacingScale, generateClamp, pxToRem, SCALE_RATIOS } = await import("./shared/token-math.js");
+      const mathArgs = args as { action: string; expression?: string; scaleOptions?: Record<string, unknown>; spacingOptions?: Record<string, unknown>; clampOptions?: Record<string, unknown>; value?: number; remBase?: number };
+      switch (mathArgs.action) {
+        case "evaluate": {
+          if (!mathArgs.expression) throw new Error("expression is required");
+          const bridge = await getBridge();
+          const rawVars = (await bridge.getVariables(undefined, "full")) as unknown as { collections: Array<{ variables: Array<{ name: string; resolvedType: string; valuesByMode: Record<string, unknown> }> }> };
+          const tokenMap = new Map<string, number>();
+          for (const coll of rawVars?.collections ?? []) {
+            for (const v of coll.variables) {
+              if (v.resolvedType === "FLOAT") {
+                const val = Object.values(v.valuesByMode)[0];
+                if (typeof val === "number") tokenMap.set(v.name.replace(/\//g, "."), val);
+              }
+            }
+          }
+          const resolver = (path: string) => tokenMap.get(path);
+          return { expression: mathArgs.expression, result: evaluateExpression(mathArgs.expression, resolver) };
+        }
+        case "modular-scale": {
+          const opts = mathArgs.scaleOptions ?? {};
+          const ratioStr = String(opts.ratio ?? "major-third");
+          const ratio = SCALE_RATIOS[ratioStr] ?? (parseFloat(ratioStr) || 1.25);
+          return generateModularScale({ base: Number(opts.base) || 16, ratio, steps: Number(opts.steps) || 6, stepsBelow: Number(opts.stepsBelow) || 2 });
+        }
+        case "spacing-scale": {
+          const opts = mathArgs.spacingOptions ?? {};
+          return generateSpacingScale({ base: Number(opts.base) || 4, steps: (opts.steps as number[]) ?? [0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16] });
+        }
+        case "clamp": {
+          const opts = mathArgs.clampOptions ?? {} as Record<string, unknown>;
+          return { clamp: generateClamp({ minValue: Number(opts.minValue) || 16, maxValue: Number(opts.maxValue) || 24, minViewport: Number(opts.minViewport) || 320, maxViewport: Number(opts.maxViewport) || 1440, unit: (opts.unit as "px" | "rem") ?? "rem" }) };
+        }
+        case "px-to-rem":
+          return { px: mathArgs.value, rem: pxToRem(mathArgs.value ?? 16, mathArgs.remBase) };
+        default:
+          throw new Error(`Unknown token_math action: ${mathArgs.action}`);
+      }
+    }
+    case "figma_color_operations": {
+      const colorOps = await import("./shared/color-operations.js");
+      const colorArgs = args as { action: string; color: string; color2?: string; amount?: number; steps?: number; targetRatio?: number; colorSpace?: "srgb" | "display-p3" | "oklch" };
+      switch (colorArgs.action) {
+        case "lighten":       return { result: colorOps.lighten(colorArgs.color, colorArgs.amount ?? 0.1) };
+        case "darken":        return { result: colorOps.darken(colorArgs.color, colorArgs.amount ?? 0.1) };
+        case "mix":           return { result: colorOps.mix(colorArgs.color, colorArgs.color2 ?? "#FFFFFF", colorArgs.amount ?? 0.5) };
+        case "alpha":         return { result: colorOps.setAlpha(colorArgs.color, colorArgs.amount ?? 0.5) };
+        case "hue-shift":     return { result: colorOps.adjustHue(colorArgs.color, colorArgs.amount ?? 30) };
+        case "saturate":      return { result: colorOps.saturate(colorArgs.color, colorArgs.amount ?? 0.1) };
+        case "desaturate":    return { result: colorOps.desaturate(colorArgs.color, colorArgs.amount ?? 0.1) };
+        case "complement":    return { result: colorOps.complement(colorArgs.color) };
+        case "invert":        return { result: colorOps.invert(colorArgs.color) };
+        case "contrast-check": return { ratio: colorOps.contrastRatio(colorArgs.color, colorArgs.color2 ?? "#FFFFFF"), meetsAA: colorOps.meetsWcagAA(colorArgs.color, colorArgs.color2 ?? "#FFFFFF"), meetsAAA: colorOps.meetsWcagAAA(colorArgs.color, colorArgs.color2 ?? "#FFFFFF") };
+        case "suggest-accessible": return { result: colorOps.suggestAccessibleColor(colorArgs.color, colorArgs.color2 ?? "#000000", colorArgs.targetRatio ?? 4.5) };
+        case "generate-scale": return { scale: colorOps.generateTintShadeScale(colorArgs.color, colorArgs.steps ?? 11) };
+        case "tints":         return { tints: colorOps.generateTints(colorArgs.color, colorArgs.steps ?? 10) };
+        case "shades":        return { shades: colorOps.generateShades(colorArgs.color, colorArgs.steps ?? 10) };
+        case "format":        return { formatted: colorOps.formatCssColor(colorArgs.color, colorArgs.colorSpace ?? "srgb") };
+        default: throw new Error(`Unknown color_operations action: ${colorArgs.action}`);
+      }
+    }
     case "figma_decision_log":         return decisionLogToolHandler(args as never);
     case "figma_design_decision_log":  return designDecisionLogHandler(args as never);
     case "figma_health_report":        return healthReportHandler(args as never);
