@@ -34,9 +34,10 @@ const GEMINI_AUTH_CANDIDATES = [
 // Map plugin model tier names to Gemini model IDs
 const MODEL_MAP = {
   opus:                 "gemini-2.5-pro",
-  sonnet:               "gemini-2.0-flash",
+  sonnet:               "gemini-2.5-flash",
   haiku:                "gemini-1.5-flash-8b",
   "gemini-2.5-pro":     "gemini-2.5-pro",
+  "gemini-2.5-flash":   "gemini-2.5-flash",
   "gemini-2.0-flash":   "gemini-2.0-flash",
   "gemini-1.5-flash-8b":"gemini-1.5-flash-8b",
 };
@@ -197,11 +198,14 @@ function runGeminiCli({ message, attachments, conversation, requestId, model, de
   const skills = detectActiveSkills(userText);
   const systemPrompt = sessionMode === "code" ? basePrompt + buildSkillAddendum(skills) : basePrompt;
   const fullMessage = `${systemPrompt}\n\n---\n\n${userText}${extraText}`;
-  const geminiModel = MODEL_MAP[model] || "gemini-2.0-flash";
+  const geminiModel = MODEL_MAP[model] || "gemini-2.5-flash";
 
+  // In chat mode, skip MCP server loading for faster startup (~10s saved)
+  const isChatOnly = sessionMode === "chat";
   const args = [
     "--model", geminiModel,
     "--yolo",
+    ...(isChatOnly ? ["--sandbox", "--allowed-mcp-server-names", ""] : []),
     "-p", fullMessage,
   ];
 
@@ -213,24 +217,54 @@ function runGeminiCli({ message, attachments, conversation, requestId, model, de
 
   let fullText = "";
   let stderrOutput = "";
+  let lastActivity = Date.now();
+  let killed = false;
+  const TIMEOUT_MS = 45_000;
+
+  const timeoutCheck = setInterval(() => {
+    if (Date.now() - lastActivity > TIMEOUT_MS) {
+      clearInterval(timeoutCheck);
+      killed = true;
+      try { proc.kill("SIGTERM"); } catch {}
+      onEvent({ type: "error", id: requestId, error: "Gemini CLI timed out (45s with no response). Your authentication may have expired — run 'gemini auth login' to re-authenticate." });
+      onEvent({ type: "done", id: requestId, fullText: "" });
+    }
+  }, 5_000);
 
   proc.stdout.on("data", (chunk) => {
+    lastActivity = Date.now();
     const text = chunk.toString();
     fullText += text;
     onEvent({ type: "text_delta", id: requestId, delta: text });
   });
 
   proc.stderr.on("data", (chunk) => {
+    lastActivity = Date.now();
     const text = chunk.toString().trim();
     if (text) {
       stderrOutput += text + "\n";
       console.error("[gemini-cli chat]", text);
+
+      // Detect fatal errors from Gemini API and fail fast instead of retrying
+      if (!killed && /MODEL_CAPACITY_EXHAUSTED|exhausted your capacity|ModelNotFoundError|Requested entity was not found/i.test(text)) {
+        killed = true;
+        clearInterval(timeoutCheck);
+        try { proc.kill("SIGTERM"); } catch {}
+        const isCapacity = /capacity/i.test(text);
+        const errMsg = isCapacity
+          ? `Gemini model "${geminiModel}" is at capacity. Try switching to a different model (e.g. Gemini 2.5 Flash or Gemini 2.0 Flash).`
+          : `Gemini model "${geminiModel}" is not available. Try switching to Gemini 2.5 Flash.`;
+        onEvent({ type: "error", id: requestId, error: errMsg });
+        onEvent({ type: "done", id: requestId, fullText: "" });
+      }
     }
   });
 
   proc.on("close", (code) => {
+    clearInterval(timeoutCheck);
+    if (killed) return; // Already reported error
     if (code !== 0 && code !== null && fullText === "") {
-      const detail = stderrOutput.trim() || `exit code ${code}`;
+      const detail = stderrOutput.trim().split("\n").pop() || `exit code ${code}`;
       onEvent({
         type: "error",
         id: requestId,
@@ -241,6 +275,8 @@ function runGeminiCli({ message, attachments, conversation, requestId, model, de
   });
 
   proc.on("error", (err) => {
+    clearInterval(timeoutCheck);
+    if (killed) return;
     onEvent({
       type: "error",
       id: requestId,

@@ -35,6 +35,13 @@
     "ts-node": "^10.9.0",
     "typescript": "^5.3.0"
   },
+  "author": "Figma Intelligence Contributors",
+  "license": "CC-BY-NC-ND-4.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Josedesign006/figma-intelligence.git",
+    "directory": "figma-intelligence-layer"
+  },
   "bin": {
     "figma-intelligence-layer": "dist/index.js"
   }

@@ -10,11 +10,28 @@ const { buildSystemPrompt, buildChatPrompt, buildSkillAddendum, detectActiveSkil
 
 // Map the plugin's Opus/Sonnet/Haiku tier names to Gemini model IDs
 const MODEL_MAP = {
-  opus:   "gemini-2.0-flash",
-  sonnet: "gemini-2.0-flash",
-  haiku:  "gemini-1.5-flash-8b",
-  "gemini-2.0-flash": "gemini-2.0-flash",
+  opus:                  "gemini-2.5-pro",
+  sonnet:                "gemini-2.0-flash",
+  haiku:                 "gemini-1.5-flash-8b",
+  "gemini-2.5-pro":      "gemini-2.5-pro",
+  "gemini-2.5-flash":    "gemini-2.5-flash",
+  "gemini-2.0-flash":    "gemini-2.0-flash",
   "gemini-1.5-flash-8b": "gemini-1.5-flash-8b",
+};
+
+// Model-aware output token limits
+const MAX_TOKENS = {
+  "gemini-2.5-pro":      65536,
+  "gemini-2.5-flash":    65536,
+  "gemini-2.0-flash":    8192,
+  "gemini-1.5-flash-8b": 8192,
+};
+
+// Temperature per mode
+const TEMPERATURE = {
+  code: 0.2,
+  chat: 0.7,
+  dual: 0.3,
 };
 
 function formatConversationHistory(conversation) {
@@ -31,6 +48,14 @@ function formatConversationHistory(conversation) {
  */
 function runGemini({ message, attachments, conversation, requestId, apiKey, model, designSystemId, mode, onEvent }) {
   const emitter = new EventEmitter();
+
+  // Fail fast if no API key
+  if (!apiKey) {
+    onEvent({ type: "error", id: requestId, error: "No Gemini API key configured. Go to Settings and enter your Google AI Studio API key, or install the Gemini CLI (npm install -g @google/gemini-cli) and run 'gemini auth login'." });
+    onEvent({ type: "done", id: requestId, fullText: "" });
+    emitter.kill = () => {};
+    return emitter;
+  }
 
   // Process text attachments inline
   let extraText = "";
@@ -54,7 +79,10 @@ function runGemini({ message, attachments, conversation, requestId, apiKey, mode
   const bodyObj = {
     system_instruction: { parts: [{ text: (() => { const sm = (mode || "code"); const base = sm === "chat" ? buildChatPrompt() : buildSystemPrompt(designSystemId); return sm === "code" ? base + buildSkillAddendum(detectActiveSkills(userText)) : base; })() }] },
     contents: [{ role: "user", parts: [{ text: fullMessage }] }],
-    generationConfig: { maxOutputTokens: 4096 },
+    generationConfig: {
+      maxOutputTokens: MAX_TOKENS[geminiModel] || 8192,
+      temperature: TEMPERATURE[mode || "code"] || 0.4,
+    },
   };
   const body = JSON.stringify(bodyObj);
 

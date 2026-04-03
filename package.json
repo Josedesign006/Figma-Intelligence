@@ -1,7 +1,17 @@
 {
   "name": "figma-intelligence-mcp",
   "version": "1.0.0",
-  "description": "One-command setup to connect Claude or OpenAI Codex to Figma Desktop via the Figma Intelligence Layer MCP server.",
+  "private": true,
+  "description": "One-command setup to connect Claude, OpenAI Codex, or Google Gemini CLI to Figma Desktop via the Figma Intelligence Layer MCP server.",
+  "author": "Figma Intelligence Contributors",
+  "license": "CC-BY-NC-ND-4.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Josedesign006/figma-intelligence.git"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "setup": "bash setup.sh",
     "start": "node figma-bridge-plugin/bridge-relay.js",
@@ -10,6 +20,5 @@
     "register:codex-mcp": "node scripts/register-codex-mcp.js",
     "connect": "node scripts/connect-ai-tool.js"
   },
-  "keywords": ["figma", "mcp", "claude", "openai", "codex", "ai", "design"],
-  "license": "ISC"
+  "keywords": ["figma", "mcp", "claude", "openai", "codex", "gemini", "ai", "design", "design-system"]
 }

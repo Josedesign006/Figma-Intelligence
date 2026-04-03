@@ -1,38 +1,45 @@
-.DS_Store
+# OS metadata
+*.DS_Store
+Thumbs.db
+
+# Environment & secrets
 .env
 .env.*
 !.env.example
 
+# Dependencies
 node_modules/
+
+# Build output (rebuild with: npm run setup)
+figma-intelligence-layer/dist/
+vscode-chat-extension/dist/
+vscode-chat-extension/*.vsix
+
+# Generated knowledge-hub chunks (rebuild with npm run setup)
+figma-bridge-plugin/knowledge-hub/*.chunks.json
+
+# Test coverage
 coverage/
 
-.bridge-relay.log
-.figma-bridge-helper.log
+# Logs & runtime
+*.log
 .decision-log.json
+figma-bridge-plugin/.decision-log.json
+figma-intelligence-layer/.decision-log.json
 
+# IDE & tool config (user-specific)
 .agent/
 .agents/
 .claude/
 .kiro/
 .vscode/
 .demo-run/
-tmp/
 
+# Misc artifacts
 AGENTS.md
 claude README.md
 figma-intelligence-layer.git/
-
-figma-bridge-plugin/.decision-log.json
-figma-bridge-plugin/node_modules/
-
-figma-intelligence-layer/.DS_Store
-figma-intelligence-layer/.decision-log.json
-figma-intelligence-layer/.env
-figma-intelligence-layer/node_modules/
-figma-intelligence-layer/dist/.DS_Store
-figma-intelligence-layer/docs/.DS_Store
-figma-intelligence-layer/src/.DS_Store
-
-design-bridge/.env
-design-bridge/node_modules/
-design-bridge/.DS_Store
+skills-lock.json
+cart-accessibility-annotation.md
+start-bridge.sh
+tmp/

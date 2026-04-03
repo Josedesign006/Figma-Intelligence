@@ -1,6 +1,10 @@
 # Figma Intelligence Layer
 
-Connect **Claude**, **OpenAI Codex**, or **Google Gemini CLI** to **Figma Desktop** so you can chat directly inside Figma and have the AI actually build, edit, and modify your designs in real time.
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
+[![License: CC BY-NC-ND 4.0](https://img.shields.io/badge/License-CC%20BY--NC--ND%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-nd/4.0/)
+[![MCP Tools](https://img.shields.io/badge/MCP%20tools-64-blue)]()
+
+> An AI-powered design assistant that lives inside Figma — connect Claude, OpenAI Codex, or Google Gemini CLI and let AI build, edit, and modify your designs in real time.
 
 ```
 You (chat in Figma plugin) ◄──► Bridge Relay ◄──► Claude / OpenAI Codex / Gemini CLI
@@ -10,9 +14,9 @@ You (chat in Figma plugin) ◄──► Bridge Relay ◄──► Claude / OpenA
 
 ## What does this do?
 
-Think of it as having an AI design assistant living inside Figma. You can type something like *"Make a login screen with a blue button"* and the selected provider will actually create the components and layers in your Figma file, not just describe how to do it.
+Type something like *"Make a login screen with a blue button"* and the selected provider will actually create the components and layers in your Figma file — not just describe how to do it.
 
-The bundled Figma MCP server exposes 64 tools, including high-level generation tools like `figma_page_architect`, `figma_intent_translator`, `figma_layout_intelligence`, `figma_design_from_ref`, `figma_generate_spec`, and direct editing and inspection tools.
+The bundled Figma MCP server exposes **64 tools**, including high-level generation tools (`figma_page_architect`, `figma_intent_translator`, `figma_layout_intelligence`, `figma_design_from_ref`, `figma_generate_spec`) and direct editing and inspection tools.
 
 ---
 
@@ -301,4 +305,23 @@ vscode-chat-extension/           ← VS Code bridge extension (auto-installed by
   src/dual-output.ts             ← parses code output from AI responses
   src/code-generator.ts          ← writes component files to workspace
   src/preview-server.ts          ← Storybook live preview manager
+design-bridge/                   ← Asset MCP bridge (Stitch, Unsplash, Pexels, Iconify)
+ui-components/                   ← Generated React component library with Storybook
+scripts/                         ← Utility scripts (status, connect, cleanup)
 ```
+
+---
+
+## Contributing
+
+1. Fork the repo and create a feature branch
+2. Run `npm run setup` to install all dependencies
+3. Make your changes
+4. Run `npm run status` to verify everything works
+5. Open a pull request
+
+---
+
+## License
+
+This project is licensed under [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/) — you are free to use it, but you may not distribute modified versions or use it commercially. See [LICENSE](./LICENSE) for details.

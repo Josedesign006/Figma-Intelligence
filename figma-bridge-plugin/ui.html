@@ -1984,7 +1984,8 @@
       { id: "gpt-5.4-mini", label: "GPT-5.4 Mini", desc: "Faster" },
     ],
     gemini: [
-      { id: "gemini-2.5-pro",      label: "Gemini 2.5 Pro",      desc: "Most capable" },
+      { id: "gemini-2.5-flash",    label: "Gemini 2.5 Flash",    desc: "Fast + capable (recommended)" },
+      { id: "gemini-2.5-pro",      label: "Gemini 2.5 Pro",      desc: "Most capable (may hit rate limits)" },
       { id: "gemini-2.0-flash",    label: "Gemini 2.0 Flash",    desc: "Balanced" },
       { id: "gemini-1.5-flash-8b", label: "Gemini 1.5 Flash 8B", desc: "Fastest" },
     ],
@@ -2002,7 +2003,7 @@
   var selectedModelByProvider = {
     claude: "claude-opus-4-6",
     openai: "gpt-5.4",
-    gemini: "gemini-2.5-pro",
+    gemini: "gemini-2.5-flash",
     bridge: null,
     stitch: "experimental",
     perplexity: "sonar-pro",

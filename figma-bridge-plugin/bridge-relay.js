@@ -1531,6 +1531,8 @@ wss.on("connection", (ws, req) => {
           if (geminiCliAuthInfo.loggedIn) {
             proc = runGeminiCli({
               message: chatMessage,
+              attachments: msg.attachments,
+              conversation: msg.conversation,
               requestId,
               model: msg.model,
               designSystemId: activeDesignSystemId,
@@ -1540,6 +1542,8 @@ wss.on("connection", (ws, req) => {
           } else {
             proc = runGemini({
               message: chatMessage,
+              attachments: msg.attachments,
+              conversation: msg.conversation,
               requestId,
               apiKey: providerConfig.apiKey,
               model: msg.model,
