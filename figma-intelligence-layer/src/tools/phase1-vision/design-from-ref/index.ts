@@ -370,7 +370,15 @@ export async function designFromRefHandler(
 
   // 5. Load DS tokens to map extracted patterns onto real tokens
   const bridge = await getBridge();
-  const dsTokens = await bridge.getTokens();
+  const dsId = bridge.getActiveDesignSystemId();
+  let dsTokens: Token[];
+  if (dsId) {
+    // When a DS is selected, use its authoritative tokens
+    const { getDesignSystemTokens } = await import("../../../shared/design-system-tokens.js");
+    dsTokens = getDesignSystemTokens(dsId);
+  } else {
+    dsTokens = await bridge.getTokens();
+  }
 
   // 6. Map extracted design language to DS tokens
   const appliedTokens = mapDesignLanguageToTokens(lang, dsTokens);

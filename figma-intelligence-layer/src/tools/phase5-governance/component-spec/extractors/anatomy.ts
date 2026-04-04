@@ -45,6 +45,37 @@ export async function extractAnatomy(nodeId: string): Promise<AnatomyExtraction>
         }
       }
 
+      // Hex fill extractor
+      function extractHexFills(n) {
+        if (!n.fills || !Array.isArray(n.fills)) return [];
+        var out = [];
+        for (var fi = 0; fi < n.fills.length; fi++) {
+          var p = n.fills[fi];
+          if (p.type === "SOLID" && p.visible !== false && p.color) {
+            var r = Math.round(p.color.r * 255);
+            var g = Math.round(p.color.g * 255);
+            var b = Math.round(p.color.b * 255);
+            out.push("#" + [r,g,b].map(function(v){ return v.toString(16).padStart(2,"0"); }).join(""));
+          }
+        }
+        return out;
+      }
+      // Hex stroke extractor
+      function extractHexStrokes(n) {
+        if (!n.strokes || !Array.isArray(n.strokes)) return [];
+        var out = [];
+        for (var si = 0; si < n.strokes.length; si++) {
+          var p = n.strokes[si];
+          if (p.type === "SOLID" && p.visible !== false && p.color) {
+            var r = Math.round(p.color.r * 255);
+            var g = Math.round(p.color.g * 255);
+            var b = Math.round(p.color.b * 255);
+            out.push("#" + [r,g,b].map(function(v){ return v.toString(16).padStart(2,"0"); }).join(""));
+          }
+        }
+        return out;
+      }
+
       // Deep BFS scan up to depth 3, collect all meaningful elements
       var elements = [];
       var queue = [];
@@ -112,6 +143,47 @@ export async function extractAnatomy(nodeId: string): Promise<AnatomyExtraction>
             h: Math.round(child.absoluteBoundingBox.height),
           } : null;
 
+          // Rich metadata extraction per node type
+          var richData = {};
+          if (childType === "TEXT") {
+            var fn = (child.fontName && child.fontName !== figma.mixed) ? child.fontName : null;
+            var fs = (typeof child.fontSize === "number") ? child.fontSize : 0;
+            var lh = (child.lineHeight && child.lineHeight !== figma.mixed && child.lineHeight.unit === "PIXELS") ? child.lineHeight.value : null;
+            var ts = null;
+            if (child.textStyleId && child.textStyleId !== figma.mixed) {
+              try { var sty = figma.getStyleById(child.textStyleId); if (sty) ts = sty.name; } catch(e) {}
+            }
+            richData.fontFamily = fn ? fn.family : null;
+            richData.fontStyle = fn ? fn.style : null;
+            richData.fontSize = fs || null;
+            richData.lineHeightPx = lh;
+            richData.tokenName = ts;
+            richData.characters = (child.characters || "").slice(0, 60);
+            richData.fills = extractHexFills(child);
+          } else if (childType === "INSTANCE") {
+            var mainComp = child.mainComponent;
+            var compSet = (mainComp && mainComp.parent && mainComp.parent.type === "COMPONENT_SET") ? mainComp.parent : null;
+            richData.componentName = compSet ? compSet.name : (mainComp ? mainComp.name : child.name);
+            richData.instanceOf = mainComp ? mainComp.name : null;
+            richData.variantProperties = child.variantProperties ? JSON.parse(JSON.stringify(child.variantProperties)) : null;
+            richData.fills = extractHexFills(child);
+          } else if (childType === "FRAME" || childType === "COMPONENT") {
+            richData.layoutMode = child.layoutMode || "NONE";
+            richData.itemSpacing = child.itemSpacing || 0;
+            richData.paddingTop = child.paddingTop || 0;
+            richData.paddingRight = child.paddingRight || 0;
+            richData.paddingBottom = child.paddingBottom || 0;
+            richData.paddingLeft = child.paddingLeft || 0;
+            richData.layoutSizingH = child.layoutSizingHorizontal || null;
+            richData.layoutSizingV = child.layoutSizingVertical || null;
+            richData.fills = extractHexFills(child);
+            richData.strokes = extractHexStrokes(child);
+            richData.cornerRadius = (typeof child.cornerRadius === "number") ? child.cornerRadius : null;
+          } else {
+            richData.fills = extractHexFills(child);
+            richData.strokes = extractHexStrokes(child);
+          }
+
           elements.push({
             index: idx++,
             name: child.name,
@@ -126,6 +198,26 @@ export async function extractAnatomy(nodeId: string): Promise<AnatomyExtraction>
               h: Math.round(child.height || 0),
             },
             absolutePosition: absPos,
+            fontFamily: richData.fontFamily || null,
+            fontStyle: richData.fontStyle || null,
+            fontSize: richData.fontSize || null,
+            lineHeightPx: richData.lineHeightPx || null,
+            tokenName: richData.tokenName || null,
+            characters: richData.characters || null,
+            componentName: richData.componentName || null,
+            instanceOf: richData.instanceOf || null,
+            variantProperties: richData.variantProperties || null,
+            layoutMode: richData.layoutMode || null,
+            itemSpacing: richData.itemSpacing != null ? richData.itemSpacing : null,
+            paddingTop: richData.paddingTop != null ? richData.paddingTop : null,
+            paddingRight: richData.paddingRight != null ? richData.paddingRight : null,
+            paddingBottom: richData.paddingBottom != null ? richData.paddingBottom : null,
+            paddingLeft: richData.paddingLeft != null ? richData.paddingLeft : null,
+            layoutSizingH: richData.layoutSizingH || null,
+            layoutSizingV: richData.layoutSizingV || null,
+            fills: richData.fills || [],
+            strokes: richData.strokes || [],
+            cornerRadius: richData.cornerRadius != null ? richData.cornerRadius : null,
           });
         }
 
@@ -154,6 +246,26 @@ export async function extractAnatomy(nodeId: string): Promise<AnatomyExtraction>
       depth: number;
       position: { x: number; y: number; w: number; h: number };
       absolutePosition: { x: number; y: number; w: number; h: number } | null;
+      fontFamily: string | null;
+      fontStyle: string | null;
+      fontSize: number | null;
+      lineHeightPx: number | null;
+      tokenName: string | null;
+      characters: string | null;
+      componentName: string | null;
+      instanceOf: string | null;
+      variantProperties: Record<string, string> | null;
+      layoutMode: string | null;
+      itemSpacing: number | null;
+      paddingTop: number | null;
+      paddingRight: number | null;
+      paddingBottom: number | null;
+      paddingLeft: number | null;
+      layoutSizingH: string | null;
+      layoutSizingV: string | null;
+      fills: string[];
+      strokes: string[];
+      cornerRadius: number | null;
     }>;
     componentBounds: { x: number; y: number; w: number; h: number } | null;
   };
@@ -165,8 +277,29 @@ export async function extractAnatomy(nodeId: string): Promise<AnatomyExtraction>
     role: classifyRole(el.name, el.nodeType, el.visible, !!el.controlledByBoolean),
     visible: el.visible,
     controlledByBoolean: el.controlledByBoolean || undefined,
+    depth: el.depth,
     position: el.position,
     absolutePosition: el.absolutePosition || undefined,
+    fontFamily: el.fontFamily || undefined,
+    fontStyle: el.fontStyle || undefined,
+    fontSize: el.fontSize || undefined,
+    lineHeightPx: el.lineHeightPx || undefined,
+    tokenName: el.tokenName || undefined,
+    characters: el.characters || undefined,
+    componentName: el.componentName || undefined,
+    instanceOf: el.instanceOf || undefined,
+    variantProperties: el.variantProperties || undefined,
+    layoutMode: el.layoutMode || undefined,
+    itemSpacing: el.itemSpacing ?? undefined,
+    paddingTop: el.paddingTop ?? undefined,
+    paddingRight: el.paddingRight ?? undefined,
+    paddingBottom: el.paddingBottom ?? undefined,
+    paddingLeft: el.paddingLeft ?? undefined,
+    layoutSizingH: el.layoutSizingH || undefined,
+    layoutSizingV: el.layoutSizingV || undefined,
+    fills: el.fills?.length ? el.fills : undefined,
+    strokes: el.strokes?.length ? el.strokes : undefined,
+    cornerRadius: el.cornerRadius ?? undefined,
   }));
 
   return {

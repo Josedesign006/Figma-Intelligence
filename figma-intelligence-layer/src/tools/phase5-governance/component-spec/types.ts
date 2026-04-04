@@ -142,8 +142,37 @@ export interface ClassifiedElement {
   role: ElementRole;
   visible: boolean;
   controlledByBoolean?: string;
+  depth?: number;
   position: { x: number; y: number; w: number; h: number };
   absolutePosition?: { x: number; y: number; w: number; h: number };
+
+  // TEXT nodes
+  fontFamily?: string;
+  fontStyle?: string;
+  fontSize?: number;
+  lineHeightPx?: number;
+  tokenName?: string;
+  characters?: string;
+
+  // INSTANCE nodes
+  componentName?: string;
+  instanceOf?: string;
+  variantProperties?: Record<string, string>;
+
+  // FRAME/COMPONENT nodes
+  layoutMode?: string;
+  itemSpacing?: number;
+  paddingTop?: number;
+  paddingRight?: number;
+  paddingBottom?: number;
+  paddingLeft?: number;
+  layoutSizingH?: string;
+  layoutSizingV?: string;
+
+  // All nodes
+  fills?: string[];
+  strokes?: string[];
+  cornerRadius?: number;
 }
 
 export interface AnatomyExtraction {
@@ -192,6 +221,14 @@ export interface StatesExtraction {
 
 // ─── Spacing Extraction ─────────────────────────────────────────────────────
 
+export interface SpacingChildEntry {
+  name: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export interface SpacingEntry {
   element: string;
   paddingTop: number;
@@ -204,6 +241,7 @@ export interface SpacingEntry {
   layoutMode: string;
   layoutSizingH: string;
   layoutSizingV: string;
+  children?: SpacingChildEntry[];
 }
 
 // ─── Color Token Extraction ─────────────────────────────────────────────────

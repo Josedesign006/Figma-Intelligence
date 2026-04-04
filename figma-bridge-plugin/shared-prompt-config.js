@@ -223,15 +223,17 @@ const FIGMA_GET_VARIABLES_INSTRUCTION = "2. figma_get_variables(verbosity:\"inve
 
 function buildSystemPrompt(dsId) {
   if (dsId) {
+    const ds = getDesignSystemById(dsId);
+    const dsName = ds ? ds.name : dsId;
     const addendum = buildDesignSystemAddendum(dsId);
     const modified = SYSTEM_PROMPT.replace(
       FIGMA_GET_VARIABLES_INSTRUCTION,
-      "2. ALWAYS call figma_get_variables(verbosity:\"inventory\") FIRST. If the file has variables/tokens, use THOSE — they take priority over the design system below. Only fall back to the design system tokens below for values not defined in file variables.\n3. figma_get_pages — list ALL pages. Check for pages dedicated to the requested component/topic. Navigate + screenshot to study existing patterns.\n4. figma_search_components — find existing components. Use figma_get_node or figma_component_archaeologist to study structure, variants, properties BEFORE building."
+      `2. You are using the **${dsName}** design system. Use ONLY the ${dsName} tokens defined below. Do NOT use file variables that conflict with the selected design system. The design system tokens are the single source of truth.\n3. figma_get_pages — list ALL pages. Check for pages dedicated to the requested component/topic. Navigate + screenshot to study existing patterns.\n4. figma_search_components — find existing components. Use figma_get_node or figma_component_archaeologist to study structure, variants, properties BEFORE building.`
     );
     return `${modified}\n${addendum}`;
   }
 
-  // Default to Carbon for consistent output
+  // No DS selected — file variables are primary source, fall back to Carbon
   const addendum = buildDesignSystemAddendum("carbon");
   const modified = SYSTEM_PROMPT.replace(
     FIGMA_GET_VARIABLES_INSTRUCTION,

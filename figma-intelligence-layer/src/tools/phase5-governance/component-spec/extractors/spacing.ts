@@ -18,6 +18,29 @@ export async function extractSpacing(nodeId: string): Promise<SpacingEntry[]> {
         const current = queue.shift();
         if (!current) break;
         if ("layoutMode" in current && current.layoutMode && current.layoutMode !== "NONE") {
+          var childPositions = [];
+          if ("children" in current && current.children) {
+            var parentBounds = current.absoluteBoundingBox;
+            for (var ci = 0; ci < Math.min(current.children.length, 8); ci++) {
+              var ch = current.children[ci];
+              if (ch.visible === false || ch.width === 0) continue;
+              var chX = 0, chY = 0;
+              if (ch.absoluteBoundingBox && parentBounds) {
+                chX = Math.round(ch.absoluteBoundingBox.x - parentBounds.x);
+                chY = Math.round(ch.absoluteBoundingBox.y - parentBounds.y);
+              } else {
+                chX = Math.round(ch.x || 0);
+                chY = Math.round(ch.y || 0);
+              }
+              childPositions.push({
+                name: ch.name || "Child",
+                x: chX,
+                y: chY,
+                w: Math.round(ch.width || 0),
+                h: Math.round(ch.height || 0),
+              });
+            }
+          }
           entries.push({
             element: current.name || "Unnamed",
             paddingTop: current.paddingTop || 0,
@@ -30,6 +53,7 @@ export async function extractSpacing(nodeId: string): Promise<SpacingEntry[]> {
             layoutMode: String(current.layoutMode),
             layoutSizingH: "layoutSizingHorizontal" in current ? String(current.layoutSizingHorizontal || "FIXED") : "FIXED",
             layoutSizingV: "layoutSizingVertical" in current ? String(current.layoutSizingVertical || "FIXED") : "FIXED",
+            children: childPositions,
           });
         }
         if ("children" in current && current.children.length > 0) {

@@ -1386,6 +1386,8 @@ wss.on("connection", (ws, req) => {
           console.log(`  🎨 design system (vscode): ${newId || "none"} (sessions reset)`);
         }
         sendToVscode({ type: "design-system-stored", designSystemId: activeDesignSystemId }, ws);
+        // Broadcast DS change to all connected MCP sockets so intelligence layer stays in sync
+        broadcastToMcpSockets(JSON.stringify({ type: "design-system-changed", designSystemId: activeDesignSystemId }));
         return;
       }
 
@@ -1650,6 +1652,8 @@ wss.on("connection", (ws, req) => {
           console.log(`  🎨 design system: ${newId || "none"} (sessions reset)`);
         }
         sendToPlugin({ type: "design-system-stored", designSystemId: activeDesignSystemId });
+        // Broadcast DS change to all connected MCP sockets so intelligence layer stays in sync
+        broadcastToMcpSockets(JSON.stringify({ type: "design-system-changed", designSystemId: activeDesignSystemId }));
         return;
       }
 
@@ -2294,6 +2298,12 @@ wss.on("connection", (ws, req) => {
 
     // ── Messages from an MCP server ─────────────────────────────────────────
     if (msg.id && msg.method) {
+      // Handle getActiveDesignSystemId directly — no need to forward to plugin
+      if (msg.method === "getActiveDesignSystemId") {
+        ws.send(JSON.stringify({ id: msg.id, result: activeDesignSystemId }));
+        console.log(`  ← relay responded: getActiveDesignSystemId = ${activeDesignSystemId || "none"}`);
+        return;
+      }
       if (pluginSocket && pluginSocket.readyState === 1) {
         pendingRequests.set(msg.id, ws);
         pluginSocket.send(JSON.stringify({

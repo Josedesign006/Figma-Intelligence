@@ -6,6 +6,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { Token } from "./types.js";
+import { getDesignSystemTokens } from "./design-system-tokens.js";
+import { getConceptForComponent, getRequiredTokenPaths } from "./concept-taxonomy.js";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -96,17 +98,24 @@ export function buildTokenIdMap(tokens: Token[]): SemanticTokenMap {
 
 /**
  * Resolve which token names are relevant for a given component type.
+ * Tries static map first, then concept taxonomy, then defaults.
  */
 export function getTokenRolesForComponent(componentType: string): string[] {
-  // Try exact match first
+  // Try exact match in static map first (hand-tuned, highest quality)
   if (COMPONENT_TOKEN_ROLES[componentType]) {
     return COMPONENT_TOKEN_ROLES[componentType];
   }
 
-  // Try case-insensitive match
+  // Try case-insensitive match in static map
   const lower = componentType.toLowerCase();
   for (const [key, roles] of Object.entries(COMPONENT_TOKEN_ROLES)) {
     if (key.toLowerCase() === lower) return roles;
+  }
+
+  // Try concept taxonomy (covers all components via typicalForms mapping)
+  const concept = getConceptForComponent(componentType);
+  if (concept) {
+    return getRequiredTokenPaths(concept.id);
   }
 
   // Default roles for unknown components
@@ -312,14 +321,24 @@ function tokenValueToRgbString(value: unknown): string | null {
   return `{ r: ${v.r.toFixed(3)}, g: ${v.g.toFixed(3)}, b: ${v.b.toFixed(3)} }`;
 }
 
-export function resolveDesignPalette(tokens: Token[]): ResolvedPalette {
+/**
+ * Resolve a design palette.
+ *
+ * When a design system is selected (dsId is provided), its tokens are the
+ * **authoritative** source — Figma file tokens are ignored entirely.
+ * When no DS is selected (dsId is null), file tokens are used as before.
+ */
+export function resolveDesignPalette(tokens: Token[], dsId?: string | null): ResolvedPalette {
+  // DS tokens are authoritative when a design system is selected
+  const effectiveTokens = dsId ? getDesignSystemTokens(dsId) : tokens;
+
   const palette = {} as ResolvedPalette;
 
   for (const mapping of PALETTE_MAPPINGS) {
     let resolved = false;
 
     for (const tokenName of mapping.tokenNames) {
-      const token = tokens.find(
+      const token = effectiveTokens.find(
         (t) => t.type === "COLOR" && (t.name === tokenName || t.name.endsWith(`/${tokenName}`))
       );
       if (token) {

@@ -211,6 +211,32 @@ export class FigmaBridge {
   private connected = false;
   private connectPromise: Promise<void> | null = null;
   private capabilitiesCache: Record<string, unknown> | null = null;
+  private _activeDesignSystemId: string | null = null;
+
+  // ─── Taxonomy auto-sync ─────────────────────────────────────────────────
+  private _taxonomyAutoSyncTimer: ReturnType<typeof setTimeout> | null = null;
+  private _taxonomyAutoSyncCallback: (() => Promise<void>) | null = null;
+
+  /**
+   * Register a callback to run when variables change (for taxonomy docs auto-sync).
+   * The callback is debounced with a 2-second delay.
+   */
+  setTaxonomyAutoSyncHandler(handler: (() => Promise<void>) | null): void {
+    this._taxonomyAutoSyncCallback = handler;
+  }
+
+  private scheduleTaxonomyAutoSync(): void {
+    if (!this._taxonomyAutoSyncCallback) return;
+    if (this._taxonomyAutoSyncTimer) clearTimeout(this._taxonomyAutoSyncTimer);
+    this._taxonomyAutoSyncTimer = setTimeout(async () => {
+      this._taxonomyAutoSyncTimer = null;
+      try {
+        await this._taxonomyAutoSyncCallback?.();
+      } catch (e) {
+        process.stderr.write(`Taxonomy auto-sync error: ${e}\n`);
+      }
+    }, 2000);
+  }
 
   // ─── P1: Caching Layer ──────────────────────────────────────────────────
   private _cache: BridgeCache | null = null;
@@ -221,6 +247,26 @@ export class FigmaBridge {
 
   isConnected(): boolean {
     return this.connected && this.ws?.readyState === WebSocket.OPEN;
+  }
+
+  /**
+   * Get the currently selected design system ID (e.g. "antd", "carbon", "mui").
+   * Returns null if no design system is selected in the UI.
+   */
+  getActiveDesignSystemId(): string | null {
+    return this._activeDesignSystemId;
+  }
+
+  /**
+   * Request the current design system ID from the relay and cache it locally.
+   */
+  private async hydrateDesignSystemId(): Promise<void> {
+    try {
+      const result = await this.send<string | null>("getActiveDesignSystemId");
+      this._activeDesignSystemId = result ?? null;
+    } catch {
+      // Non-critical — may not be supported by older relays
+    }
   }
 
   private rejectAllPending(reason: Error) {
@@ -294,6 +340,8 @@ export class FigmaBridge {
 
   /** Fire-and-forget hydration after (re)connect — populates context cache quickly */
   private hydrateAfterConnect(): void {
+    // Hydrate active design system ID from relay
+    this.hydrateDesignSystemId();
     if (this.hasHydratedStatus) return;
     // Use a short timeout for the hydration RPC (5s instead of default 30s)
     const FAST_TIMEOUT = 5000;
@@ -382,6 +430,11 @@ export class FigmaBridge {
       if (this._cache) this._cache.onDocumentChange();
     }
 
+    // Auto-sync: trigger taxonomy docs re-render on variable changes
+    if ((event.eventType as string) === "variable-change") {
+      this.scheduleTaxonomyAutoSync();
+    }
+
     this.context = nextContext;
   }
 
@@ -392,6 +445,12 @@ export class FigmaBridge {
     } catch {
       return;
     }
+    // Handle design system change broadcasts from relay
+    if (msg.type === "design-system-changed") {
+      this._activeDesignSystemId = (msg as Record<string, unknown>).designSystemId as string | null ?? null;
+      return;
+    }
+
     if (msg.type === "bridge-event" && msg.eventType) {
       const event: FigmaBridgeEvent = {
         type: "bridge-event",
@@ -1307,6 +1366,33 @@ export class FigmaBridge {
     characters?: string
   ): Promise<Record<string, unknown>> {
     return this.send("createChild", { childType, parentId, name, width, height, x, y, characters });
+  }
+
+  // ─── Swarm Agent Cursor Methods ──────────────────────────────────────────
+
+  async spawnAgentCursor(agentId: string, x: number, y: number): Promise<void> {
+    await this.send("spawnAgentCursor", { agentId, x, y });
+  }
+
+  async moveAgentCursor(agentId: string, x: number, y: number, animate = true, durationMs = 250): Promise<void> {
+    await this.send("moveAgentCursor", { agentId, x, y, animate, durationMs });
+  }
+
+  async updateAgentLabel(agentId: string, label: string): Promise<void> {
+    await this.send("updateAgentLabel", { agentId, label });
+  }
+
+  async removeAgentCursor(agentId: string): Promise<void> {
+    await this.send("removeAgentCursor", { agentId });
+  }
+
+  async postAgentChat(agentId: string, message: string, x: number, y: number): Promise<string> {
+    const result = await this.send<{ noteId: string }>("agentChat", { agentId, message, x, y });
+    return result.noteId;
+  }
+
+  async cleanupSwarm(): Promise<void> {
+    await this.send("cleanupAgentCursors", {});
   }
 }
 

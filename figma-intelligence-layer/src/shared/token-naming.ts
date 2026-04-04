@@ -20,7 +20,10 @@ export interface TokenNamingIssue {
     | "typo"
     | "component-prefix"
     | "semantic-prefix"
-    | "short-name";
+    | "short-name"
+    | "unknown-concept"
+    | "invalid-state-for-concept"
+    | "invalid-property-for-concept";
   message: string;
 }
 
@@ -214,6 +217,92 @@ export function analyzeTokenNames(
 ): TokenNamingAnalysis[] {
   return names.map((name) => analyzeTokenName(name, rules));
 }
+
+// ─── Semantic Grammar Validation ─────────────────────────────────────────
+
+import {
+  getConceptById,
+  getConceptIds,
+  parseTokenName,
+  generateTokenName as _generateTokenName,
+  GRAMMAR,
+} from "./concept-taxonomy.js";
+
+export interface SemanticGrammarResult {
+  isValid: boolean;
+  issues: TokenNamingIssue[];
+  parsed: {
+    category: string;
+    concept: string;
+    variant: string | null;
+    property: string;
+    state: string | null;
+  } | null;
+}
+
+/**
+ * Validate a token name against the semantic grammar from the concept taxonomy.
+ * Checks concept existence, state validity for that concept, and property validity.
+ */
+export function validateSemanticGrammar(name: string): SemanticGrammarResult {
+  const issues: TokenNamingIssue[] = [];
+  const parsed = parseTokenName(name);
+
+  if (!parsed) {
+    return { isValid: true, issues: [], parsed: null };
+  }
+
+  const { concept, state } = parsed;
+
+  // Check if concept is known in taxonomy
+  const knownConcepts = new Set(getConceptIds());
+  // Also check plural forms (e.g., "actions" → "action")
+  const conceptSingular = concept.replace(/s$/, "");
+  const matchedConcept = knownConcepts.has(concept)
+    ? concept
+    : knownConcepts.has(conceptSingular)
+      ? conceptSingular
+      : null;
+
+  if (!matchedConcept && concept !== "primitive" && concept !== "semantic") {
+    // Only warn — many tokens use categories/subcategories that aren't concepts
+    // (e.g., "color/semantic/text/primary" where "text" is a sub-group, not a concept per se)
+    const conceptDef = getConceptById(concept) ?? getConceptById(conceptSingular);
+    if (!conceptDef) {
+      // Soft warning — don't block tokens that follow the existing convention
+      issues.push({
+        severity: "warning",
+        code: "unknown-concept",
+        message: `Concept '${concept}' is not in the taxonomy. Known concepts: ${[...knownConcepts].slice(0, 8).join(", ")}...`,
+      });
+    }
+  }
+
+  // Check if state is valid for this concept
+  if (state && matchedConcept) {
+    const conceptDef = getConceptById(matchedConcept);
+    if (conceptDef && conceptDef.validStates.length > 0) {
+      if (!conceptDef.validStates.includes(state)) {
+        issues.push({
+          severity: "warning",
+          code: "invalid-state-for-concept",
+          message: `State '${state}' is not valid for concept '${matchedConcept}'. Valid states: ${conceptDef.validStates.join(", ")}.`,
+        });
+      }
+    }
+  }
+
+  return {
+    isValid: issues.every((i) => i.severity !== "error"),
+    issues,
+    parsed,
+  };
+}
+
+/**
+ * Convenience wrapper for generating token names following the grammar.
+ */
+export { _generateTokenName as generateTokenName };
 
 // ─── Advanced Validation ───────────────────────────────────────────────────
 

@@ -2,12 +2,13 @@ import { getBridge } from "../../../shared/figma-bridge.js";
 import {
   analyzeTokenNames,
   getDefaultTokenNamingRules,
+  validateSemanticGrammar,
   TokenNamingAnalysis,
   TokenNamingRuleSet,
 } from "../../../shared/token-naming.js";
 
 export interface TokenNamingArgs {
-  action: "define" | "validate" | "suggest-renames" | "audit-current-file";
+  action: "define" | "validate" | "suggest-renames" | "audit-current-file" | "validate-semantic";
   names?: string[];
   collectionName?: string;
 }
@@ -90,12 +91,32 @@ export async function tokenNamingHandler(args: TokenNamingArgs): Promise<TokenNa
     };
   }
 
+  // Resolve names from file or args
   const names =
-    args.action === "audit-current-file"
+    args.action === "audit-current-file" || args.action === "validate-semantic"
       ? await getCurrentFileTokenNames(args.collectionName)
       : args.names ?? [];
 
-  const analyses = analyzeTokenNames(names, ruleSet);
+  // For validate-semantic, also allow explicitly provided names
+  const resolvedNames = args.action === "validate-semantic" && args.names?.length
+    ? args.names
+    : names;
+
+  const analyses = analyzeTokenNames(resolvedNames, ruleSet);
+
+  // Semantic grammar validation: merge concept-taxonomy issues
+  if (args.action === "validate-semantic") {
+    for (const analysis of analyses) {
+      const grammarResult = validateSemanticGrammar(analysis.normalizedName);
+      if (grammarResult.issues.length > 0) {
+        analysis.issues.push(...grammarResult.issues);
+        if (!grammarResult.isValid) {
+          analysis.isValid = false;
+        }
+      }
+    }
+  }
+
   const filteredAnalyses =
     args.action === "suggest-renames"
       ? analyses.filter((item) => item.suggestedName && item.suggestedName !== item.normalizedName)

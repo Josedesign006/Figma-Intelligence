@@ -49,6 +49,7 @@ import { prototypeMapHandler } from "./tools/phase3-generation/prototype-map/ind
 import { prototypeScanHandler, prototypeWireHandler } from "./tools/phase3-generation/prototype-wire/index.js";
 import { animatedBuildHandler } from "./tools/phase3-generation/figma-animated-build.js";
 import { compositionBuilderHandler } from "./tools/phase3-generation/composition-builder/index.js";
+import { swarmBuildHandler } from "./tools/phase3-generation/swarm-build/index.js";
 
 // ─── Phase 4: Sync & Bidirectionality ───────────────────────────────────────
 import { animationSpecifierHandler } from "./tools/phase4-sync/animation-specifier/index.js";
@@ -68,12 +69,14 @@ import { decisionLogToolHandler } from "./tools/phase5-governance/decision-log/i
 import { designDecisionLogHandler } from "./tools/phase5-governance/design-decision-log/index.js";
 import { healthReportHandler } from "./tools/phase5-governance/health-report/index.js";
 import { componentSpecHandler } from "./tools/phase5-governance/component-spec/index.js";
+import { componentSpecSheetHandler } from "./tools/phase5-governance/component-spec-sheet/index.js";
 import { figmaApgDocHandler } from "./tools/phase5-governance/apg-doc/index.js";
 import { dsPrimitivesHandler } from "./tools/phase5-governance/ds-primitives/index.js";
 import { tokenNamingHandler } from "./tools/phase5-governance/token-naming/index.js";
 import { tokenMigrateHandler } from "./tools/phase5-governance/token-migrate/index.js";
 import { tokenAnalyticsHandler } from "./tools/phase5-governance/token-analytics/index.js";
 import { tokenDocsHandler } from "./tools/phase5-governance/token-docs/index.js";
+import { taxonomyDocsHandler } from "./tools/phase5-governance/taxonomy-docs/index.js";
 import { validateDtcg } from "./shared/dtcg-validator.js";
 // component-doc removed — replaced by component-spec
 
@@ -515,31 +518,17 @@ const TOOLS: Tool[] = [
   {
     name: "figma_animated_build",
     description:
-      "Simulates multi-agent collaborative design: two colored cursor overlays (Claude + Codex) move around the Figma canvas, show chat bubbles, and progressively build UI elements one-by-one — pencil.dev-style. Ships with a built-in iOS screen template. Pass agents/steps to fully customize.",
+      "Progressively builds UI elements on Figma canvas with a single cursor that tracks each creation step, showing real operation labels (e.g. '3/12 Creating: Nav Bar'). Ships with a built-in iOS screen template. Pass steps to fully customize.",
     inputSchema: {
       type: "object",
       properties: {
-        agents: {
-          type: "array",
-          description: "Agent definitions (id, name, hex color). Defaults to Claude (#7C3AED) + Codex (#0EA5E9).",
-          items: {
-            type: "object",
-            properties: {
-              id:    { type: "string", description: "Unique agent identifier" },
-              name:  { type: "string", description: "Display name shown in badge" },
-              color: { type: "string", description: "Hex color, e.g. #7C3AED" },
-            },
-            required: ["id", "name", "color"],
-          },
-        },
         steps: {
           type: "array",
           description: "Ordered build steps. Omit to use the default iOS screen template.",
           items: {
             type: "object",
             properties: {
-              type:     { type: "string", enum: ["moveCursor","showChat","hideChat","createFrame","createRect","createText","createEllipse","pause"] },
-              agentId:  { type: "string" },
+              type:     { type: "string", enum: ["createFrame","createRect","createText","createEllipse","pause"] },
               x:        { type: "number" },
               y:        { type: "number" },
               text:     { type: "string" },
@@ -558,6 +547,14 @@ const TOOLS: Tool[] = [
         stepDelayMs: {
           type: "number",
           description: "Milliseconds between steps (default 600).",
+        },
+        cursorName: {
+          type: "string",
+          description: "Name shown on cursor badge (default 'MCP Power').",
+        },
+        cursorColor: {
+          type: "string",
+          description: "Hex color for cursor (default '#6E5FD8').",
         },
       },
     },
@@ -891,7 +888,7 @@ const TOOLS: Tool[] = [
   {
     name: "figma_component_spec",
     description:
-      "Generate comprehensive, production-quality component specification documentation. Extracts real data from the Figma component (anatomy, properties, variants, states, spacing, color tokens, typography) and structures it into spec sections. Outputs as a visual Figma page, markdown, JSON, or all three. Content is always extracted from the actual component — never fabricated.",
+      "Generate full component documentation — a comprehensive multi-section reference covering overview, states, interaction rules, accessibility (WCAG), QA acceptance criteria, responsive behaviour, usage guidelines (do/don't), design tokens, typography hierarchy, content guidance, and related components. Best for when the user wants a complete written specification, developer handoff document, or full design-system documentation page. Outputs as a Figma page, markdown, JSON, or all three. Use this when the user asks for 'full docs', 'complete specification', 'documentation', 'developer handoff', 'design system page', or 'all sections'.",
     inputSchema: {
       type: "object",
       properties: {
@@ -908,6 +905,25 @@ const TOOLS: Tool[] = [
         pageName: { type: "string", description: "Custom page name for the generated Figma spec page." },
       },
       required: ["outputFormat"],
+    },
+  },
+  {
+    name: "figma_component_spec_sheet",
+    description:
+      "Generate a quick visual spec sheet directly on the Figma canvas — a single frame showing the component's anatomy, properties, and spacing at a glance. Includes: (1) Header with component name and variant string, (2) Anatomy diagram with numbered colored callout markers and a legend identifying each sub-element, (3) Properties section with live variant instance previews for every value of each property (Type, Size, State, boolean toggles) with style annotations, (4) Layout & Spacing section with colored dimension overlays. This is the DEFAULT tool when a user asks to 'show me the anatomy', 'what are the properties', 'show spacing', 'spec sheet', 'component breakdown', 'variant overview', or 'inspect this component'. Select a component before calling.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Component, ComponentSet, or Instance node ID. If omitted, uses current Figma selection." },
+        sections: {
+          type: "array",
+          items: { type: "string", enum: ["header", "anatomy", "properties", "spacing"] },
+          description: "Which sections to include. Default: all four.",
+        },
+        maxVariantsPerAxis: { type: "number", description: "Max variant instances to show per property axis (default: 6)." },
+        placement: { type: "string", enum: ["right", "below", "new-page"], description: "Where to place the spec sheet relative to the source component. Default: right." },
+      },
+      required: [],
     },
   },
   {
@@ -1007,6 +1023,31 @@ const TOOLS: Tool[] = [
         includeUsageExamples: { type: "boolean", description: "Add CSS/code usage examples" },
         includeAliasChains: { type: "boolean", description: "Show alias resolution chains" },
         pageName: { type: "string", description: "Figma page name (default 'Token Documentation')" },
+      },
+      required: ["outputFormat"],
+    },
+  },
+  {
+    name: "figma_taxonomy_docs",
+    description:
+      "Generate living concept taxonomy documentation. Cross-references ~25 UI concepts (action, surface, field, feedback, etc.) with actual Figma variables to produce a naming grammar reference, per-concept token anatomy, and coverage report. Use 'naming-guide' format for a standalone reference document that teaches how to name tokens from scratch — grammar rules, allowed values per segment, worked examples, and common mistakes. Supports auto-sync: the Figma page updates automatically when tokens change.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        outputFormat: {
+          type: "string",
+          enum: ["markdown", "json", "figma", "naming-guide"],
+          description: "Documentation output format. 'naming-guide' produces a human-readable naming convention reference with grammar rules, allowed values, worked examples per concept, and common mistakes to avoid.",
+        },
+        concepts: {
+          type: "array",
+          items: { type: "string" },
+          description: "Filter to specific concepts (e.g. ['action', 'surface', 'field']). Omit for all.",
+        },
+        includeTokenAnatomy: { type: "boolean", description: "Show per-concept token breakdowns (default true)" },
+        showCoverage: { type: "boolean", description: "Highlight missing tokens with coverage badges (default true)" },
+        autoSync: { type: "boolean", description: "Enable auto-sync: Figma page updates when variables change (figma format only, default false)" },
+        pageName: { type: "string", description: "Figma page name (default 'Token Taxonomy')" },
       },
       required: ["outputFormat"],
     },
@@ -1685,6 +1726,43 @@ const TOOLS: Tool[] = [
       required: ["pattern"],
     },
   },
+  {
+    name: "figma_swarm_build",
+    description:
+      "Multi-agent orchestrated page builder. Decomposes a high-level brief (e.g. 'SaaS landing page with hero, features, pricing, and footer') into spatial zones, assigns each to a named AI agent (Layouter, Styler, Copywriter, Matcher), runs all preparation in TRUE PARALLEL, then builds with multiple visible cursors and inter-agent chat notes. 3-5x faster than sequential tool-by-tool building. Each agent has a unique colored cursor that moves to its work area. Agent chat bubbles appear as sticky notes showing collaboration.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        brief: {
+          type: "string",
+          description: "High-level page description (e.g. 'SaaS landing page with hero, features, pricing, testimonials, and footer')",
+        },
+        platform: {
+          type: "string",
+          enum: ["web", "mobile"],
+          description: "Target platform (default: web). Sets frame width automatically.",
+        },
+        width: {
+          type: "number",
+          description: "Override frame width in px (default: 1440 for web, 390 for mobile)",
+        },
+        showAgentChat: {
+          type: "boolean",
+          description: "Show agent collaboration chat notes on canvas (default: true)",
+        },
+        fonts: {
+          type: "object",
+          description: "Optional font configuration override",
+          properties: {
+            heading: { type: "string" },
+            body: { type: "string" },
+            ui: { type: "string" },
+          },
+        },
+      },
+      required: ["brief"],
+    },
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1744,6 +1822,7 @@ async function dispatch(name: string, args: AnyArgs): Promise<unknown> {
     case "figma_icon_library_sync":    return iconLibrarySyncHandler(args as never);
     // Phase 3 (Tier 2)
     case "figma_composition_builder":  return compositionBuilderHandler(args as never);
+    case "figma_swarm_build":          return swarmBuildHandler(args as never);
     // Phase 5
     case "figma_design_system_scaffolder": return dsScaffolderHandler(args as never);
     case "figma_design_system_primitives": return dsPrimitivesHandler(args as never);
@@ -1752,6 +1831,7 @@ async function dispatch(name: string, args: AnyArgs): Promise<unknown> {
     case "figma_token_migrate":        return tokenMigrateHandler(args as never);
     case "figma_token_analytics":      return tokenAnalyticsHandler(args as never);
     case "figma_token_docs":           return tokenDocsHandler(args as never);
+    case "figma_taxonomy_docs":        return taxonomyDocsHandler(args as never);
     case "figma_validate_dtcg": {
       const dtcgArgs = args as { tokens: Record<string, unknown>; strict?: boolean };
       const result = validateDtcg(dtcgArgs.tokens);
@@ -1826,6 +1906,7 @@ async function dispatch(name: string, args: AnyArgs): Promise<unknown> {
     case "figma_design_decision_log":  return designDecisionLogHandler(args as never);
     case "figma_health_report":        return healthReportHandler(args as never);
     case "figma_component_spec":       return componentSpecHandler(args as never);
+    case "figma_component_spec_sheet": return componentSpecSheetHandler(args as never);
     case "figma_apg_doc":              return figmaApgDocHandler(args as never);
     // Direct execute
     case "figma_execute": {
@@ -1834,7 +1915,7 @@ async function dispatch(name: string, args: AnyArgs): Promise<unknown> {
       const codeLC = code.toLowerCase();
       if (codeLC.includes("createpage") && /spec|specification|component\s*doc/i.test(code)) {
         return {
-          warning: "Use figma_component_spec instead of manually creating spec pages with figma_execute. The spec tool handles page creation, deduplication, and rendering automatically.",
+          warning: "Use figma_component_spec or figma_component_spec_sheet instead of manually creating spec pages with figma_execute. The spec tools handle page creation, deduplication, and rendering automatically.",
           blocked: true,
         };
       }

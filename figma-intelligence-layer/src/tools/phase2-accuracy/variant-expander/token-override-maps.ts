@@ -143,6 +143,80 @@ export const TYPE_OVERRIDES: OverrideMap = {
   ],
 };
 
+// ─── Concept-Aware State Overrides ──────────────────────────────────────────
+// When the concept taxonomy provides additional state context, use these
+// concept-specific overrides instead of the generic STATE_OVERRIDES.
+
+import { getConceptForComponent, type ConceptDefinition } from "../../../shared/concept-taxonomy.js";
+
+/**
+ * Concept-specific state overrides that supplement the generic STATE_OVERRIDES.
+ * Keys are concept IDs, values are state → overrides maps.
+ */
+const CONCEPT_STATE_OVERRIDES: Record<string, OverrideMap> = {
+  navigation: {
+    visited: [
+      { property: "textColor", token: "color/semantic/text/secondary" },
+    ],
+    active: [
+      { property: "background", token: "color/semantic/actions/primary/bg/default" },
+      { property: "textColor", token: "color/semantic/text/on-color" },
+      { property: "borderColor", token: "color/semantic/border/focus" },
+    ],
+  },
+  field: {
+    error: [
+      { property: "borderColor", token: "color/semantic/feedback/danger/text" },
+      { property: "background", token: "color/semantic/field/bg/default" },
+      { property: "helperColor", token: "color/semantic/feedback/danger/text" },
+    ],
+    success: [
+      { property: "borderColor", token: "color/semantic/feedback/success/text" },
+      { property: "background", token: "color/semantic/field/bg/default" },
+    ],
+  },
+  selection: {
+    checked: [
+      { property: "background", token: "color/semantic/actions/primary/bg/default" },
+      { property: "iconColor", token: "color/semantic/text/on-color" },
+    ],
+    indeterminate: [
+      { property: "background", token: "color/semantic/actions/primary/bg/default" },
+      { property: "iconColor", token: "color/semantic/text/on-color" },
+    ],
+  },
+  toggles: {
+    on: [
+      { property: "background", token: "color/semantic/actions/primary/bg/default" },
+    ],
+    off: [
+      { property: "background", token: "color/semantic/surface/subtle" },
+    ],
+  },
+};
+
+/**
+ * Get state overrides for a component, merging concept-specific overrides
+ * with the generic STATE_OVERRIDES. Concept overrides take priority.
+ */
+export function getStateOverridesForComponent(
+  componentType: string,
+  stateName: string,
+): TokenOverride[] {
+  const concept = getConceptForComponent(componentType);
+
+  // Check concept-specific overrides first
+  if (concept) {
+    const conceptOverrides = CONCEPT_STATE_OVERRIDES[concept.id];
+    if (conceptOverrides?.[stateName]) {
+      return conceptOverrides[stateName];
+    }
+  }
+
+  // Fall back to generic state overrides
+  return STATE_OVERRIDES[stateName] ?? [];
+}
+
 /** All dimension maps for convenient iteration. */
 export const DIMENSION_OVERRIDES = {
   state: STATE_OVERRIDES,

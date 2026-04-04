@@ -14,6 +14,8 @@
 import { getBridge } from "../../../shared/figma-bridge.js";
 import { COMPONENT_BLUEPRINTS, ComponentBlueprint } from "../../../shared/component-templates.js";
 import { SEMANTIC_TOKEN_CATALOG } from "../../../shared/semantic-token-catalog.js";
+import { resolveDesignPalette, ResolvedPalette } from "../../../shared/token-binder.js";
+import { getDesignSystemFontFamily } from "../../../shared/design-system-tokens.js";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -350,6 +352,24 @@ function buildPlan(args: CompositionBuilderArgs): CompositionPlan {
 async function buildInFigma(plan: CompositionPlan, args: CompositionBuilderArgs): Promise<{ frameId: string; pageName?: string }> {
   const bridge = await getBridge();
 
+  // Resolve DS palette — selected DS is authoritative
+  const dsId = bridge.getActiveDesignSystemId();
+  let palette: ResolvedPalette | undefined;
+  try {
+    const tokens = await bridge.getTokens();
+    if (dsId || tokens.length > 0) palette = resolveDesignPalette(tokens, dsId);
+  } catch {
+    if (dsId) palette = resolveDesignPalette([], dsId);
+  }
+
+  // Color helpers — use DS palette when available, else hardcoded defaults
+  const surfaceColor = palette?.surface.rgb ?? "{ r: 0.95, g: 0.95, b: 0.97 }";
+  const borderColor = palette?.border.rgb ?? "{ r: 0.85, g: 0.85, b: 0.85 }";
+  const textColor = palette ? (palette.muted.rgb !== palette.primary.rgb ? palette.muted.rgb : "{ r: 0.1, g: 0.1, b: 0.1 }") : "{ r: 0.1, g: 0.1, b: 0.1 }";
+  const accentColor = palette?.accent.rgb ?? "{ r: 0.4, g: 0.5, b: 0.9 }";
+  const bgColor = palette?.surface.rgb ?? "{ r: 1, g: 1, b: 1 }";
+  const fontFamily = (dsId ? getDesignSystemFontFamily(dsId) : null) ?? "Inter";
+
   // Build the script to create the composition in Figma
   const childScripts: string[] = [];
 
@@ -374,8 +394,8 @@ async function buildInFigma(plan: CompositionPlan, args: CompositionBuilderArgs)
           comp.paddingBottom = ${rootNode.paddingY ?? 8};
           comp.itemSpacing = ${rootNode.itemSpacing ?? 8};
           comp.cornerRadius = ${rootNode.cornerRadius ?? 0};
-          ${rootNode.fillSemantic ? `comp.fills = [{ type: 'SOLID', color: { r: 0.95, g: 0.95, b: 0.97 } }];` : `comp.fills = [];`}
-          ${rootNode.strokeSemantic ? `comp.strokes = [{ type: 'SOLID', color: { r: 0.85, g: 0.85, b: 0.85 } }]; comp.strokeWeight = ${rootNode.strokeWeight ?? 1};` : ""}
+          ${rootNode.fillSemantic ? `comp.fills = [{ type: 'SOLID', color: ${surfaceColor} }];` : `comp.fills = [];`}
+          ${rootNode.strokeSemantic ? `comp.strokes = [{ type: 'SOLID', color: ${borderColor} }]; comp.strokeWeight = ${rootNode.strokeWeight ?? 1};` : ""}
 
           ${rootNode.children?.map((childNode) => {
             if (childNode.kind === "text") {
@@ -385,7 +405,7 @@ async function buildInFigma(plan: CompositionPlan, args: CompositionBuilderArgs)
                 txt.name = '${childNode.name.replace(/'/g, "\\'")}';
                 txt.characters = '${text.replace(/'/g, "\\'")}';
                 txt.fontSize = ${childNode.textContent?.includes("label") || childNode.name.includes("label") ? 14 : 14};
-                txt.fills = [{ type: 'SOLID', color: { r: 0.1, g: 0.1, b: 0.1 } }];
+                txt.fills = [{ type: 'SOLID', color: ${textColor} }];
                 comp.appendChild(txt);
               `;
             }
@@ -395,7 +415,7 @@ async function buildInFigma(plan: CompositionPlan, args: CompositionBuilderArgs)
                 rect.name = '${childNode.name.replace(/'/g, "\\'")}';
                 rect.resize(${childNode.width ?? 16}, ${childNode.height ?? 16});
                 ${childNode.cornerRadius ? `rect.cornerRadius = ${childNode.cornerRadius};` : ""}
-                ${childNode.fillSemantic ? `rect.fills = [{ type: 'SOLID', color: { r: 0.4, g: 0.5, b: 0.9 } }];` : `rect.fills = [{ type: 'SOLID', color: { r: 0.9, g: 0.9, b: 0.9 } }];`}
+                ${childNode.fillSemantic ? `rect.fills = [{ type: 'SOLID', color: ${accentColor} }];` : `rect.fills = [{ type: 'SOLID', color: ${surfaceColor} }];`}
                 comp.appendChild(rect);
               `;
             }
@@ -409,16 +429,16 @@ async function buildInFigma(plan: CompositionPlan, args: CompositionBuilderArgs)
   }
 
   const wrapperFill = plan.wrapperStyle?.fill
-    ? `container.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];`
+    ? `container.fills = [{ type: 'SOLID', color: ${bgColor} }];`
     : args.includeBackground
-      ? `container.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];`
+      ? `container.fills = [{ type: 'SOLID', color: ${bgColor} }];`
       : `container.fills = [];`;
 
   const script = `
     (async () => {
-      await figma.loadFontAsync({ family: "Inter", style: "Regular" });
-      await figma.loadFontAsync({ family: "Inter", style: "Medium" });
-      await figma.loadFontAsync({ family: "Inter", style: "Bold" });
+      await figma.loadFontAsync({ family: ${JSON.stringify(fontFamily)}, style: "Regular" }).catch(function() { return figma.loadFontAsync({ family: "Inter", style: "Regular" }); });
+      await figma.loadFontAsync({ family: ${JSON.stringify(fontFamily)}, style: "Medium" }).catch(function() { return figma.loadFontAsync({ family: "Inter", style: "Medium" }); });
+      await figma.loadFontAsync({ family: ${JSON.stringify(fontFamily)}, style: "Bold" }).catch(function() { return figma.loadFontAsync({ family: "Inter", style: "Bold" }); });
 
       ${args.targetPage ? `
         var targetPage = figma.root.children.find(function(p) { return p.name === '${args.targetPage.replace(/'/g, "\\'")}'; });
@@ -443,16 +463,16 @@ async function buildInFigma(plan: CompositionPlan, args: CompositionBuilderArgs)
       container.itemSpacing = ${plan.spacing};
       ${plan.wrapperStyle?.cornerRadius ? `container.cornerRadius = ${plan.wrapperStyle.cornerRadius};` : ""}
       ${wrapperFill}
-      ${plan.wrapperStyle?.stroke ? `container.strokes = [{ type: 'SOLID', color: { r: 0.85, g: 0.85, b: 0.87 } }]; container.strokeWeight = 1;` : ""}
+      ${plan.wrapperStyle?.stroke ? `container.strokes = [{ type: 'SOLID', color: ${borderColor} }]; container.strokeWeight = 1;` : ""}
       ${plan.wrapperStyle?.shadow ? `container.effects = [{ type: 'DROP_SHADOW', color: { r: 0, g: 0, b: 0, a: 0.1 }, offset: { x: 0, y: 4 }, radius: 12, spread: 0, visible: true }];` : ""}
 
       // Title label
       var titleLabel = figma.createText();
       titleLabel.name = 'Composition Title';
-      titleLabel.fontName = { family: "Inter", style: "Bold" };
+      titleLabel.fontName = { family: ${JSON.stringify(fontFamily)}, style: "Bold" };
       titleLabel.fontSize = 18;
       titleLabel.characters = '${plan.name.replace(/'/g, "\\'")}';
-      titleLabel.fills = [{ type: 'SOLID', color: { r: 0.1, g: 0.1, b: 0.1 } }];
+      titleLabel.fills = [{ type: 'SOLID', color: ${textColor} }];
       container.appendChild(titleLabel);
 
       ${childScripts.join("\n")}

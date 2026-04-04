@@ -13,6 +13,7 @@ import {
   figmaRgbaToHex,
 } from "../../../shared/token-utils.js";
 import { resolveTokenId } from "../../../shared/token-binder.js";
+import { getConceptForComponent, getAllTokenPaths } from "../../../shared/concept-taxonomy.js";
 import { FigmaNode, Token, TokenRef } from "../../../shared/types.js";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
@@ -45,6 +46,10 @@ export interface ComponentArchaeologistResult {
   nodeName: string;
   patternMatches: PatternMatch[];
   bestMatch: string;
+  /** Concept from the taxonomy (e.g. "action", "surface", "field") */
+  concept: string | null;
+  /** Expected token paths for this concept from the taxonomy */
+  expectedTokens: string[];
   tokenMappings: TokenMapping[];
   promotedComponentId: string | null;
   docStub: string | null;
@@ -557,8 +562,15 @@ export async function componentArchaeologistHandler(
   const node = await bridge.getNode(nodeId);
   if (!node) throw new Error(`componentArchaeologist: Node "${nodeId}" not found.`);
 
-  // 2. Fetch tokens for snapping
-  const tokens: Token[] = await bridge.getTokens();
+  // 2. Fetch tokens for snapping — DS tokens are authoritative when selected
+  const dsId = bridge.getActiveDesignSystemId();
+  let tokens: Token[];
+  if (dsId) {
+    const { getDesignSystemTokens } = await import("../../../shared/design-system-tokens.js");
+    tokens = getDesignSystemTokens(dsId);
+  } else {
+    tokens = await bridge.getTokens();
+  }
 
   // 3. Summarize layers
   const layerSummary = countLayerTypes(node);
@@ -627,11 +639,18 @@ export async function componentArchaeologistHandler(
     },
   });
 
+  // Enrich with concept taxonomy metadata
+  const conceptDef = getConceptForComponent(bestMatch);
+  const concept = conceptDef?.id ?? null;
+  const expectedTokens = concept ? getAllTokenPaths(concept) : [];
+
   return {
     nodeId,
     nodeName: node.name,
     patternMatches,
     bestMatch,
+    concept,
+    expectedTokens,
     tokenMappings,
     promotedComponentId,
     docStub,

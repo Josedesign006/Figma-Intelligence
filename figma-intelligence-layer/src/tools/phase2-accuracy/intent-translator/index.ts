@@ -246,10 +246,19 @@ export async function intentTranslatorHandler(
   } catch {
     // If scanning times out, continue with keyword-only results
   }
-  try {
-    tokens = await bridge.getTokens();
-  } catch {
-    // If token fetch fails, tokenRefs will remain empty
+  // DS tokens are authoritative when a design system is selected
+  const dsId = bridge.getActiveDesignSystemId();
+  if (dsId) {
+    try {
+      const { getDesignSystemTokens } = await import("../../../shared/design-system-tokens.js");
+      tokens = getDesignSystemTokens(dsId);
+    } catch {}
+  } else {
+    try {
+      tokens = await bridge.getTokens();
+    } catch {
+      // If token fetch fails, tokenRefs will remain empty
+    }
   }
 
   // 3. Fuzzy match parsed component names against DS sets

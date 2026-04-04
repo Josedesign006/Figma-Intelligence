@@ -1786,9 +1786,8 @@ export async function pageArchitectHandler(
   if (!flow) throw new Error("pageArchitect: `flow` is required.");
   if (!productContext) throw new Error("pageArchitect: `productContext` is required.");
 
-  const fontConfig = resolveFontConfig(args.fonts);
-
   const bridge = await getBridge();
+  const fontConfig = resolveFontConfig(args.fonts, bridge.getActiveDesignSystemId());
 
   // 1. Parse flow into screen specs
   const screenSpecs = parseFlowToScreens(productContext, flow, contentMode);
@@ -1819,13 +1818,18 @@ export async function pageArchitectHandler(
   // Fetch design tokens to resolve palette colors and bind variables
   let dsTokens: Token[] = [];
   let palette: ResolvedPalette | undefined;
+  const dsId = bridge.getActiveDesignSystemId();
   try {
     dsTokens = await bridge.getTokens();
-    if (dsTokens.length > 0) {
-      palette = resolveDesignPalette(dsTokens);
+    // When a DS is selected, its tokens are authoritative (no fallback to file tokens)
+    if (dsId || dsTokens.length > 0) {
+      palette = resolveDesignPalette(dsTokens, dsId);
     }
   } catch {
-    // Token resolution is best-effort — fall back to hardcoded palette
+    // If DS is selected, still resolve palette from DS tokens even if getTokens fails
+    if (dsId) {
+      palette = resolveDesignPalette([], dsId);
+    }
   }
 
   // 2.5 Optionally prepare imagery for image-heavy flows

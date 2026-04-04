@@ -145,9 +145,13 @@ export async function captureSnapshot(nodeId: string): Promise<NodeSnapshot> {
       var tokenAliases = Object.keys(tokenAliasSet);
 
       // ── Block 4: component metadata ──
+      // Check the node itself first, then fall back to parent ComponentSet for properties
       var componentProperties = [];
-      if ("componentProperties" in node && node.componentProperties) {
-        for (var cpEntry of Object.entries(node.componentProperties)) {
+      var cpSource = ("componentProperties" in node && node.componentProperties) ? node
+        : (node.type === "COMPONENT" && node.parent && node.parent.type === "COMPONENT_SET" && "componentProperties" in node.parent && node.parent.componentProperties) ? node.parent
+        : null;
+      if (cpSource && cpSource.componentProperties) {
+        for (var cpEntry of Object.entries(cpSource.componentProperties)) {
           var cpName = cpEntry[0];
           var cpProp = cpEntry[1];
           componentProperties.push({
@@ -161,14 +165,18 @@ export async function captureSnapshot(nodeId: string): Promise<NodeSnapshot> {
 
       var variantGroupProperties = {};
       var variants = [];
-      if (node.type === "COMPONENT_SET") {
-        for (var vgEntry of Object.entries(node.variantGroupProperties || {})) {
+      // Resolve ComponentSet: either the node itself or its parent (when a variant Component is selected)
+      var compSetNode = node.type === "COMPONENT_SET" ? node
+        : (node.type === "COMPONENT" && node.parent && node.parent.type === "COMPONENT_SET") ? node.parent
+        : null;
+      if (compSetNode) {
+        for (var vgEntry of Object.entries(compSetNode.variantGroupProperties || {})) {
           var vgName = vgEntry[0];
           var vgProp = vgEntry[1];
           variantGroupProperties[vgName] = Array.isArray(vgProp.values) ? vgProp.values.map(String) : [];
         }
-        for (var vi = 0; vi < Math.min(node.children.length, 40); vi++) {
-          var vChild = node.children[vi];
+        for (var vi = 0; vi < Math.min(compSetNode.children.length, 40); vi++) {
+          var vChild = compSetNode.children[vi];
           variants.push({
             id: vChild.id,
             name: vChild.name,

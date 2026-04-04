@@ -130,6 +130,16 @@ function emitDocumentChange(event) {
     pendingDocumentChanges = pendingDocumentChanges.slice(-200);
   }
   scheduleDocumentChangeFlush();
+
+  // Detect variable/token changes for taxonomy docs auto-sync
+  var hasVariableChange = changes.some(function(c) {
+    var t = (c.type || "").toUpperCase();
+    return t === "VARIABLE_CHANGE" || t === "VARIABLE_COLLECTION_CHANGE"
+      || t === "CREATE" || t === "PROPERTY_CHANGE" || t === "DELETE";
+  });
+  if (hasVariableChange) {
+    postBridgeEvent("variable-change", { timestamp: Date.now() });
+  }
 }
 
 figma.on("selectionchange", emitSelectionChange);
@@ -148,91 +158,53 @@ async function initializeBridgeEvents() {
 
 initializeBridgeEvents();
 
-// ─── Agent Cursor Theatre System v3 ───────────────────────────────────────────
-// Event-driven, phase-based cursor theatre. Six agents with distinct roles.
-// Cursors spawn lazily on first relevant operation, animate purposefully, and
-// fade out gracefully when a quiet pause triggers the REVIEWING phase.
+// ─── Operation Cursor System ──────────────────────────────────────────────────
+// Single honest cursor that tracks real operations. Moves to the actual target
+// node, shows real operation names, and stays invisible when idle.
 
-// Pre-load fonts for agent cursors
+// Pre-load font for cursor label
 figma.loadFontAsync({ family: "Inter", style: "Bold" }).catch(function() {
   figma.loadFontAsync({ family: "Inter", style: "Semi Bold" }).catch(function() {
     figma.loadFontAsync({ family: "Inter", style: "Regular" }).catch(function() {});
   });
 });
 
-// ── Phase State Machine ────────────────────────────────────────────────────────
-var PHASE = {
-  IDLE: "IDLE", PLANNING: "PLANNING", SCAFFOLDING: "SCAFFOLDING",
-  BUILDING: "BUILDING", STYLING: "STYLING",
-  REVIEWING: "REVIEWING", FINISHING: "FINISHING", DONE: "DONE"
-};
-var sessionPhase = PHASE.IDLE;
-var agentSpawned = {};        // { Planner: false, Onyx: false, ... }
-var agentSpawnOrder = [];     // tracks spawn order for eviction
-var lastActiveAgent = null;
-var operationCount = 0;
-var workFrame = null;         // { id, x, y, width, height }
-var reviewingTimer = null;
-var finishingTimer = null;
+// ── Cursor Configuration ──────────────────────────────────────────────────────
+var CURSOR_NAME = "MCP Power";
+var CURSOR_COLOR = { r: 0.43, g: 0.37, b: 0.85 }; // #6E5FD8
+var CURSOR_TEXT_COLOR = { r: 1, g: 1, b: 1 };
+var CURSOR_ANIM_DURATION = 250; // ms — perceptible but snappy
+var SESSION_IDLE_TIMEOUT = 8000;
 
-// ── Agent Configuration (6 agents) ────────────────────────────────────────────
-var AGENTS = {
-  Planner:  { color: {r:0.54,g:0.54,b:0.60}, hexColor: "#8A8A9A", textColor: {r:1,g:1,b:1}, role: "Planning" },
-  Onyx:     { color: {r:0.43,g:0.37,b:0.85}, hexColor: "#6E5FD8", textColor: {r:1,g:1,b:1}, role: "Structure" },
-  Cosmo:    { color: {r:0.23,g:0.48,b:0.84}, hexColor: "#3A7BD5", textColor: {r:1,g:1,b:1}, role: "Header / Top" },
-  Mirage:   { color: {r:0.83,g:0.52,b:0.29}, hexColor: "#D4854A", textColor: {r:1,g:1,b:1}, role: "Content / Lists" },
-  Iris:     { color: {r:0.18,g:0.70,b:0.63}, hexColor: "#2EB3A0", textColor: {r:1,g:1,b:1}, role: "Styling" },
-  Reviewer: { color: {r:0.83,g:0.29,b:0.29}, hexColor: "#D44A4A", textColor: {r:1,g:1,b:1}, role: "QA Review" },
-};
-
-// ── Timing Constants ───────────────────────────────────────────────────────────
-var CURSOR_ANIM_DURATION  = 80;    // ms standard travel (was 350)
-var PRE_BUILD_DELAY       = 30;    // wait before op (was 200)
-var POST_BUILD_DELAY      = 20;    // micro-hover after result (was 100)
-var SESSION_IDLE_TIMEOUT  = 8000;  // (was 20000)
-var READ_OP_DELAY         = 60;
-var QUIET_PAUSE_FOR_REVIEW = 500;  // (was 3000)
-
-// ── Methods that skip agent theatre entirely (they manage their own frames) ──
+// ── Methods that skip cursor entirely (they manage their own frames) ──
 var THEATRE_SKIP_METHODS = { execute: 1 };
 
 // ── Shared State ──────────────────────────────────────────────────────────────
-var agentCursors = {};
-var generatingHeaders = {};
+var opCursor = null;          // { pointer, label, text, x, y, fontStyle }
+var operationCount = 0;
 var cursorCleanupTimer = null;
+var cursorActive = false;
 
-// ── Operation Sets ─────────────────────────────────────────────────────────────
-var STYLING_OPERATIONS = {
-  setFills:1, setStrokes:1, createVariable:1, createVariableCollection:1,
-  batchCreateVariables:1, batchUpdateVariables:1, updateVariable:1, deleteVariable:1
-};
-var BUILDING_OPERATIONS = {
-  createChild:1, setText:1, moveNode:1, resizeNode:1,
-  cloneNode:1, deleteNode:1, instantiateComponent:1, renameNode:1, setDescription:1, execute:1
-};
+// ── Operation Classification ──────────────────────────────────────────────────
 var READ_OPERATIONS = {
   getNode:1, getSelection:1, getStatus:1, getPages:1,
   getStyles:1, getVariables:1, getComponentSets:1,
   searchComponents:1, screenshot:1, getCapabilities:1, ping:1,
 };
 
-var METHOD_STATUS_MAP = {
-  createChild: "Creating element", createPage: "Creating page",
+// ── Human-readable operation labels (shown on cursor) ─────────────────────────
+var METHOD_LABELS = {
+  createChild: "Creating", createPage: "Creating page",
   moveNode: "Positioning", resizeNode: "Resizing",
   cloneNode: "Duplicating", deleteNode: "Removing",
-  setFills: "Applying colors", setStrokes: "Setting strokes",
-  getStyles: "Reading styles", getVariables: "Loading tokens",
+  setFills: "Styling", setStrokes: "Styling",
   createVariable: "Creating token", updateVariable: "Updating token",
   createVariableCollection: "New collection",
   batchCreateVariables: "Creating tokens", batchUpdateVariables: "Updating tokens",
   deleteVariable: "Removing token",
   setText: "Writing text", renameNode: "Naming",
   setDescription: "Documenting",
-  searchComponents: "Searching components", instantiateComponent: "Placing component",
-  getComponentSets: "Browsing components",
-  screenshot: "Capturing", getSelection: "Inspecting",
-  getNode: "Reading node", execute: "Building",
-  getStatus: "Checking status", getPages: "Scanning pages",
+  instantiateComponent: "Placing component",
 };
 
 // ── Utility ───────────────────────────────────────────────────────────────────
@@ -240,7 +212,41 @@ function theatreDelay(ms) {
   return new Promise(function(resolve) { setTimeout(resolve, ms); });
 }
 
-function getViewportCenter() {
+// ── Absolute Position Helper ───────────────────────────────────────────────────
+function getAbsolutePosition(node) {
+  try {
+    if (node.absoluteTransform) {
+      return {
+        x: node.absoluteTransform[0][2],
+        y: node.absoluteTransform[1][2],
+        width: node.width || 0,
+        height: node.height || 0,
+      };
+    }
+  } catch (e) {}
+  return { x: node.x || 0, y: node.y || 0, width: node.width || 0, height: node.height || 0 };
+}
+
+// ── Get Real Target Position ──────────────────────────────────────────────────
+async function getTargetPosition(method, params) {
+  try {
+    var targetNode = null;
+    if (params.nodeId) targetNode = await figma.getNodeByIdAsync(params.nodeId);
+    if (!targetNode && params.parentId) targetNode = await figma.getNodeByIdAsync(params.parentId);
+
+    if (targetNode && targetNode.absoluteTransform) {
+      var abs = getAbsolutePosition(targetNode);
+      // Position cursor just outside the top-left of the target node
+      return { x: abs.x - 20, y: abs.y - 6 };
+    }
+
+    // Fall back to explicit coordinates if provided
+    if (typeof params.x === "number" && typeof params.y === "number") {
+      return { x: params.x - 20, y: params.y - 6 };
+    }
+  } catch (e) {}
+
+  // Last resort: viewport center
   try {
     var vc = figma.viewport.center;
     return { x: vc.x, y: vc.y };
@@ -249,76 +255,19 @@ function getViewportCenter() {
   }
 }
 
-// ── Phase Transition ──────────────────────────────────────────────────────────
-function transitionPhase(newPhase) {
-  if (sessionPhase === newPhase) return;
-  sessionPhase = newPhase;
-  figma.ui.postMessage({ type: "phase-change", phase: newPhase });
-  onPhaseEnter(newPhase);
-}
-
-function onPhaseEnter(phase) {
-  if (phase === PHASE.PLANNING) {
-    runPlannerSequence();
-  } else if (phase === PHASE.SCAFFOLDING) {
-    (async function() {
-      await fadeOutSingleCursor("Planner", 400);
-    })();
-  } else if (phase === PHASE.REVIEWING) {
-    runReviewerSequence();
-  } else if (phase === PHASE.FINISHING) {
-    runFinishingSequence();
-  } else if (phase === PHASE.DONE) {
-    removeAllAgentCursorNodes();
+// ── Build Operation Label ─────────────────────────────────────────────────────
+function buildOperationLabel(method, params) {
+  var prefix = METHOD_LABELS[method] || method;
+  // Append the element name when available for context
+  var name = params && params.name;
+  if (!name && params && params.characters) {
+    name = params.characters.length > 20 ? params.characters.substring(0, 20) + "…" : params.characters;
   }
-}
-
-function resetReviewTimer() {
-  if (reviewingTimer) clearTimeout(reviewingTimer);
-  reviewingTimer = setTimeout(function() {
-    if (sessionPhase === PHASE.BUILDING || sessionPhase === PHASE.STYLING) {
-      transitionPhase(PHASE.REVIEWING);
-    }
-  }, QUIET_PAUSE_FOR_REVIEW);
-}
-
-function isRootFrameCreation(method, params) {
-  if (method !== "createChild") return false;
-  if (params.childType !== "FRAME") return false;
-  if (params.parentId && params.parentId !== figma.currentPage.id) return false;
-  var w = params.width || 375;
-  var h = params.height || 812;
-  return w >= 300 && h >= 600;
-}
-
-function advancePhaseForOperation(method, params) {
-  if (sessionPhase === PHASE.IDLE) {
-    transitionPhase(PHASE.PLANNING);
-  } else if (sessionPhase === PHASE.PLANNING) {
-    if (method === "createPage" || isRootFrameCreation(method, params)) {
-      transitionPhase(PHASE.SCAFFOLDING);
-    }
-  } else if (sessionPhase === PHASE.SCAFFOLDING) {
-    if (!isRootFrameCreation(method, params) && method !== "createPage") {
-      transitionPhase(PHASE.BUILDING);
-    }
-  } else if (sessionPhase === PHASE.BUILDING) {
-    if (STYLING_OPERATIONS[method]) {
-      transitionPhase(PHASE.STYLING);
-    } else {
-      resetReviewTimer();
-    }
-  } else if (sessionPhase === PHASE.STYLING) {
-    resetReviewTimer();
-  }
+  return name ? prefix + ": " + name : prefix;
 }
 
 // ── Cursor Creation ─────────────────────────────────────────────────────────
-async function createAgentCursorNode(agentName, x, y) {
-  var agentInfo = AGENTS[agentName] || AGENTS.Mirage;
-  var color = agentInfo.color;
-  var textColor = agentInfo.textColor;
-
+async function createCursorNode(x, y) {
   var POINTER_W = 14;
   var POINTER_H = 21;
 
@@ -330,7 +279,7 @@ async function createAgentCursorNode(agentName, x, y) {
       data: "M 0 0 L 0 18 L 5 13 L 9 21 L 12 19.5 L 8 11 L 14 11 Z"
     }];
     pointer.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
-    pointer.strokes = [{ type: "SOLID", color: color }];
+    pointer.strokes = [{ type: "SOLID", color: CURSOR_COLOR }];
     pointer.strokeWeight = 1.5;
     pointer.resize(POINTER_W, POINTER_H);
   } catch (e) {
@@ -338,19 +287,19 @@ async function createAgentCursorNode(agentName, x, y) {
     pointer.resize(10, 14);
     pointer.cornerRadius = 1;
     pointer.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
-    pointer.strokes = [{ type: "SOLID", color: color }];
+    pointer.strokes = [{ type: "SOLID", color: CURSOR_COLOR }];
     pointer.strokeWeight = 1;
   }
-  pointer.name = "__agent_ptr_" + agentName;
+  pointer.name = "__agent_ptr_op";
   pointer.locked = true;
   pointer.x = x;
   pointer.y = y;
   figma.currentPage.appendChild(pointer);
 
   var label = figma.createFrame();
-  label.name = "__agent_label_" + agentName;
+  label.name = "__agent_label_op";
   label.locked = true;
-  label.fills = [{ type: "SOLID", color: color }];
+  label.fills = [{ type: "SOLID", color: CURSOR_COLOR }];
   label.cornerRadius = 4;
   label.layoutMode = "HORIZONTAL";
   label.primaryAxisSizingMode = "AUTO";
@@ -388,32 +337,286 @@ async function createAgentCursorNode(agentName, x, y) {
     }
     textNode = figma.createText();
     textNode.fontName = { family: "Inter", style: fontStyle };
-    textNode.characters = agentName;
+    textNode.characters = CURSOR_NAME;
     textNode.fontSize = 10;
-    textNode.fills = [{ type: "SOLID", color: textColor }];
+    textNode.fills = [{ type: "SOLID", color: CURSOR_TEXT_COLOR }];
     textNode.locked = true;
     label.appendChild(textNode);
   } catch (fontErr) {
     label.resize(50, 18);
   }
 
-  agentCursors[agentName] = {
+  opCursor = {
     pointer: pointer, label: label, text: textNode,
     x: x, y: y, fontStyle: fontStyle,
-    busy: false,
   };
 }
 
 // ── Cursor Label Update ────────────────────────────────────────────────────────
-function updateCursorLabel(agentName, text) {
-  var cursor = agentCursors[agentName];
-  if (!cursor || !cursor.text) return;
-  try { cursor.text.characters = text; } catch (e) {}
+function updateCursorLabel(text) {
+  if (!opCursor || !opCursor.text) return;
+  try { opCursor.text.characters = text; } catch (e) {}
 }
 
 // ── Cursor Movement (instant) ──────────────────────────────────────────────────
-function moveAgentCursorTo(agentName, x, y) {
-  var cursor = agentCursors[agentName];
+function moveCursorTo(x, y) {
+  if (!opCursor) return;
+  try {
+    opCursor.pointer.x = x;
+    opCursor.pointer.y = y;
+    opCursor.label.x = x + 16;
+    opCursor.label.y = y + 17;
+    opCursor.x = x;
+    opCursor.y = y;
+  } catch (e) {}
+}
+
+// ── Animated Cursor Movement ───────────────────────────────────────────────────
+async function animateCursorTo(targetX, targetY, durationMs) {
+  if (!opCursor) return;
+
+  var dur = (typeof durationMs === "number") ? durationMs : CURSOR_ANIM_DURATION;
+  var startX = opCursor.x;
+  var startY = opCursor.y;
+  var dx = targetX - startX;
+  var dy = targetY - startY;
+  var dist = Math.sqrt(dx * dx + dy * dy);
+
+  if (dist < 15) {
+    moveCursorTo(targetX, targetY);
+    return;
+  }
+
+  var steps = Math.max(6, Math.min(18, Math.floor(dist / 18)));
+  var stepDelay = Math.floor(dur / steps);
+
+  for (var i = 1; i <= steps; i++) {
+    var t = i / steps;
+    var ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    moveCursorTo(startX + dx * ease, startY + dy * ease);
+    if (i < steps) await theatreDelay(stepDelay);
+  }
+}
+
+// ── Fade Out Cursor ───────────────────────────────────────────────────────────
+async function fadeOutCursor(durationMs) {
+  if (!opCursor) return;
+  var stepDelay = Math.floor((durationMs || 400) / 5);
+  for (var step = 4; step >= 0; step--) {
+    var opacity = step / 4;
+    try { opCursor.pointer.opacity = opacity; } catch (e) {}
+    try { opCursor.label.opacity = opacity; } catch (e) {}
+    if (step > 0) await theatreDelay(stepDelay);
+  }
+  removeCursorNodes();
+}
+
+// ── Ensure Cursor Exists ──────────────────────────────────────────────────────
+async function ensureCursor(x, y) {
+  if (opCursor) return;
+  cleanupOrphanedCursors();
+  await createCursorNode(x, y);
+  cursorActive = true;
+}
+
+// ── Cleanup ────────────────────────────────────────────────────────────────────
+function removeCursorNodes() {
+  if (!opCursor) return;
+  try { opCursor.pointer.remove(); } catch (e) {}
+  try { opCursor.label.remove(); } catch (e) {}
+  opCursor = null;
+  cursorActive = false;
+}
+
+function cleanupOrphanedCursors() {
+  try {
+    var orphans = figma.currentPage.findAll(function(n) {
+      return n.name && (
+        n.name.indexOf("__agent_ptr_") === 0 ||
+        n.name.indexOf("__agent_label_") === 0 ||
+        n.name.indexOf("__agent_cursor_") === 0 ||
+        n.name.indexOf("__cursor_") === 0
+      );
+    });
+    for (var i = 0; i < orphans.length; i++) {
+      try { orphans[i].remove(); } catch (e) {}
+    }
+  } catch (e) {}
+}
+
+// ── Bring Cursor to Front ─────────────────────────────────────────────────────
+function bringCursorToFront() {
+  if (!opCursor) return;
+  try {
+    if (opCursor.pointer && opCursor.pointer.parent === figma.currentPage) {
+      figma.currentPage.appendChild(opCursor.pointer);
+    }
+    if (opCursor.label && opCursor.label.parent === figma.currentPage) {
+      figma.currentPage.appendChild(opCursor.label);
+    }
+  } catch (e) {}
+}
+
+// ── Idle Cleanup Timer ────────────────────────────────────────────────────────
+function resetCursorCleanupTimer() {
+  if (cursorCleanupTimer) clearTimeout(cursorCleanupTimer);
+  cursorCleanupTimer = setTimeout(function() {
+    if (opCursor) {
+      (async function() { await fadeOutCursor(400); })();
+      figma.ui.postMessage({ type: "agent-session-end", timestamp: Date.now() });
+    }
+    operationCount = 0;
+  }, SESSION_IDLE_TIMEOUT);
+}
+
+// ── Main Operation Cursor ─────────────────────────────────────────────────────
+async function activateAgentForOperation(method, params) {
+  if (READ_OPERATIONS[method]) return;
+
+  operationCount++;
+  var pos = await getTargetPosition(method, params || {});
+  await ensureCursor(pos.x, pos.y);
+
+  // Build label from real operation + element name
+  var label = buildOperationLabel(method, params || {});
+  updateCursorLabel(label);
+
+  // Animate to actual target position
+  await animateCursorTo(pos.x, pos.y);
+  bringCursorToFront();
+
+  // Report real activity to UI
+  figma.ui.postMessage({
+    type: "agent-activity",
+    agent: CURSOR_NAME,
+    method: method,
+    status: label,
+    phase: "WORKING",
+    timestamp: Date.now(),
+  });
+
+  resetCursorCleanupTimer();
+}
+
+// ── Post-Operation Effect ──────────────────────────────────────────────────────
+async function postOperationEffect(method, params, result) {
+  if (READ_OPERATIONS[method]) return;
+  if (!opCursor) return;
+
+  // Move cursor to the newly created node's actual position
+  if (result && result.id) {
+    try {
+      var newNode = await figma.getNodeByIdAsync(result.id);
+      if (newNode && newNode.absoluteTransform) {
+        var abs = getAbsolutePosition(newNode);
+        await animateCursorTo(abs.x - 20, abs.y - 6, 150);
+      }
+    } catch (e) {}
+  }
+
+  resetCursorCleanupTimer();
+}
+
+// ─── End Operation Cursor System ──────────────────────────────────────────────
+
+// ─── Multi-Agent Cursor System (Swarm Mode) ─────────────────────────────────
+// Multiple named agent cursors with unique colors for parallel visual theatre.
+// Each agent gets its own pointer + label that can move independently.
+
+var AGENT_COLORS = {
+  Layouter:   { r: 0.26, g: 0.52, b: 0.96 },  // #4285F4 blue
+  Styler:     { r: 0.60, g: 0.33, b: 0.86 },  // #9955DB purple
+  Copywriter: { r: 0.13, g: 0.72, b: 0.45 },  // #22B873 green
+  Matcher:    { r: 0.96, g: 0.50, b: 0.14 },  // #F58024 orange
+  Reviewer:   { r: 0.90, g: 0.22, b: 0.35 },  // #E63959 red
+  Builder:    { r: 0.18, g: 0.73, b: 0.82 },  // #2EBAD1 teal
+};
+
+var agentCursors = {};  // { agentId: { pointer, label, text, x, y } }
+
+async function createAgentCursorNode(agentId, x, y) {
+  var color = AGENT_COLORS[agentId] || AGENT_COLORS.Builder;
+
+  var pointer;
+  try {
+    pointer = figma.createVector();
+    pointer.vectorPaths = [{
+      windingRule: "NONZERO",
+      data: "M 0 0 L 0 18 L 5 13 L 9 21 L 12 19.5 L 8 11 L 14 11 Z"
+    }];
+    pointer.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
+    pointer.strokes = [{ type: "SOLID", color: color }];
+    pointer.strokeWeight = 1.5;
+    pointer.resize(14, 21);
+  } catch (e) {
+    pointer = figma.createRectangle();
+    pointer.resize(10, 14);
+    pointer.cornerRadius = 1;
+    pointer.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
+    pointer.strokes = [{ type: "SOLID", color: color }];
+    pointer.strokeWeight = 1;
+  }
+  pointer.name = "__agent_ptr_" + agentId;
+  pointer.locked = true;
+  pointer.x = x;
+  pointer.y = y;
+  figma.currentPage.appendChild(pointer);
+
+  var label = figma.createFrame();
+  label.name = "__agent_label_" + agentId;
+  label.locked = true;
+  label.fills = [{ type: "SOLID", color: color }];
+  label.cornerRadius = 4;
+  label.layoutMode = "HORIZONTAL";
+  label.primaryAxisSizingMode = "AUTO";
+  label.counterAxisSizingMode = "AUTO";
+  label.paddingLeft = 6;
+  label.paddingRight = 6;
+  label.paddingTop = 2;
+  label.paddingBottom = 2;
+  label.effects = [{
+    type: "DROP_SHADOW",
+    color: { r: 0, g: 0, b: 0, a: 0.3 },
+    offset: { x: 0, y: 2 },
+    radius: 4,
+    visible: true,
+    blendMode: "NORMAL",
+    spread: 0,
+  }];
+  label.x = x + 16;
+  label.y = y + 17;
+  figma.currentPage.appendChild(label);
+
+  var textNode = null;
+  try {
+    await figma.loadFontAsync({ family: "Inter", style: "Bold" });
+    textNode = figma.createText();
+    textNode.fontName = { family: "Inter", style: "Bold" };
+    textNode.characters = agentId;
+    textNode.fontSize = 10;
+    textNode.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
+    textNode.locked = true;
+    label.appendChild(textNode);
+  } catch (e) {
+    try {
+      await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+      textNode = figma.createText();
+      textNode.fontName = { family: "Inter", style: "Regular" };
+      textNode.characters = agentId;
+      textNode.fontSize = 10;
+      textNode.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
+      textNode.locked = true;
+      label.appendChild(textNode);
+    } catch (e2) {
+      label.resize(60, 18);
+    }
+  }
+
+  agentCursors[agentId] = { pointer: pointer, label: label, text: textNode, x: x, y: y };
+}
+
+function moveAgentCursorTo(agentId, x, y) {
+  var cursor = agentCursors[agentId];
   if (!cursor) return;
   try {
     cursor.pointer.x = x;
@@ -425,12 +628,11 @@ function moveAgentCursorTo(agentName, x, y) {
   } catch (e) {}
 }
 
-// ── Animated Cursor Movement ───────────────────────────────────────────────────
-async function animateCursorTo(agentName, targetX, targetY, durationMs) {
-  var cursor = agentCursors[agentName];
+async function animateAgentCursorTo(agentId, targetX, targetY, durationMs) {
+  var cursor = agentCursors[agentId];
   if (!cursor) return;
 
-  var dur = (typeof durationMs === "number") ? durationMs : CURSOR_ANIM_DURATION;
+  var dur = (typeof durationMs === "number") ? durationMs : 250;
   var startX = cursor.x;
   var startY = cursor.y;
   var dx = targetX - startX;
@@ -438,484 +640,111 @@ async function animateCursorTo(agentName, targetX, targetY, durationMs) {
   var dist = Math.sqrt(dx * dx + dy * dy);
 
   if (dist < 15) {
-    moveAgentCursorTo(agentName, targetX, targetY);
+    moveAgentCursorTo(agentId, targetX, targetY);
     return;
   }
 
-  var steps = Math.max(6, Math.min(18, Math.floor(dist / 18)));
+  var steps = Math.max(6, Math.min(14, Math.floor(dist / 20)));
   var stepDelay = Math.floor(dur / steps);
 
   for (var i = 1; i <= steps; i++) {
     var t = i / steps;
     var ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-    moveAgentCursorTo(agentName, startX + dx * ease, startY + dy * ease);
+    moveAgentCursorTo(agentId, startX + dx * ease, startY + dy * ease);
     if (i < steps) await theatreDelay(stepDelay);
   }
 }
 
-// ── Fade Out Single Cursor ────────────────────────────────────────────────────
-async function fadeOutSingleCursor(agentName, durationMs) {
-  var cursor = agentCursors[agentName];
-  if (!cursor) return;
-  var stepDelay = Math.floor((durationMs || 400) / 5);
-  for (var step = 4; step >= 0; step--) {
-    var opacity = step / 4;
-    try { cursor.pointer.opacity = opacity; } catch (e) {}
-    try { cursor.label.opacity = opacity; } catch (e) {}
-    if (step > 0) await theatreDelay(stepDelay);
-  }
-  removeAgentCursorNode(agentName);
-  figma.ui.postMessage({ type: "agent-despawned", agent: agentName, timestamp: Date.now() });
+function updateAgentCursorLabel(agentId, text) {
+  var cursor = agentCursors[agentId];
+  if (!cursor || !cursor.text) return;
+  try { cursor.text.characters = text; } catch (e) {}
 }
 
-// ── Fade Out All Cursors ───────────────────────────────────────────────────────
-async function fadeOutCursors(durationMs) {
-  var names = Object.keys(agentCursors);
-  if (names.length === 0) return;
-  var dur = (typeof durationMs === "number") ? durationMs : 600;
-  var stepDelay = Math.floor(dur / 5);
-
-  for (var step = 4; step >= 0; step--) {
-    var opacity = step / 4;
-    for (var i = 0; i < names.length; i++) {
-      var c = agentCursors[names[i]];
-      if (!c) continue;
-      try { c.pointer.opacity = opacity; } catch (e) {}
-      try { c.label.opacity = opacity; } catch (e) {}
-    }
-    await theatreDelay(stepDelay);
-  }
-
-  for (var j = 0; j < names.length; j++) {
-    removeAgentCursorNode(names[j]);
-  }
-}
-
-// ── Absolute Position Helper ───────────────────────────────────────────────────
-function getAbsolutePosition(node) {
-  try {
-    if (node.absoluteTransform) {
-      return {
-        x: node.absoluteTransform[0][2],
-        y: node.absoluteTransform[1][2],
-        width: node.width || 0,
-        height: node.height || 0,
-      };
-    }
-  } catch (e) {}
-  return { x: node.x || 0, y: node.y || 0, width: node.width || 0, height: node.height || 0 };
-}
-
-// ── Position Info for Operation ────────────────────────────────────────────────
-async function getPositionInfoForOperation(method, params) {
-  var vc = getViewportCenter();
-  var fallback = { x: vc.x, y: vc.y, relY: 0.5 };
-
-  try {
-    var targetNode = null;
-    if (params.nodeId) targetNode = await figma.getNodeByIdAsync(params.nodeId);
-    if (!targetNode && params.parentId) targetNode = await figma.getNodeByIdAsync(params.parentId);
-
-    if (targetNode && targetNode.absoluteTransform) {
-      var abs = getAbsolutePosition(targetNode);
-
-      // Track work frame on first large root frame creation
-      if (!workFrame && isRootFrameCreation(method, params)) {
-        var w = params.width || 375;
-        var h = params.height || 812;
-        workFrame = {
-          id: null,
-          x: typeof params.x === "number" ? params.x : abs.x,
-          y: typeof params.y === "number" ? params.y : abs.y,
-          width: w, height: h,
-        };
-      }
-
-      var posX, posY;
-      if (params.parentId && targetNode) {
-        var childCount = ("children" in targetNode) ? targetNode.children.length : 0;
-        var offsetY = Math.min(childCount * 20, abs.height * 0.8);
-        posX = abs.x + abs.width * 0.3;
-        posY = abs.y + offsetY + 10;
-      } else {
-        posX = abs.x + abs.width + 6;
-        posY = abs.y + Math.random() * Math.max(5, abs.height * 0.3);
-      }
-
-      var relY = workFrame
-        ? Math.max(0, Math.min(1, (posY - workFrame.y) / (workFrame.height || 812)))
-        : 0.5;
-      return { x: posX, y: posY, relY: relY };
-    }
-
-    if (typeof params.x === "number" && typeof params.y === "number") {
-      var relY2 = workFrame
-        ? Math.max(0, Math.min(1, (params.y - workFrame.y) / (workFrame.height || 812)))
-        : 0.5;
-      return { x: params.x, y: params.y, relY: relY2 };
-    }
-  } catch (e) {}
-
-  return fallback;
-}
-
-// ── Agent Resolver ─────────────────────────────────────────────────────────────
-function resolveAgentForOperation(method, params, posInfo) {
-  if (READ_OPERATIONS[method]) return null;
-  if (sessionPhase === PHASE.PLANNING) return "Planner";
-  if (sessionPhase === PHASE.REVIEWING) return "Reviewer";
-  if (sessionPhase === PHASE.FINISHING || sessionPhase === PHASE.DONE) return null;
-
-  if (STYLING_OPERATIONS[method]) return "Iris";
-  if (method === "createPage") return "Onyx";
-  if (isRootFrameCreation(method, params)) return "Onyx";
-  if (sessionPhase === PHASE.SCAFFOLDING) return "Onyx";
-
-  var relY = posInfo ? posInfo.relY : 0.5;
-  if (sessionPhase === PHASE.BUILDING) {
-    if (relY > 0.75) return "Onyx";
-    if (relY < 0.20) return "Cosmo";
-  }
-  if (method === "setText" && relY < 0.40) return "Cosmo";
-
-  return "Mirage";
-}
-
-// ── Bring Cursors to Front ─────────────────────────────────────────────────────
-function bringCursorsToFront() {
-  try {
-    var names = Object.keys(agentCursors);
-    for (var i = 0; i < names.length; i++) {
-      var c = agentCursors[names[i]];
-      if (c && c.pointer && c.pointer.parent === figma.currentPage) {
-        figma.currentPage.appendChild(c.pointer);
-      }
-      if (c && c.label && c.label.parent === figma.currentPage) {
-        figma.currentPage.appendChild(c.label);
-      }
-    }
-  } catch (e) {}
-}
-
-// ── Evict Oldest Non-Protected Cursor ──────────────────────────────────────────
-function evictOldestIdleCursor(protectedNames) {
-  var protected_ = protectedNames || [];
-  for (var i = 0; i < agentSpawnOrder.length; i++) {
-    var name = agentSpawnOrder[i];
-    if (protected_.indexOf(name) >= 0) continue;
-    var cursor = agentCursors[name];
-    if (cursor && !cursor.busy) {
-      removeAgentCursorNode(name);
-      agentSpawned[name] = false;
-      figma.ui.postMessage({ type: "agent-despawned", agent: name, timestamp: Date.now() });
-      return;
-    }
-  }
-}
-
-// ── Ensure Agent Cursor Spawned ────────────────────────────────────────────────
-async function ensureAgentCursor(agentName, entryX, entryY) {
-  if (agentSpawned[agentName] && agentCursors[agentName]) return;
-
-  // Max 3 cursors active at once
-  var activeCount = Object.keys(agentCursors).length;
-  if (activeCount >= 3) {
-    evictOldestIdleCursor(["Planner", "Reviewer"]);
-  }
-
-  await createAgentCursorNode(agentName, entryX, entryY);
-  agentSpawnOrder.push(agentName);
-  agentSpawned[agentName] = true;
-
-  figma.ui.postMessage({
-    type: "agent-spawned",
-    agent: agentName,
-    phase: sessionPhase,
-    timestamp: Date.now(),
-  });
-
-  await theatreDelay(100);
-}
-
-// ── Cleanup ────────────────────────────────────────────────────────────────────
-function removeAgentCursorNode(agentName) {
-  var cursor = agentCursors[agentName];
+function removeAgentCursorNode(agentId) {
+  var cursor = agentCursors[agentId];
   if (!cursor) return;
   try { cursor.pointer.remove(); } catch (e) {}
   try { cursor.label.remove(); } catch (e) {}
-  delete agentCursors[agentName];
-  var idx = agentSpawnOrder.indexOf(agentName);
-  if (idx >= 0) agentSpawnOrder.splice(idx, 1);
+  delete agentCursors[agentId];
 }
 
 function removeAllAgentCursorNodes() {
-  if (reviewingTimer) { clearTimeout(reviewingTimer); reviewingTimer = null; }
-  if (finishingTimer) { clearTimeout(finishingTimer); finishingTimer = null; }
-  var names = Object.keys(agentCursors);
-  for (var i = 0; i < names.length; i++) {
-    var cursor = agentCursors[names[i]];
-    if (!cursor) continue;
-    try { cursor.pointer.remove(); } catch (e) {}
-    try { cursor.label.remove(); } catch (e) {}
+  var ids = Object.keys(agentCursors);
+  for (var i = 0; i < ids.length; i++) {
+    removeAgentCursorNode(ids[i]);
   }
-  agentCursors = {};
-  var headerNames = Object.keys(generatingHeaders);
-  for (var j = 0; j < headerNames.length; j++) {
-    try { generatingHeaders[headerNames[j]].remove(); } catch (e) {}
-  }
-  generatingHeaders = {};
-  sessionPhase = PHASE.IDLE;
-  agentSpawned = {};
-  agentSpawnOrder = [];
-  lastActiveAgent = null;
-  operationCount = 0;
-  workFrame = null;
 }
 
-function cleanupOrphanedCursors() {
+async function createAgentChatNote(agentId, message, x, y) {
+  var color = AGENT_COLORS[agentId] || AGENT_COLORS.Builder;
+
+  var note = figma.createFrame();
+  note.name = "__agent_chat_" + agentId;
+  note.locked = true;
+  note.layoutMode = "VERTICAL";
+  note.primaryAxisSizingMode = "AUTO";
+  note.counterAxisSizingMode = "AUTO";
+  note.paddingLeft = 10;
+  note.paddingRight = 10;
+  note.paddingTop = 6;
+  note.paddingBottom = 6;
+  note.itemSpacing = 2;
+  note.cornerRadius = 8;
+  note.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
+  note.strokes = [{ type: "SOLID", color: color }];
+  note.strokeWeight = 1.5;
+  note.effects = [{
+    type: "DROP_SHADOW",
+    color: { r: 0, g: 0, b: 0, a: 0.12 },
+    offset: { x: 0, y: 2 },
+    radius: 6,
+    visible: true,
+    blendMode: "NORMAL",
+    spread: 0,
+  }];
+  note.x = x;
+  note.y = y;
+
   try {
-    var orphans = figma.currentPage.findAll(function(n) {
-      return n.name && (
-        n.name.indexOf("__agent_ptr_") === 0 ||
-        n.name.indexOf("__agent_label_") === 0 ||
-        n.name.indexOf("__agent_cursor_") === 0 ||
-        n.name.indexOf("__generating_") === 0
-      );
+    await figma.loadFontAsync({ family: "Inter", style: "Bold" });
+    await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+
+    var nameText = figma.createText();
+    nameText.fontName = { family: "Inter", style: "Bold" };
+    nameText.characters = agentId;
+    nameText.fontSize = 10;
+    nameText.fills = [{ type: "SOLID", color: color }];
+    nameText.locked = true;
+    note.appendChild(nameText);
+
+    var msgText = figma.createText();
+    msgText.fontName = { family: "Inter", style: "Regular" };
+    msgText.characters = message;
+    msgText.fontSize = 10;
+    msgText.fills = [{ type: "SOLID", color: { r: 0.3, g: 0.3, b: 0.3 } }];
+    msgText.locked = true;
+    note.appendChild(msgText);
+  } catch (e) {
+    note.resize(140, 36);
+  }
+
+  figma.currentPage.appendChild(note);
+  return note.id;
+}
+
+function cleanupAgentChatNotes() {
+  try {
+    var notes = figma.currentPage.findAll(function(n) {
+      return n.name && n.name.indexOf("__agent_chat_") === 0;
     });
-    for (var i = 0; i < orphans.length; i++) {
-      try { orphans[i].remove(); } catch (e) {}
+    for (var i = 0; i < notes.length; i++) {
+      try { notes[i].remove(); } catch (e) {}
     }
   } catch (e) {}
 }
 
-// ── Generating Headers ─────────────────────────────────────────────────────────
-async function addGeneratingHeader(frameName, x, y) {
-  if (generatingHeaders[frameName]) return;
-  try {
-    var fontStyle = "Regular";
-    try {
-      await figma.loadFontAsync({ family: "Inter", style: "Bold" });
-      fontStyle = "Bold";
-    } catch (e) {
-      try {
-        await figma.loadFontAsync({ family: "Inter", style: "Semi Bold" });
-        fontStyle = "Semi Bold";
-      } catch (e2) {
-        await figma.loadFontAsync({ family: "Inter", style: "Regular" });
-      }
-    }
-    var header = figma.createText();
-    header.name = "__generating_" + frameName;
-    header.locked = true;
-    header.fontName = { family: "Inter", style: fontStyle };
-    header.characters = "\u2728 Generating: " + frameName;
-    header.fontSize = 20;
-    header.fills = [{ type: "SOLID", color: { r: 0.47, g: 0.32, b: 0.90 } }];
-    header.x = x;
-    figma.currentPage.appendChild(header);
-    header.y = y - 40;
-    generatingHeaders[frameName] = header;
-  } catch (headerErr) {}
-}
-
-// ── Planner Sequence ───────────────────────────────────────────────────────────
-async function runPlannerSequence() {
-  try {
-    var vc = getViewportCenter();
-    var spawnX = vc.x + 200;
-    var spawnY = vc.y - 80;
-    await ensureAgentCursor("Planner", spawnX, spawnY);
-    updateCursorLabel("Planner", "Understanding prompt");
-    figma.ui.postMessage({
-      type: "agent-activity", agent: "Planner",
-      method: "plan", status: "Understanding prompt", timestamp: Date.now(),
-    });
-    await theatreDelay(800);
-    await animateCursorTo("Planner", spawnX - 60, spawnY + 30, 400);
-    await theatreDelay(1000);
-    updateCursorLabel("Planner", "Breaking into sections");
-    figma.ui.postMessage({
-      type: "agent-activity", agent: "Planner",
-      method: "plan", status: "Breaking into sections", timestamp: Date.now(),
-    });
-    await theatreDelay(600);
-    await animateCursorTo("Planner", spawnX - 80, spawnY + 50, 400);
-  } catch (e) {}
-}
-
-// ── Reviewer Sequence ──────────────────────────────────────────────────────────
-async function runReviewerSequence() {
-  try {
-    var fx = workFrame ? workFrame.x : getViewportCenter().x - 187;
-    var fy = workFrame ? workFrame.y : getViewportCenter().y - 406;
-    var fw = workFrame ? (workFrame.width || 375) : 375;
-    var fh = workFrame ? (workFrame.height || 812) : 812;
-
-    await ensureAgentCursor("Reviewer", fx + fw * 0.1, fy + 10);
-    updateCursorLabel("Reviewer", "Reviewing...");
-    figma.ui.postMessage({
-      type: "agent-activity", agent: "Reviewer",
-      method: "review", status: "Scanning header", timestamp: Date.now(),
-    });
-    await animateCursorTo("Reviewer", fx + fw * 0.8, fy + fh * 0.12, 200);
-    await theatreDelay(100);
-
-    figma.ui.postMessage({
-      type: "agent-activity", agent: "Reviewer",
-      method: "review", status: "Checking content", timestamp: Date.now(),
-    });
-    await animateCursorTo("Reviewer", fx + fw * 0.5, fy + fh * 0.50, 200);
-    await theatreDelay(100);
-
-    updateCursorLabel("Reviewer", "Checking consistency");
-    figma.ui.postMessage({
-      type: "agent-activity", agent: "Reviewer",
-      method: "review", status: "Checking consistency", timestamp: Date.now(),
-    });
-    await animateCursorTo("Reviewer", fx + fw * 0.3, fy + fh * 0.88, 200);
-    await theatreDelay(100);
-
-    transitionPhase(PHASE.FINISHING);
-  } catch (e) {}
-}
-
-// ── Finishing Sequence ─────────────────────────────────────────────────────────
-async function runFinishingSequence() {
-  try {
-    await fadeOutSingleCursor("Reviewer", 400);
-
-    var remaining = Object.keys(agentCursors);
-    for (var i = 0; i < remaining.length; i++) {
-      var name = remaining[i];
-      var cursor = agentCursors[name];
-      if (!cursor) continue;
-      updateCursorLabel(name, "Done");
-      var driftX = cursor.x + (Math.random() > 0.5 ? 20 : -20);
-      var driftY = cursor.y + (Math.random() > 0.5 ? 15 : -15);
-      await animateCursorTo(name, driftX, driftY, 200);
-      figma.ui.postMessage({
-        type: "agent-activity", agent: name,
-        method: "done", status: "Done", timestamp: Date.now(),
-      });
-    }
-
-    await theatreDelay(100);
-    await fadeOutCursors(300);
-    transitionPhase(PHASE.DONE);
-
-    var headerNames = Object.keys(generatingHeaders);
-    for (var j = 0; j < headerNames.length; j++) {
-      try { generatingHeaders[headerNames[j]].remove(); } catch (e) {}
-    }
-    generatingHeaders = {};
-    figma.ui.postMessage({ type: "agent-session-end", timestamp: Date.now() });
-  } catch (e) {}
-}
-
-// ── Session Start ──────────────────────────────────────────────────────────────
-function ensureSessionStarted() {
-  if (sessionPhase !== PHASE.IDLE) return;
-  operationCount = 0;
-  agentSpawned = {};
-  agentSpawnOrder = [];
-  lastActiveAgent = null;
-  workFrame = null;
-  cleanupOrphanedCursors();
-}
-
-// ── Cleanup Timer ──────────────────────────────────────────────────────────────
-function resetCursorCleanupTimer() {
-  if (cursorCleanupTimer) clearTimeout(cursorCleanupTimer);
-  cursorCleanupTimer = setTimeout(function() {
-    if (sessionPhase !== PHASE.REVIEWING && sessionPhase !== PHASE.FINISHING && sessionPhase !== PHASE.DONE) {
-      transitionPhase(PHASE.FINISHING);
-    }
-  }, SESSION_IDLE_TIMEOUT);
-}
-
-// ── Main Theatre Orchestrator ──────────────────────────────────────────────────
-async function activateAgentForOperation(method, params) {
-  if (READ_OPERATIONS[method]) {
-    await theatreDelay(READ_OP_DELAY);
-    return;
-  }
-
-  ensureSessionStarted();
-  advancePhaseForOperation(method, params || {});
-
-  var posInfo = await getPositionInfoForOperation(method, params || {});
-  var agentName = resolveAgentForOperation(method, params || {}, posInfo);
-  if (!agentName) return;
-
-  lastActiveAgent = agentName;
-  operationCount++;
-
-  await ensureAgentCursor(agentName, posInfo.x - 40, posInfo.y);
-
-  if (agentCursors[agentName]) {
-    agentCursors[agentName].busy = true;
-  }
-
-  await animateCursorTo(agentName, posInfo.x, posInfo.y);
-  bringCursorsToFront();
-
-  if (method === "createChild" && params && params.name &&
-      (params.childType === "FRAME" || params.childType === "SECTION")) {
-    var hx = typeof params.x === "number" ? params.x : posInfo.x;
-    var hy = typeof params.y === "number" ? params.y : posInfo.y;
-    await addGeneratingHeader(params.name, hx, hy);
-  }
-
-  var status = METHOD_STATUS_MAP[method] || method;
-  figma.ui.postMessage({
-    type: "agent-activity",
-    agent: agentName,
-    method: method,
-    status: status,
-    phase: sessionPhase,
-    timestamp: Date.now(),
-  });
-
-  await theatreDelay(PRE_BUILD_DELAY);
-  resetCursorCleanupTimer();
-}
-
-// ── Post-Operation Effect ──────────────────────────────────────────────────────
-async function postOperationEffect(method, params, result) {
-  if (READ_OPERATIONS[method]) return;
-  if (!lastActiveAgent || !agentCursors[lastActiveAgent]) return;
-
-  var agentName = lastActiveAgent;
-
-  if (result && result.id) {
-    try {
-      var newNode = await figma.getNodeByIdAsync(result.id);
-      if (newNode && newNode.absoluteTransform) {
-        var absNode = getAbsolutePosition(newNode);
-
-        if (workFrame && !workFrame.id && method === "createChild" &&
-            params && params.childType === "FRAME" && absNode.width >= 300 && absNode.height >= 600) {
-          workFrame.id = result.id;
-          workFrame.x = absNode.x;
-          workFrame.y = absNode.y;
-          workFrame.width = absNode.width;
-          workFrame.height = absNode.height;
-        }
-
-        var resultX = absNode.x + 6;
-        var resultY = absNode.y + 10;
-        await animateCursorTo(agentName, resultX, resultY, 100);
-      }
-    } catch (e) {}
-  }
-
-  if (agentCursors[agentName]) {
-    agentCursors[agentName].busy = false;
-  }
-  await theatreDelay(POST_BUILD_DELAY);
-}
-
-// ─── End Agent Cursor System v3 ───────────────────────────────────────────────
+// ─── End Multi-Agent Cursor System ───────────────────────────────────────────
 
 async function normalizeVariableValue(resolvedType, value) {
   if (value === undefined || value === null) return value;
@@ -1564,7 +1393,49 @@ figma.ui.onmessage = async (msg) => {
 
       case "cleanupAgentCursors": {
         removeAllAgentCursorNodes();
+        cleanupAgentChatNotes();
         cleanupOrphanedCursors();
+        result = { cleaned: true };
+        break;
+      }
+
+      // ── Swarm Agent Cursor Operations ─────────────────────────────────
+      case "spawnAgentCursor": {
+        await createAgentCursorNode(params.agentId, params.x || 0, params.y || 0);
+        result = { agentId: params.agentId, spawned: true };
+        break;
+      }
+
+      case "moveAgentCursor": {
+        if (params.animate) {
+          await animateAgentCursorTo(params.agentId, params.x, params.y, params.durationMs);
+        } else {
+          moveAgentCursorTo(params.agentId, params.x, params.y);
+        }
+        result = { agentId: params.agentId, x: params.x, y: params.y };
+        break;
+      }
+
+      case "updateAgentLabel": {
+        updateAgentCursorLabel(params.agentId, params.label);
+        result = { agentId: params.agentId, label: params.label };
+        break;
+      }
+
+      case "removeAgentCursor": {
+        removeAgentCursorNode(params.agentId);
+        result = { agentId: params.agentId, removed: true };
+        break;
+      }
+
+      case "agentChat": {
+        var noteId = await createAgentChatNote(params.agentId, params.message, params.x || 0, params.y || 0);
+        result = { agentId: params.agentId, noteId: noteId };
+        break;
+      }
+
+      case "cleanupAgentChats": {
+        cleanupAgentChatNotes();
         result = { cleaned: true };
         break;
       }
