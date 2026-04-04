@@ -86,11 +86,11 @@ function writeMcpConfig(bridgePort) {
   let config;
 
   if (cloudConfig && cloudConfig.cloudUrl && cloudConfig.sessionToken) {
-    // Cloud mode: point Claude CLI to the cloud MCP server via URL
+    // Cloud mode: point Claude CLI to the cloud MCP server via HTTP
     config = {
       mcpServers: {
         "figma-intelligence": {
-          type: "url",
+          type: "http",
           url: `${cloudConfig.cloudUrl}/mcp`,
           headers: {
             "X-Session-Token": cloudConfig.sessionToken,
