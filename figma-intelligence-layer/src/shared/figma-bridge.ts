@@ -16,6 +16,7 @@ import { compressResponse, CompressedResponse, CompressionTier } from "./respons
 import { enrichDesignSystem, EnrichedDesignSystem, resolveStyles, ResolvedStyle } from "./enrichment-pipeline.js";
 
 const WS_PORT = parseInt(process.env.FIGMA_BRIDGE_PORT || "9001", 10);
+const CLOUD_MODE = process.env.CLOUD_MODE === "true";
 const REQUEST_TIMEOUT = parseInt(process.env.FIGMA_REQUEST_TIMEOUT || "30000", 10);
 
 let relayServer: WebSocketServer | null = null;
@@ -243,6 +244,37 @@ export class FigmaBridge {
   get cache(): BridgeCache {
     if (!this._cache) this._cache = new BridgeCache(this);
     return this._cache;
+  }
+
+  /**
+   * Cloud mode: attach a tunnel WebSocket instead of connecting to localhost.
+   * The tunnel WebSocket is the outbound connection from the user's local relay.
+   * Messages flow: cloud FigmaBridge → tunnel → user's relay → Figma plugin.
+   */
+  attachTunnel(tunnelSocket: WebSocket): void {
+    // Clean up any existing connection
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.close();
+    }
+
+    this.ws = tunnelSocket;
+    this.connected = true;
+    this.context = {
+      ...this.context,
+      status: "connected",
+      lastUpdatedAt: Date.now(),
+    };
+
+    tunnelSocket.on("message", (data) => this.handleMessage(String(data)));
+    tunnelSocket.on("close", () => {
+      this.invalidateConnection(new Error("FigmaBridge: tunnel closed"));
+    });
+    tunnelSocket.on("error", (err) => {
+      this.invalidateConnection(err instanceof Error ? err : new Error(String(err)));
+    });
+
+    // Hydrate status in background
+    this.hydrateAfterConnect();
   }
 
   isConnected(): boolean {
@@ -1396,10 +1428,28 @@ export class FigmaBridge {
   }
 }
 
-// Singleton bridge instance
+// Singleton bridge instance (local mode only)
 let bridgeInstance: FigmaBridge | null = null;
 
 export async function getBridge(): Promise<FigmaBridge> {
+  // Cloud mode: get bridge from session manager
+  if (CLOUD_MODE) {
+    const { getCurrentSessionToken, getSessionBridge } = await import("../cloud/session-manager.js");
+    const token = getCurrentSessionToken();
+    if (!token) {
+      throw new Error("FigmaBridge: no session context — cloud mode requires a session token");
+    }
+    const bridge = getSessionBridge(token);
+    if (!bridge) {
+      throw new Error(
+        "FigmaBridge: no tunnel connected for this session. " +
+        "Make sure the local relay is running and connected to the cloud."
+      );
+    }
+    return bridge;
+  }
+
+  // Local mode: use singleton
   if (!bridgeInstance) {
     bridgeInstance = new FigmaBridge();
   }

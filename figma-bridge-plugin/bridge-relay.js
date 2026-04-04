@@ -1279,6 +1279,99 @@ function createServerWithFallback(basePort, maxRetries = 9) {
   });
 }
 
+// ── Cloud Tunnel — outbound connection to cloud server ──────────────────────
+const WebSocketClient = require("ws");
+const CLOUD_CONFIG_PATH = join(homedir(), ".figma-intelligence", "config.json");
+let cloudTunnelSocket = null;
+let cloudTunnelReconnectTimer = null;
+let cloudTunnelReconnectDelay = 2000; // starts at 2s, grows to 30s
+const CLOUD_TUNNEL_MAX_RECONNECT_DELAY = 30000;
+const cloudPendingTunnelRequests = new Map(); // requestId → true (marks requests originating from cloud)
+
+function loadCloudConfig() {
+  try {
+    if (existsSync(CLOUD_CONFIG_PATH)) {
+      return JSON.parse(readFileSync(CLOUD_CONFIG_PATH, "utf8"));
+    }
+  } catch {}
+  return null;
+}
+
+function connectCloudTunnel() {
+  const config = loadCloudConfig();
+  if (!config || !config.cloudUrl || !config.sessionToken) {
+    // No cloud config — running in local-only mode
+    return;
+  }
+
+  const tunnelUrl = `${config.cloudUrl.replace(/^http/, "ws")}/tunnel?token=${config.sessionToken}`;
+  console.log(`   ☁  Connecting to cloud tunnel…`);
+
+  const ws = new WebSocketClient(tunnelUrl);
+
+  ws.on("open", () => {
+    cloudTunnelSocket = ws;
+    cloudTunnelReconnectDelay = 2000; // reset backoff
+    console.log(`   ☁  Cloud tunnel connected`);
+  });
+
+  ws.on("message", (data) => {
+    // Messages from cloud = Figma bridge requests that need to reach the plugin
+    const raw = data.toString();
+    let msg;
+    try { msg = JSON.parse(raw); } catch { return; }
+
+    if (msg.id && msg.method) {
+      // Cloud is requesting something from Figma (e.g. execute, getStatus)
+      // Forward to plugin, mark as cloud-origin so response routes back
+      if (pluginSocket && pluginSocket.readyState === 1) {
+        cloudPendingTunnelRequests.set(msg.id, true);
+        pluginSocket.send(JSON.stringify({
+          type: "bridge-request",
+          id: msg.id,
+          method: msg.method,
+          params: msg.params || {},
+        }));
+      } else {
+        // Plugin not connected — send error back through tunnel
+        ws.send(JSON.stringify({
+          id: msg.id,
+          error: "Figma plugin is not connected. Open Figma and run the Intelligence Bridge plugin.",
+        }));
+      }
+    }
+  });
+
+  ws.on("close", () => {
+    cloudTunnelSocket = null;
+    console.log(`   ☁  Cloud tunnel disconnected — reconnecting in ${cloudTunnelReconnectDelay / 1000}s`);
+    cloudTunnelReconnectTimer = setTimeout(() => {
+      cloudTunnelReconnectDelay = Math.min(cloudTunnelReconnectDelay * 1.5, CLOUD_TUNNEL_MAX_RECONNECT_DELAY);
+      connectCloudTunnel();
+    }, cloudTunnelReconnectDelay);
+  });
+
+  ws.on("error", (err) => {
+    console.error(`   ☁  Cloud tunnel error:`, err.message);
+    // close event will handle reconnection
+  });
+}
+
+/**
+ * Route a plugin response back to the cloud tunnel if it originated there.
+ * Returns true if the response was handled (sent to cloud), false otherwise.
+ */
+function routeToCloudIfNeeded(requestId, raw) {
+  if (cloudPendingTunnelRequests.has(requestId)) {
+    cloudPendingTunnelRequests.delete(requestId);
+    if (cloudTunnelSocket && cloudTunnelSocket.readyState === 1) {
+      cloudTunnelSocket.send(raw);
+      return true;
+    }
+  }
+  return false;
+}
+
 // ── WebSocket Server ─────────────────────────────────────────────────────────
 (async () => {
   let wss;
@@ -1295,6 +1388,9 @@ console.log(`   MCP server   → connects to ws://localhost:${PORT}`);
 console.log(`   Figma plugin → connects to ws://localhost:${PORT}/plugin`);
 console.log(`   VS Code ext  → connects to ws://localhost:${PORT}/vscode`);
 console.log(`   Waiting for connections…\n`);
+
+// Connect to cloud tunnel (if configured)
+connectCloudTunnel();
 
 // Rewrite MCP config with the actual port (chat-runner wrote initial config with default port)
 writeMcpConfig(PORT);
@@ -2284,6 +2380,12 @@ wss.on("connection", (ws, req) => {
           return;
         }
 
+        // Cloud tunnel: route response back to cloud if it originated there
+        if (routeToCloudIfNeeded(msg.id, raw)) {
+          console.log(`  ← plugin response → cloud tunnel (id: ${msg.id})`);
+          return;
+        }
+
         const targetSocket = pendingRequests.get(msg.id);
         if (targetSocket && targetSocket.readyState === 1) {
           targetSocket.send(raw);
@@ -2356,6 +2458,8 @@ process.on("SIGINT", () => {
   for (const proc of activeChatProcesses.values()) proc.kill();
   if (_mcpProc) _mcpProc.kill();
   if (pluginGraceTimer) clearTimeout(pluginGraceTimer);
+  if (cloudTunnelReconnectTimer) clearTimeout(cloudTunnelReconnectTimer);
+  if (cloudTunnelSocket) cloudTunnelSocket.close(1000, "Relay shutting down");
   wss.close();
   process.exit(0);
 });
