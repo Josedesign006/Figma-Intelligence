@@ -27,6 +27,7 @@ const {
 
 const MCP_CONFIG_PATH = join(tmpdir(), "figma-intelligence-chat-mcp.json");
 const CLAUDE_SETTINGS_PATH = join(homedir(), ".claude", "settings.json");
+const CLOUD_CONFIG_PATH = join(homedir(), ".figma-intelligence", "config.json");
 
 // Use the absolute claude binary path stored by setup.sh in launchd env.
 // Falls back to "claude" when running interactively (it's on PATH then).
@@ -69,51 +70,83 @@ function getClaudeSettings() {
   return {};
 }
 
+function loadCloudConfig() {
+  try {
+    if (existsSync(CLOUD_CONFIG_PATH)) {
+      return JSON.parse(readFileSync(CLOUD_CONFIG_PATH, "utf8"));
+    }
+  } catch {}
+  return null;
+}
+
 function writeMcpConfig(bridgePort) {
   const port = String(bridgePort || process.env.BRIDGE_PORT || "9001");
-  const figmaToken = getFigmaToken();
-  const settings = getClaudeSettings();
-  const existingServers =
-    settings?.mcpServers && typeof settings.mcpServers === "object"
-      ? settings.mcpServers
-      : {};
+  const cloudConfig = loadCloudConfig();
 
-  const existingFigmaEnv =
-    existingServers["figma-intelligence-layer"]?.env &&
-    typeof existingServers["figma-intelligence-layer"].env === "object"
-      ? existingServers["figma-intelligence-layer"].env
-      : {};
+  let config;
 
-  const designBridgeEnv =
-    existingServers["design-bridge"]?.env &&
-    typeof existingServers["design-bridge"].env === "object"
-      ? existingServers["design-bridge"].env
-      : {};
-
-  const config = {
-    mcpServers: {
-      "figma-intelligence-layer": {
-        type: "stdio",
-        command: "node",
-        args: [join(REPO_DIR, "figma-intelligence-layer", "dist", "index.js")],
-        env: {
-          ...(designBridgeEnv.UNSPLASH_ACCESS_KEY ? { UNSPLASH_ACCESS_KEY: designBridgeEnv.UNSPLASH_ACCESS_KEY } : {}),
-          ...(designBridgeEnv.PEXELS_API_KEY ? { PEXELS_API_KEY: designBridgeEnv.PEXELS_API_KEY } : {}),
-          ...(designBridgeEnv.STITCH_API_KEY ? { STITCH_API_KEY: designBridgeEnv.STITCH_API_KEY } : {}),
-          ...(designBridgeEnv.GOOGLE_CLOUD_PROJECT ? { GOOGLE_CLOUD_PROJECT: designBridgeEnv.GOOGLE_CLOUD_PROJECT } : {}),
-          ...(process.env.GEMINI_API_KEY ? { GEMINI_API_KEY: process.env.GEMINI_API_KEY } : {}),
-          ...(process.env.UNSPLASH_ACCESS_KEY ? { UNSPLASH_ACCESS_KEY: process.env.UNSPLASH_ACCESS_KEY } : {}),
-          ...existingFigmaEnv,
-          FIGMA_ACCESS_TOKEN: figmaToken,
-          FIGMA_BRIDGE_PORT: port,
-          ENABLE_DECISION_LOG: "true",
+  if (cloudConfig && cloudConfig.cloudUrl && cloudConfig.sessionToken) {
+    // Cloud mode: point Claude CLI to the cloud MCP server via URL
+    config = {
+      mcpServers: {
+        "figma-intelligence": {
+          type: "url",
+          url: `${cloudConfig.cloudUrl}/mcp`,
+          headers: {
+            "X-Session-Token": cloudConfig.sessionToken,
+          },
         },
       },
-    },
-  };
-  mkdirSync(tmpdir(), { recursive: true });
-  writeFileSync(MCP_CONFIG_PATH, JSON.stringify(config, null, 2));
-  console.log(`[chat-runner] MCP config written with FIGMA_BRIDGE_PORT=${port}`);
+    };
+    mkdirSync(tmpdir(), { recursive: true });
+    writeFileSync(MCP_CONFIG_PATH, JSON.stringify(config, null, 2));
+    console.log(`[chat-runner] MCP config written (cloud mode: ${cloudConfig.cloudUrl}/mcp)`);
+  } else {
+    // Local mode fallback: use local stdio MCP server
+    const figmaToken = getFigmaToken();
+    const settings = getClaudeSettings();
+    const existingServers =
+      settings?.mcpServers && typeof settings.mcpServers === "object"
+        ? settings.mcpServers
+        : {};
+
+    const existingFigmaEnv =
+      existingServers["figma-intelligence-layer"]?.env &&
+      typeof existingServers["figma-intelligence-layer"].env === "object"
+        ? existingServers["figma-intelligence-layer"].env
+        : {};
+
+    const designBridgeEnv =
+      existingServers["design-bridge"]?.env &&
+      typeof existingServers["design-bridge"].env === "object"
+        ? existingServers["design-bridge"].env
+        : {};
+
+    config = {
+      mcpServers: {
+        "figma-intelligence-layer": {
+          type: "stdio",
+          command: "node",
+          args: [join(REPO_DIR, "figma-intelligence-layer", "dist", "index.js")],
+          env: {
+            ...(designBridgeEnv.UNSPLASH_ACCESS_KEY ? { UNSPLASH_ACCESS_KEY: designBridgeEnv.UNSPLASH_ACCESS_KEY } : {}),
+            ...(designBridgeEnv.PEXELS_API_KEY ? { PEXELS_API_KEY: designBridgeEnv.PEXELS_API_KEY } : {}),
+            ...(designBridgeEnv.STITCH_API_KEY ? { STITCH_API_KEY: designBridgeEnv.STITCH_API_KEY } : {}),
+            ...(designBridgeEnv.GOOGLE_CLOUD_PROJECT ? { GOOGLE_CLOUD_PROJECT: designBridgeEnv.GOOGLE_CLOUD_PROJECT } : {}),
+            ...(process.env.GEMINI_API_KEY ? { GEMINI_API_KEY: process.env.GEMINI_API_KEY } : {}),
+            ...(process.env.UNSPLASH_ACCESS_KEY ? { UNSPLASH_ACCESS_KEY: process.env.UNSPLASH_ACCESS_KEY } : {}),
+            ...existingFigmaEnv,
+            FIGMA_ACCESS_TOKEN: figmaToken,
+            FIGMA_BRIDGE_PORT: port,
+            ENABLE_DECISION_LOG: "true",
+          },
+        },
+      },
+    };
+    mkdirSync(tmpdir(), { recursive: true });
+    writeFileSync(MCP_CONFIG_PATH, JSON.stringify(config, null, 2));
+    console.log(`[chat-runner] MCP config written (local mode, FIGMA_BRIDGE_PORT=${port})`);
+  }
 }
 
 // Write initial config (will be rewritten with actual port once relay starts)
@@ -216,7 +249,9 @@ function runClaude({ message, attachments, conversation, requestId, model, desig
       onEvent({ type: "phase_start", id: requestId, phase: `Skills: ${skills.join(" · ")}` });
     }
     const modeLabel = sessionMode === "dual" ? "Dual (Design + Code)" : "Code";
-    onEvent({ type: "phase_start", id: requestId, phase: `${modeLabel} · ${resolvedModel} · MCP: figma-intelligence-layer` });
+    const cloudConfig = loadCloudConfig();
+    const mcpLabel = (cloudConfig && cloudConfig.cloudUrl) ? "figma-intelligence (cloud)" : "figma-intelligence-layer";
+    onEvent({ type: "phase_start", id: requestId, phase: `${modeLabel} · ${resolvedModel} · MCP: ${mcpLabel}` });
   } else {
     onEvent({ type: "phase_start", id: requestId, phase: `Chat · ${resolvedModel}` });
   }
