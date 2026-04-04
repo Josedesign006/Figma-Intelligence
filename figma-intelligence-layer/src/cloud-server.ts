@@ -50,15 +50,16 @@ const PORT = parseInt(process.env.PORT || "3000", 10);
 
 // ─── Transport & Session Management ─────────────────────────────────────────
 
-// Map of MCP session IDs → { transport, sessionToken }
-const mcpSessions = new Map<string, {
+// Primary map: session token → { transport, server }
+// We key by session token (always known) rather than MCP session ID
+// (which is only assigned after the first handleRequest call).
+const sessionsByToken = new Map<string, {
   transport: StreamableHTTPServerTransport;
   server: Server;
-  sessionToken: string;
 }>();
 
-// Map session tokens → MCP session IDs (reverse lookup)
-const tokenToMcpSession = new Map<string, string>();
+// Reverse map: MCP session ID → session token (populated lazily after first request)
+const mcpIdToToken = new Map<string, string>();
 
 /**
  * Get or create an MCP server + transport for a session token.
@@ -67,11 +68,8 @@ function getOrCreateMcpSession(sessionToken: string): {
   transport: StreamableHTTPServerTransport;
   server: Server;
 } {
-  const existingMcpId = tokenToMcpSession.get(sessionToken);
-  if (existingMcpId) {
-    const existing = mcpSessions.get(existingMcpId);
-    if (existing) return existing;
-  }
+  const existing = sessionsByToken.get(sessionToken);
+  if (existing) return existing;
 
   // Create new transport + server for this session
   const transport = new StreamableHTTPServerTransport({
@@ -81,24 +79,48 @@ function getOrCreateMcpSession(sessionToken: string): {
   const server = createMcpServer();
   server.connect(transport);
 
-  const mcpSessionId = transport.sessionId!;
-  const entry = { transport, server, sessionToken };
-
-  mcpSessions.set(mcpSessionId, entry);
-  tokenToMcpSession.set(sessionToken, mcpSessionId);
+  const entry = { transport, server };
+  sessionsByToken.set(sessionToken, entry);
 
   // Clean up on close
   transport.onclose = () => {
-    mcpSessions.delete(mcpSessionId);
-    tokenToMcpSession.delete(sessionToken);
-    process.stderr.write(`MCP session ${mcpSessionId.slice(0, 8)}… closed\n`);
+    const mcpId = transport.sessionId;
+    if (mcpId) mcpIdToToken.delete(mcpId);
+    sessionsByToken.delete(sessionToken);
+    process.stderr.write(`MCP session for token ${sessionToken.slice(0, 8)}… closed\n`);
   };
 
   process.stderr.write(
-    `MCP session ${mcpSessionId.slice(0, 8)}… created for token ${sessionToken.slice(0, 8)}…\n`
+    `MCP session created for token ${sessionToken.slice(0, 8)}…\n`
   );
 
   return entry;
+}
+
+/**
+ * Look up a session by MCP session ID (for subsequent requests that include Mcp-Session-Id header).
+ * Falls back to null if not found.
+ */
+function getSessionByMcpId(mcpSessionId: string): {
+  transport: StreamableHTTPServerTransport;
+  server: Server;
+  sessionToken: string;
+} | null {
+  const token = mcpIdToToken.get(mcpSessionId);
+  if (!token) return null;
+  const entry = sessionsByToken.get(token);
+  if (!entry) return null;
+  return { ...entry, sessionToken: token };
+}
+
+/**
+ * Register the MCP session ID → token mapping (called after first handleRequest).
+ */
+function registerMcpId(sessionToken: string) {
+  const entry = sessionsByToken.get(sessionToken);
+  if (entry?.transport.sessionId) {
+    mcpIdToToken.set(entry.transport.sessionId, sessionToken);
+  }
 }
 
 // ─── HTTP Server ────────────────────────────────────────────────────────────
@@ -124,7 +146,7 @@ const httpServer = http.createServer(async (req, res) => {
     const status = {
       status: "ok",
       activeSessions: getActiveSessionCount(),
-      mcpSessions: mcpSessions.size,
+      mcpSessions: sessionsByToken.size,
       uptime: Math.floor(process.uptime()),
     };
     res.writeHead(200, { "Content-Type": "application/json" });
@@ -157,15 +179,22 @@ const httpServer = http.createServer(async (req, res) => {
     const mcpSessionId = req.headers["mcp-session-id"] as string | undefined;
 
     if (mcpSessionId) {
-      // Existing session — route to the right transport
-      const session = mcpSessions.get(mcpSessionId);
+      // Existing session — look up by MCP session ID
+      const session = getSessionByMcpId(mcpSessionId);
       if (!session) {
+        // Fall back to session token lookup (MCP ID might not be registered yet)
+        const fallback = sessionsByToken.get(sessionToken);
+        if (fallback) {
+          await runInSession(sessionToken, () =>
+            fallback.transport.handleRequest(req, res)
+          );
+          return;
+        }
         res.writeHead(404, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "MCP session not found" }));
         return;
       }
 
-      // Run the handler within the session context so getBridge() works
       await runInSession(session.sessionToken, () =>
         session.transport.handleRequest(req, res)
       );
@@ -174,16 +203,17 @@ const httpServer = http.createServer(async (req, res) => {
 
     // New session — create transport and handle the initialization request
     if (!hasActiveSession(sessionToken)) {
-      // Warn but don't block — tunnel might connect shortly after
       process.stderr.write(
         `Warning: MCP init for token ${sessionToken.slice(0, 8)}… but no tunnel connected yet\n`
       );
     }
 
-    const { transport, server } = getOrCreateMcpSession(sessionToken);
-    await runInSession(sessionToken, () =>
-      transport.handleRequest(req, res)
-    );
+    const { transport } = getOrCreateMcpSession(sessionToken);
+    await runInSession(sessionToken, async () => {
+      await transport.handleRequest(req, res);
+      // Now that handleRequest has run, the transport has a session ID — register it
+      registerMcpId(sessionToken);
+    });
     return;
   }
 
@@ -238,6 +268,16 @@ setInterval(() => {
     process.stderr.write(`Cleaned up ${cleaned} stale session(s)\n`);
   }
 }, 5 * 60 * 1000).unref();
+
+// ─── Global Error Handlers (prevent crashes) ───────────────────────────────
+
+process.on("uncaughtException", (err) => {
+  process.stderr.write(`Uncaught exception (server continues): ${err.message}\n${err.stack}\n`);
+});
+
+process.on("unhandledRejection", (reason) => {
+  process.stderr.write(`Unhandled rejection (server continues): ${reason}\n`);
+});
 
 // ─── Start ──────────────────────────────────────────────────────────────────
 
