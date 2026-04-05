@@ -223,6 +223,20 @@ const httpServer = http.createServer(async (req, res) => {
       }
     }
 
+    // New client (no Mcp-Session-Id header) — tear down any stale session
+    // so the fresh initialize handshake succeeds instead of hitting
+    // "Server already initialized".
+    const stale = sessionsByToken.get(sessionToken);
+    if (stale) {
+      const oldMcpId = stale.transport.sessionId;
+      if (oldMcpId) mcpIdToToken.delete(oldMcpId);
+      sessionsByToken.delete(sessionToken);
+      try { await stale.server.close(); } catch { /* already closed */ }
+      process.stderr.write(
+        `Replaced stale MCP session for token ${sessionToken.slice(0, 8)}…\n`
+      );
+    }
+
     const { transport } = getOrCreateMcpSession(sessionToken);
     await runInSession(sessionToken, async () => {
       await transport.handleRequest(req, res);
