@@ -47,6 +47,9 @@ export function getCurrentSessionToken(): string | undefined {
 
 const sessions = new Map<string, Session>();
 
+// Waiters: token → list of resolve callbacks waiting for tunnel to connect
+const tunnelWaiters = new Map<string, Array<() => void>>();
+
 /**
  * Register a tunnel WebSocket for a session token.
  * Creates a FigmaBridge instance that routes through this tunnel.
@@ -73,6 +76,13 @@ export function registerTunnel(token: string, tunnelSocket: WebSocket): void {
   };
 
   sessions.set(token, session);
+
+  // Resolve any pending waiters for this token
+  const waiters = tunnelWaiters.get(token);
+  if (waiters) {
+    for (const resolve of waiters) resolve();
+    tunnelWaiters.delete(token);
+  }
 
   tunnelSocket.on("close", () => {
     const current = sessions.get(token);
@@ -143,4 +153,34 @@ export function cleanupStaleSessions(maxIdleMs: number = 30 * 60 * 1000): number
     }
   }
   return cleaned;
+}
+
+/**
+ * Wait for a tunnel to connect for a given token.
+ * Resolves immediately if tunnel is already connected.
+ * Rejects after timeoutMs if tunnel doesn't connect in time.
+ */
+export function waitForTunnel(token: string, timeoutMs: number = 15000): Promise<void> {
+  if (hasActiveSession(token)) return Promise.resolve();
+
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      // Remove this waiter on timeout
+      const waiters = tunnelWaiters.get(token);
+      if (waiters) {
+        const idx = waiters.indexOf(resolve);
+        if (idx !== -1) waiters.splice(idx, 1);
+        if (waiters.length === 0) tunnelWaiters.delete(token);
+      }
+      reject(new Error("TUNNEL_TIMEOUT"));
+    }, timeoutMs);
+
+    const wrappedResolve = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+
+    if (!tunnelWaiters.has(token)) tunnelWaiters.set(token, []);
+    tunnelWaiters.get(token)!.push(wrappedResolve);
+  });
 }

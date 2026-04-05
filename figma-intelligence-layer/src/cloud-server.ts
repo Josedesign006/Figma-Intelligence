@@ -37,6 +37,7 @@ import {
   getActiveSessionCount,
   cleanupStaleSessions,
   hasActiveSession,
+  waitForTunnel,
 } from "./cloud/session-manager.js";
 import {
   extractToken,
@@ -160,7 +161,9 @@ const httpServer = http.createServer(async (req, res) => {
     const sessionToken = extractToken(req);
     if (!sessionToken) {
       res.writeHead(401, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Missing or invalid X-Session-Token header" }));
+      res.end(JSON.stringify({
+        error: "Missing session token. Ensure your MCP URL includes ?token=<your-session-token>. Re-run: npx figma-intelligence setup",
+      }));
       return;
     }
 
@@ -201,11 +204,23 @@ const httpServer = http.createServer(async (req, res) => {
       return;
     }
 
-    // New session — create transport and handle the initialization request
+    // New session — wait for tunnel if not connected yet, then handle request
     if (!hasActiveSession(sessionToken)) {
       process.stderr.write(
-        `Warning: MCP init for token ${sessionToken.slice(0, 8)}… but no tunnel connected yet\n`
+        `Waiting for tunnel connection for token ${sessionToken.slice(0, 8)}…\n`
       );
+      try {
+        await waitForTunnel(sessionToken, 15000);
+        process.stderr.write(
+          `Tunnel connected for token ${sessionToken.slice(0, 8)}…, proceeding\n`
+        );
+      } catch {
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          error: "Local relay not connected. Make sure the relay is running: npx figma-intelligence start",
+        }));
+        return;
+      }
     }
 
     const { transport } = getOrCreateMcpSession(sessionToken);

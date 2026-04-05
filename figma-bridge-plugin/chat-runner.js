@@ -91,10 +91,7 @@ function writeMcpConfig(bridgePort) {
       mcpServers: {
         "figma-intelligence": {
           type: "http",
-          url: `${cloudConfig.cloudUrl}/mcp`,
-          headers: {
-            "X-Session-Token": cloudConfig.sessionToken,
-          },
+          url: `${cloudConfig.cloudUrl}/mcp?token=${cloudConfig.sessionToken}`,
         },
       },
     };
