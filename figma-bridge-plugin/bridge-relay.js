@@ -25,6 +25,7 @@ const { runGeminiCli, isGeminiCliAvailable, getGeminiCliAuthInfo } = require("./
 const { runPerplexity } = require("./perplexity-runner");
 const { runStitch } = require("./stitch-runner");
 const { startStitchAuth, getStitchAccessToken, hasStitchAuth, getStitchEmail, clearStitchAuth } = require("./stitch-auth");
+const { startClaudeAuth, startClaudeAuthViaCLI, hasClaudeToken } = require("./claude-auth");
 const { runAnthropicChat } = require("./anthropic-chat-runner");
 const { parsePdfBuffer, parseDocxBuffer, fetchUrlContent, createContentSource, createChunkedContentSource, buildGroundingContext, scanKnowledgeHub, loadHubFile, searchHub, searchContentForAnswer, searchReferenceSites, getReferenceSites, addReferenceSite, removeReferenceSite, prewarmHub } = require("./content-context");
 
@@ -1105,7 +1106,13 @@ async function _doRefreshAuthState({ log = false } = {}) {
     }
   } else {
     authInfo = { loggedIn: false, email: null };
-    if (log) console.log("⚠  Claude CLI not found — Claude chat unavailable");
+    if (log) console.log("⚠  Claude CLI not found — checking direct OAuth token...");
+  }
+
+  // Fallback: detect auth from direct OAuth token (works without CLI)
+  if (!authInfo.loggedIn && hasClaudeToken()) {
+    authInfo = { loggedIn: true, email: null };
+    if (log) console.log("✅ Claude: authenticated via direct OAuth token");
   }
 
   const codexAvailable = await isCodexAvailable();
@@ -1493,6 +1500,75 @@ wss.on("connection", (ws, req) => {
         const prov = providerConfig.provider || "claude";
         const chatMode = msg.mode || "dual";
         let chatMessage = msg.message || "";
+
+        // ── /mcp slash command — diagnostic instead of passing to Claude ───
+        if (chatMessage.trim().toLowerCase() === "/mcp") {
+          (async () => {
+            const cloudConfig = loadCloudConfig();
+            const lines = [];
+            lines.push("**MCP Diagnostics**\n");
+
+            // 1. Cloud config
+            if (cloudConfig && cloudConfig.cloudUrl) {
+              lines.push(`✅ Cloud config found: \`${cloudConfig.cloudUrl}\``);
+              lines.push(`   Session token: \`${cloudConfig.sessionToken?.slice(0, 8)}…\``);
+            } else {
+              lines.push("❌ No cloud config — run `npx figma-intelligence setup` to configure");
+            }
+
+            // 2. Health check
+            if (cloudConfig && cloudConfig.cloudUrl) {
+              try {
+                const https = require("https");
+                const healthUrl = `${cloudConfig.cloudUrl}/health`;
+                const health = await new Promise((resolve, reject) => {
+                  const req = https.get(healthUrl, { timeout: 5000 }, (res) => {
+                    let data = "";
+                    res.on("data", (c) => { data += c; });
+                    res.on("end", () => {
+                      try { resolve(JSON.parse(data)); } catch { resolve(null); }
+                    });
+                  });
+                  req.on("error", reject);
+                  req.on("timeout", () => { req.destroy(); reject(new Error("timeout")); });
+                });
+                if (health && health.status === "ok") {
+                  lines.push(`✅ Cloud server healthy (uptime: ${Math.floor(health.uptime / 60)}m, sessions: ${health.activeSessions})`);
+                } else {
+                  lines.push("⚠️ Cloud server responded but status is not ok");
+                }
+              } catch (e) {
+                lines.push(`❌ Cloud server unreachable: ${e.message}`);
+              }
+            }
+
+            // 3. Local relay
+            const relayConnected = pluginSockets.size > 0;
+            if (relayConnected) {
+              lines.push(`✅ Figma plugin connected (${pluginSockets.size} socket(s))`);
+            } else {
+              lines.push("⚠️ No Figma plugin connected — open the Figma plugin to enable design tools");
+            }
+
+            // 4. Tunnel (relay binary)
+            try {
+              const binPath = cloudConfig?.binaryPath;
+              if (binPath && existsSync(binPath)) {
+                lines.push(`✅ Relay binary found: \`${binPath.split("/").pop()}\``);
+              } else {
+                lines.push("⚠️ Relay binary not found at expected path");
+              }
+            } catch {}
+
+            // 5. Tip
+            lines.push("\n💡 If tools aren't working, click **New Conversation** to start a fresh session.");
+
+            const fullText = lines.join("\n");
+            sendToVscode({ type: "text_delta", id: requestId, delta: fullText }, ws);
+            sendToVscode({ type: "done", id: requestId, fullText }, ws);
+          })();
+          return;
+        }
 
         // Pre-parse Figma links so the AI doesn't need to extract file_key/node_id
         const figmaLinkMatch = chatMessage.match(/https:\/\/www\.figma\.com\/(?:design|file)\/[^\s]+/);
@@ -1960,6 +2036,49 @@ wss.on("connection", (ws, req) => {
         const chatMode = msg.mode || "code";
         let chatMessage = msg.message || "";
 
+        // ── /mcp slash command — diagnostic (plugin side) ─────────────────
+        if (chatMessage.trim().toLowerCase() === "/mcp") {
+          (async () => {
+            const cloudConfig = loadCloudConfig();
+            const lines = [];
+            lines.push("**MCP Diagnostics**\n");
+            if (cloudConfig && cloudConfig.cloudUrl) {
+              lines.push(`✅ Cloud config: \`${cloudConfig.cloudUrl}\``);
+              lines.push(`   Token: \`${cloudConfig.sessionToken?.slice(0, 8)}…\``);
+            } else {
+              lines.push("❌ No cloud config — run `npx figma-intelligence setup`");
+            }
+            if (cloudConfig && cloudConfig.cloudUrl) {
+              try {
+                const https = require("https");
+                const health = await new Promise((resolve, reject) => {
+                  const req = https.get(`${cloudConfig.cloudUrl}/health`, { timeout: 5000 }, (res) => {
+                    let data = "";
+                    res.on("data", (c) => { data += c; });
+                    res.on("end", () => { try { resolve(JSON.parse(data)); } catch { resolve(null); } });
+                  });
+                  req.on("error", reject);
+                  req.on("timeout", () => { req.destroy(); reject(new Error("timeout")); });
+                });
+                if (health && health.status === "ok") {
+                  lines.push(`✅ Cloud server healthy (uptime: ${Math.floor(health.uptime / 60)}m, sessions: ${health.activeSessions})`);
+                } else {
+                  lines.push("⚠️ Cloud server responded but status not ok");
+                }
+              } catch (e) {
+                lines.push(`❌ Cloud server unreachable: ${e.message}`);
+              }
+            }
+            const vsConnected = vscodeSockets.size > 0;
+            lines.push(vsConnected ? `✅ VS Code connected (${vscodeSockets.size} socket(s))` : "⚠️ No VS Code extension connected");
+            lines.push("\n💡 If tools aren't working, start a **New Conversation** for a fresh MCP session.");
+            const fullText = lines.join("\n");
+            sendToPlugin({ type: "text_delta", id: requestId, delta: fullText });
+            sendToPlugin({ type: "done", id: requestId, fullText });
+          })();
+          return;
+        }
+
         // Debug: log all incoming chat messages
         try { appendFileSync("/tmp/import-vars-debug.log", `${new Date().toISOString()} CHAT prov=${prov} msg="${chatMessage.slice(0,100)}" attachments=${JSON.stringify((msg.attachments||[]).map(a=>({name:a.name,len:a.data?.length})))}\n`); } catch {}
         try { appendFileSync("/tmp/import-vars-debug.log", `${new Date().toISOString()} isImport=${isImportVariablesIntent(chatMessage, msg.attachments)}\n`); } catch {}
@@ -2359,6 +2478,65 @@ wss.on("connection", (ws, req) => {
       // Plugin hello
       if (msg.type === "plugin-hello") {
         console.log(`  Plugin identified: ${msg.fileName || "unknown"}`);
+        return;
+      }
+
+      // Claude OAuth — direct HTTP OAuth primary, CLI fallback
+      if (msg.type === "claude-auth") {
+        (async () => {
+          try {
+            sendToPlugin({ type: "claude-auth-status", status: "signing-in" });
+
+            // Primary: direct HTTP OAuth with PKCE (opens browser, handles callback)
+            try {
+              console.log("  Claude: starting direct OAuth flow...");
+              const result = await startClaudeAuth();
+              // Token is persisted by startClaudeAuth; update in-memory auth state
+              authInfo = { loggedIn: true, email: result.email || null };
+              console.log(`  Claude: authenticated via direct OAuth`);
+              sendToPlugin({ type: "claude-auth-status", status: "success", email: authInfo.email });
+              sendRelayStatus(pluginSocket, hasConnectedMcpSocket());
+              return;
+            } catch (directErr) {
+              console.warn("  Claude: direct OAuth failed, trying CLI fallback:", directErr.message);
+            }
+
+            // Fallback: CLI-based OAuth (spawns `claude auth login`)
+            console.log("  Claude: trying CLI fallback...");
+            await startClaudeAuthViaCLI();
+            // Poll for auth completion (CLI handles token storage)
+            let pollCount = 0;
+            const pollInterval = setInterval(async () => {
+              pollCount++;
+              if (pollCount > 40) { clearInterval(pollInterval); return; } // 2 min max
+              await refreshAuthState({ force: true });
+              if (authInfo.loggedIn) {
+                clearInterval(pollInterval);
+                console.log(`  Claude: authenticated as ${authInfo.email || "unknown"}`);
+                sendToPlugin({ type: "claude-auth-status", status: "success", email: authInfo.email });
+              }
+            }, 3000);
+          } catch (err) {
+            console.error("  Claude auth failed:", err.message);
+            sendToPlugin({ type: "claude-auth-status", status: "error", error: "Could not open Claude sign-in. Please try again." });
+          }
+        })();
+        return;
+      }
+
+      // Legacy trigger-login (kept for backwards compatibility)
+      if (msg.type === "trigger-login") {
+        const provider = msg.provider || "claude";
+        if (provider === "claude") {
+          // Redirect to new claude-auth flow
+          ws.emit("message", JSON.stringify({ type: "claude-auth" }));
+        }
+        return;
+      }
+
+      // Plugin requests auth refresh (e.g. after reconnect)
+      if (msg.type === "refresh-auth") {
+        refreshAuthState({ force: true }).catch(() => {});
         return;
       }
 
