@@ -19,7 +19,8 @@ const { createInterface } = require("readline");
 const CONFIG_DIR = join(homedir(), ".figma-intelligence");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 const BIN_DIR = join(CONFIG_DIR, "bin");
-const PLUGIN_DIR = join(CONFIG_DIR, "plugin");
+// Plugin goes in a VISIBLE location so users can easily find it in Figma
+const PLUGIN_DIR = join(homedir(), "Documents", "Figma Intelligence Plugin");
 
 // ── UPDATE THIS after Railway deployment ──
 const DEFAULT_CLOUD_URL = "https://figma-intelligence-server-production.up.railway.app";
@@ -105,6 +106,16 @@ async function runSetup() {
       }
     }
     console.log(`  Plugin installed to: ${PLUGIN_DIR}`);
+
+    // Also copy to the old hidden location for backward compatibility
+    const oldPluginDir = join(CONFIG_DIR, "plugin");
+    try {
+      mkdirSync(oldPluginDir, { recursive: true });
+      for (const file of pluginFiles) {
+        const src = join(pluginSrc, file);
+        if (existsSync(src)) copyFileSync(src, join(oldPluginDir, file));
+      }
+    } catch {}
 
     // Also update any other known plugin locations on this machine
     // (the user may have imported from a different path)
@@ -194,17 +205,29 @@ async function runSetup() {
   }
 
   console.log("\n  ✓ Setup complete!\n");
-  console.log("  ┌─────────────────────────────────────────────────────────┐");
-  console.log("  │  IMPORTANT: Import the plugin in Figma                 │");
-  console.log("  │                                                        │");
-  console.log("  │  1. Open Figma Desktop                                 │");
-  console.log("  │  2. Plugins → Development → Import plugin from manifest│");
-  console.log(`  │  3. Select: ~/.figma-intelligence/plugin/manifest.json │`);
-  console.log("  │                                                        │");
-  console.log("  │  If you already imported it, RE-IMPORT to update.      │");
-  console.log("  │  Then close & reopen the plugin.                       │");
-  console.log("  └─────────────────────────────────────────────────────────┘");
-  console.log(`\n  Plugin path: ${PLUGIN_DIR}/manifest.json\n`);
+  console.log("  ┌──────────────────────────────────────────────────────────────┐");
+  console.log("  │  Next: Import the plugin in Figma                           │");
+  console.log("  │                                                             │");
+  console.log("  │  1. Open Figma Desktop                                      │");
+  console.log("  │  2. Plugins → Development → Import plugin from manifest     │");
+  console.log("  │  3. Go to Documents → Figma Intelligence Plugin folder      │");
+  console.log("  │  4. Select manifest.json                                    │");
+  console.log("  │                                                             │");
+  console.log("  │  If you already imported it, RE-IMPORT to get the update.   │");
+  console.log("  └──────────────────────────────────────────────────────────────┘");
+  console.log(`\n  Plugin folder: ${PLUGIN_DIR}\n`);
+
+  // Auto-open the plugin folder so the user can easily find it
+  try {
+    const { exec } = require("child_process");
+    if (platform() === "darwin") {
+      exec(`open "${PLUGIN_DIR}"`);
+    } else if (platform() === "win32") {
+      exec(`explorer "${PLUGIN_DIR}"`);
+    } else {
+      exec(`xdg-open "${PLUGIN_DIR}" 2>/dev/null`);
+    }
+  } catch {}
 }
 
 function registerMcpServer(config) {
