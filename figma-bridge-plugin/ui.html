@@ -1503,7 +1503,7 @@
     <div class="login-expand" id="login-bridge-expand" style="display:none">
       <div class="login-bridge-info">
         Your AI tool connects to Figma via MCP at<br>
-        <code>ws://localhost:9001</code><br><br>
+        <code id="bridge-url-login">ws://localhost:9001</code><br><br>
         Point any MCP-compatible tool here and it can read &amp; modify your Figma designs directly.
         <div class="login-bridge-tools">
           <span class="bridge-tool-tag">VS Code Copilot</span>
@@ -3286,7 +3286,7 @@
       authText.innerHTML = 'Bridge offline <button class="auth-btn" onclick="forceReconnect()">Reconnect</button>';
     } else if (bridge) {
       authStrip.className = "auth-strip ok";
-      authText.innerHTML = '&#10003; MCP bridge active &middot; <span style="color:rgba(160,132,232,0.8)">ws://localhost:9001</span>';
+      authText.innerHTML = '&#10003; MCP bridge active &middot; <span style="color:rgba(160,132,232,0.8)">ws://localhost:' + (connectedPort || 9001) + '</span>';
     } else if (prov === "openai") {
       authStrip.className = isOpenAILoggedIn ? "auth-strip ok" : "auth-strip";
       authText.innerHTML = isOpenAILoggedIn
@@ -4120,24 +4120,125 @@
     }
   }
 
+  /* ── Port scanning: try 9001-9010 to find the relay ─────────────── */
+  var RELAY_BASE_PORT = 9001;
+  var RELAY_MAX_PORT  = 9010;
+  var connectedPort   = null;  // port that last succeeded
+
   function connect() {
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
 
-    ws = new WebSocket("ws://localhost:9001/plugin");
+    // If we previously connected on a specific port, try that first
+    if (connectedPort) {
+      _tryPort(connectedPort);
+    } else {
+      _scanPorts(RELAY_BASE_PORT);
+    }
+  }
 
-    ws.onopen = function() {
-      isPluginConnected = true;
-      updateStatus();
-      ws.send(JSON.stringify({ type: "plugin-hello", fileName: "Figma Intelligence" }));
-      // Ask relay to re-check auth state (picks up logins done in terminal)
-      ws.send(JSON.stringify({ type: "refresh-auth" }));
-      // Tell the relay which provider is active
-      if (loginDismissed && selectedLoginProvider) {
-        sendProviderToRelay();
+  function _tryPort(port) {
+    var socket = new WebSocket("ws://localhost:" + port + "/plugin");
+    var _timedOut = false;
+    var _timeout = setTimeout(function() {
+      _timedOut = true;
+      try { socket.close(); } catch(e) {}
+      // If this was a remembered port, fall back to full scan
+      if (port === connectedPort) {
+        connectedPort = null;
+        _scanPorts(RELAY_BASE_PORT);
       }
-      // Knowledge sources are restored from bridge-status payload (no localStorage restore needed)
+    }, 2000);
+
+    socket.onopen = function() {
+      clearTimeout(_timeout);
+      if (_timedOut) { try { socket.close(); } catch(e) {} return; }
+      ws = socket;
+      connectedPort = port;
+      _onRelayConnected();
+      _attachSocketHandlers();
     };
 
+    socket.onerror = function() {
+      clearTimeout(_timeout);
+      if (_timedOut) return;
+      try { socket.close(); } catch(e) {}
+      if (port === connectedPort) {
+        connectedPort = null;
+        _scanPorts(RELAY_BASE_PORT);
+      }
+    };
+
+    socket.onclose = function() {
+      clearTimeout(_timeout);
+    };
+  }
+
+  function _scanPorts(startPort) {
+    if (startPort > RELAY_MAX_PORT) {
+      // All ports exhausted — schedule retry
+      _onScanFailed();
+      return;
+    }
+    var socket = new WebSocket("ws://localhost:" + startPort + "/plugin");
+    var _timedOut = false;
+    var _timeout = setTimeout(function() {
+      _timedOut = true;
+      try { socket.close(); } catch(e) {}
+      _scanPorts(startPort + 1);
+    }, 800);
+
+    socket.onopen = function() {
+      clearTimeout(_timeout);
+      if (_timedOut) { try { socket.close(); } catch(e) {} return; }
+      ws = socket;
+      connectedPort = startPort;
+      _onRelayConnected();
+      _attachSocketHandlers();
+    };
+
+    socket.onerror = function() {
+      clearTimeout(_timeout);
+      if (_timedOut) return;
+      try { socket.close(); } catch(e) {}
+      _scanPorts(startPort + 1);
+    };
+
+    socket.onclose = function() {
+      clearTimeout(_timeout);
+    };
+  }
+
+  function _onScanFailed() {
+    ws = null;
+    isPluginConnected = false;
+    updateStatus();
+    if (!reconnectTimer) {
+      reconnectTimer = setTimeout(function() {
+        reconnectTimer = null;
+        connect();
+      }, 2000);
+    }
+  }
+
+  function _onRelayConnected() {
+    isPluginConnected = true;
+    updateStatus();
+    ws.send(JSON.stringify({ type: "plugin-hello", fileName: "Figma Intelligence" }));
+    // Ask relay to re-check auth state (picks up logins done in terminal)
+    ws.send(JSON.stringify({ type: "refresh-auth" }));
+    // Tell the relay which provider is active
+    if (loginDismissed && selectedLoginProvider) {
+      sendProviderToRelay();
+    }
+    // Update displayed URLs with actual port
+    var portStr = "ws://localhost:" + connectedPort;
+    var urlLogin = document.getElementById("bridge-url-login");
+    if (urlLogin) urlLogin.textContent = portStr;
+    var urlHome = document.querySelector(".bridge-home-url");
+    if (urlHome) urlHome.textContent = portStr;
+  }
+
+  function _attachSocketHandlers() {
     ws.onclose = function() {
       isPluginConnected = false;
       isMcpConnected = false;

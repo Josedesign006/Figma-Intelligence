@@ -1396,6 +1396,13 @@ console.log(`   Figma plugin → connects to ws://localhost:${PORT}/plugin`);
 console.log(`   VS Code ext  → connects to ws://localhost:${PORT}/vscode`);
 console.log(`   Waiting for connections…\n`);
 
+// Write port file so the plugin and other tools can discover the actual port
+try {
+  const portDir = join(homedir(), ".figma-intelligence");
+  if (!existsSync(portDir)) mkdirSync(portDir, { recursive: true });
+  writeFileSync(join(portDir, "relay.port"), String(PORT));
+} catch {}
+
 // Connect to cloud tunnel (if configured)
 connectCloudTunnel();
 
