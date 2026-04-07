@@ -201,11 +201,11 @@ async function runSetup() {
   console.log("\n  Registering MCP server with AI tools…\n");
   registerMcpServer(config);
 
-  // 10. Auto-start the relay
+  // 10. Auto-start the relay (always force restart to use fresh bundle)
   console.log("\n  Starting relay…");
   try {
     const { startRelay } = require("./start-relay");
-    await startRelay();
+    await startRelay({ forceRestart: true });
   } catch (err) {
     console.log(`  Could not auto-start relay: ${err.message}`);
     console.log("  You can start it manually: npx figma-intelligence@latest start\n");

@@ -85,7 +85,7 @@ async function main() {
       if (autoUpdate()) return;
       const sr = require("../lib/start-relay");
       await sr.stopRelay();
-      await sr.startRelay();
+      await sr.startRelay({ forceRestart: true });
       break;
     }
 
