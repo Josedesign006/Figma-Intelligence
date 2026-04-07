@@ -1,6 +1,6 @@
 {
   "name": "figma-intelligence",
-  "version": "2.0.8",
+  "version": "2.0.9",
   "description": "One-command installer for Figma Intelligence — AI-powered design tools for Figma",
   "bin": {
     "figma-intelligence": "bin/cli.js"

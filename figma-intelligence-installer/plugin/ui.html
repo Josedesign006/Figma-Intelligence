@@ -4224,8 +4224,10 @@
       if (_timedOut) { try { socket.close(); } catch(e) {} return; }
       ws = socket;
       connectedPort = port;
-      _onRelayConnected();
+      // Attach message/close handlers BEFORE sending hello,
+      // so bridge-status response isn't missed
       _attachSocketHandlers();
+      _onRelayConnected();
     };
 
     socket.onerror = function() {
@@ -4262,8 +4264,9 @@
       if (_timedOut) { try { socket.close(); } catch(e) {} return; }
       ws = socket;
       connectedPort = startPort;
-      _onRelayConnected();
+      // Attach message/close handlers BEFORE sending hello
       _attachSocketHandlers();
+      _onRelayConnected();
     };
 
     socket.onerror = function() {
