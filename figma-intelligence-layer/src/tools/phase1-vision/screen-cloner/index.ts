@@ -1,5 +1,12 @@
 import fs from "fs/promises";
-import sharp from "sharp";
+// Lazy-load sharp — it's a native module that may not be available in bundled environments
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let sharp: any;
+try {
+  sharp = require("sharp");
+} catch {
+  // sharp unavailable — screen-cloner crop/resize will fail gracefully
+}
 import { VisionClient } from "../../../shared/vision-client.js";
 import { getBridge } from "../../../shared/figma-bridge.js";
 import { getDesignSystemContextStore, DSComponentSet } from "../../../shared/design-system-context.js";

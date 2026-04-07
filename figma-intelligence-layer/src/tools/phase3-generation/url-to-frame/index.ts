@@ -6,7 +6,17 @@
 // analysis notes and a DS coverage gap report.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { chromium, Browser, Page } from "playwright";
+// Lazy-load playwright — native module, may not be available in bundled environments
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let chromium: any;
+try {
+  const pw = require("playwright");
+  chromium = pw.chromium;
+} catch {
+  // playwright unavailable — url-to-frame will fail gracefully
+}
+type Page = any;
+type Browser = any;
 import { getBridge } from "../../../shared/figma-bridge.js";
 import { VisionClient } from "../../../shared/vision-client.js";
 import { decisionLog } from "../../../shared/decision-log.js";
