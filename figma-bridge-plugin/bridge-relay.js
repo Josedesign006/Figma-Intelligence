@@ -980,6 +980,7 @@ function startPersistentMcpServer() {
       ...process.env,
       ...savedEnv,
       FIGMA_BRIDGE_PORT: String(PORT),
+      FIGMA_BRIDGE_CLIENT_ONLY: "1", // Skip creating own relay server, just connect as client
       ENABLE_DECISION_LOG: "true",
     },
   });

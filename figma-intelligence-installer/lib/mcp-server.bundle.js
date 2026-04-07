@@ -30786,7 +30786,7 @@ var require_stdio2 = __commonJS({
 var require_sharp_stub = __commonJS({
   "../../../../../../private/tmp/sharp-stub.js"(exports2, module2) {
     module2.exports = function() {
-      throw new Error("sharp is not installed. Run: npm install sharp");
+      throw new Error("sharp not installed");
     };
     module2.exports.cache = () => {
     };
@@ -37878,6 +37878,11 @@ var require_figma_bridge = __commonJS({
     async function ensureRelayServer() {
       if (relayServer)
         return;
+      if (process.env.FIGMA_BRIDGE_CLIENT_ONLY === "1") {
+        process.stderr.write(`Figma bridge connecting as client to ws://localhost:${WS_PORT}
+`);
+        return;
+      }
       if (relayStartupPromise)
         return relayStartupPromise;
       relayStartupPromise = new Promise((resolve, reject) => {

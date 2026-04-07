@@ -155,6 +155,13 @@ export async function ensureRelayServer(): Promise<void> {
   if (relayServer) return;
   if (relayStartupPromise) return relayStartupPromise;
 
+  // When started by bridge-relay (FIGMA_BRIDGE_CLIENT_ONLY=1), skip creating
+  // our own server — just connect as a client to the existing relay.
+  if (process.env.FIGMA_BRIDGE_CLIENT_ONLY === "1") {
+    process.stderr.write(`Figma bridge connecting as client to ws://localhost:${WS_PORT}\n`);
+    return;
+  }
+
   relayStartupPromise = new Promise<void>((resolve, reject) => {
     // Try to create our own relay server on the configured port
     const wss = new WebSocketServer({ port: WS_PORT, host: "0.0.0.0" });

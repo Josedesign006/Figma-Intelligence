@@ -155,6 +155,10 @@ const PORT_FALLBACK_RANGE = 10;
 async function ensureRelayServer() {
     if (relayServer)
         return;
+    if (process.env.FIGMA_BRIDGE_CLIENT_ONLY === "1") {
+        process.stderr.write(`Figma bridge connecting as client to ws://localhost:${WS_PORT}\n`);
+        return;
+    }
     if (relayStartupPromise)
         return relayStartupPromise;
     relayStartupPromise = new Promise((resolve, reject) => {
