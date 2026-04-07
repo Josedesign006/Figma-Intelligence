@@ -119,14 +119,13 @@ function writeMcpConfig(bridgePort, forceLocal) {
 
   let config;
 
-  // Always use local MCP server when running inside the relay.
-  // The relay has a direct WebSocket to the Figma plugin, so tool calls
-  // resolve instantly. The cloud path (Railway round-trip) adds latency
-  // that causes Figma's plugin sandbox to timeout and disconnect.
-  // Cloud MCP is for external clients (VS Code, Cursor, Claude Code CLI).
-  if (!forceLocal && false && cloudConfig && cloudConfig.cloudUrl && cloudConfig.sessionToken && claudeSupportsHttpMcp === true) {
+  // Prefer local MCP server when available (dev machines with full repo).
+  // Local mode has a direct WebSocket to the Figma plugin — instant tool calls.
+  // Fall back to cloud mode for end users who only have the relay bundle.
+  const localMcpExists = existsSync(join(REPO_DIR, "figma-intelligence-layer", "dist", "index.js"));
+
+  if (!forceLocal && !localMcpExists && cloudConfig && cloudConfig.cloudUrl && cloudConfig.sessionToken && claudeSupportsHttpMcp === true) {
     // Cloud mode (HTTP): Claude CLI 2.1+ supports "type": "http" natively
-    // DISABLED: cloud round-trip causes Figma plugin timeout
     config = {
       mcpServers: {
         "figma-intelligence": {
@@ -138,9 +137,8 @@ function writeMcpConfig(bridgePort, forceLocal) {
     mkdirSync(tmpdir(), { recursive: true });
     writeFileSync(MCP_CONFIG_PATH, JSON.stringify(config, null, 2));
     console.log(`[chat-runner] MCP config written (cloud HTTP mode: ${cloudConfig.cloudUrl}/mcp)`);
-  } else if (!forceLocal && false && cloudConfig && cloudConfig.cloudUrl && cloudConfig.sessionToken) {
+  } else if (!forceLocal && !localMcpExists && cloudConfig && cloudConfig.cloudUrl && cloudConfig.sessionToken) {
     // Cloud mode (stdio proxy): works on ALL Claude CLI versions.
-    // DISABLED: cloud round-trip causes Figma plugin timeout
     const proxyScript = resolve(__dirname, "..", "figma-intelligence-installer", "lib", "mcp-stdio-proxy.js");
     const installerProxyScript = resolve(__dirname, "mcp-stdio-proxy.js");
     // Check multiple locations: repo layout, installer layout, and same-dir
