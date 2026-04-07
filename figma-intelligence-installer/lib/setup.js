@@ -294,12 +294,16 @@ function registerClaude(config, mcpUrl) {
       }
     }
 
-    // Use stdio proxy from persistent location (~/.figma-intelligence/)
-    // so it survives npx cache cleanup.
-    const proxyScript = join(homedir(), ".figma-intelligence", "mcp-stdio-proxy.js");
+    // Use LOCAL MCP server bundle so tools connect to the local relay
+    // (which has the Figma plugin connected). The cloud proxy can't reach
+    // the local Figma plugin, causing "Figma is not connected" errors.
+    const mcpServerBundle = join(homedir(), ".figma-intelligence", "mcp-server.bundle.js");
     claudeConfig.mcpServers["figma-intelligence"] = {
       command: "node",
-      args: [proxyScript, config.cloudUrl, config.sessionToken],
+      args: [mcpServerBundle],
+      env: {
+        FIGMA_BRIDGE_CLIENT_ONLY: "1",
+      },
     };
 
     writeFileSync(claudeConfigPath, JSON.stringify(claudeConfig, null, 2));
