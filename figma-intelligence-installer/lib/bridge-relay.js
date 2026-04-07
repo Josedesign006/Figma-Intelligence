@@ -14,6 +14,7 @@
  */
 
 const { WebSocketServer } = require("ws");
+const http = require("http");
 const { spawn } = require("child_process");
 const { readFileSync, writeFileSync, appendFileSync, existsSync } = require("fs");
 const { homedir } = require("os");
@@ -25,6 +26,7 @@ const { runGeminiCli, isGeminiCliAvailable, getGeminiCliAuthInfo } = require("./
 const { runPerplexity } = require("./perplexity-runner");
 const { runStitch } = require("./stitch-runner");
 const { startStitchAuth, getStitchAccessToken, hasStitchAuth, getStitchEmail, clearStitchAuth } = require("./stitch-auth");
+const { startClaudeAuth, startClaudeAuthViaCLI, hasClaudeToken } = require("./claude-auth");
 const { runAnthropicChat } = require("./anthropic-chat-runner");
 const { parsePdfBuffer, parseDocxBuffer, fetchUrlContent, createContentSource, createChunkedContentSource, buildGroundingContext, scanKnowledgeHub, loadHubFile, searchHub, searchContentForAnswer, searchReferenceSites, getReferenceSites, addReferenceSite, removeReferenceSite, prewarmHub } = require("./content-context");
 
@@ -1105,7 +1107,13 @@ async function _doRefreshAuthState({ log = false } = {}) {
     }
   } else {
     authInfo = { loggedIn: false, email: null };
-    if (log) console.log("⚠  Claude CLI not found — Claude chat unavailable");
+    if (log) console.log("⚠  Claude CLI not found — checking direct OAuth token...");
+  }
+
+  // Fallback: detect auth from direct OAuth token (works without CLI)
+  if (!authInfo.loggedIn && hasClaudeToken()) {
+    authInfo = { loggedIn: true, email: null };
+    if (log) console.log("✅ Claude: authenticated via direct OAuth token");
   }
 
   const codexAvailable = await isCodexAvailable();
@@ -1256,15 +1264,88 @@ function setupHeartbeat(wss) {
 }
 
 // ── P3: Port fallback — try ports 9001-9010 ──────────────────────────────────
+// HTTP server for health checks + fetch fallback; WebSocket upgrades attached to it
+let httpServer = null;
+// Queue of messages from HTTP poll fallback (for plugin clients that can't use WebSocket)
+const httpPollQueue = [];
+const HTTP_POLL_MAX = 50;
+
 function createServerWithFallback(basePort, maxRetries = 9) {
   return new Promise((resolve, reject) => {
     let attempt = 0;
     function tryPort(port) {
-      const server = new WebSocketServer({ port });
-      server.on("listening", () => {
-        PORT = port;
-        resolve(server);
+      const server = http.createServer((req, res) => {
+        // CORS headers for Figma plugin iframe
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+        if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
+
+        const url = new URL(req.url, `http://localhost:${port}`);
+
+        // Health check — plugin uses this to verify relay is reachable
+        if (url.pathname === "/health") {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ok: true, port: PORT, ts: Date.now() }));
+          return;
+        }
+
+        // HTTP fallback: trigger Claude auth without WebSocket
+        if (url.pathname === "/auth/claude" && req.method === "POST") {
+          handleHttpClaudeAuth(req, res);
+          return;
+        }
+
+        // HTTP fallback: get current auth/relay status
+        if (url.pathname === "/status") {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({
+            ok: true,
+            relay: true,
+            mcp: hasConnectedMcpSocket(),
+            auth: authInfo,
+            port: PORT,
+          }));
+          return;
+        }
+
+        // HTTP fallback: send a message to the relay (like WebSocket messages)
+        if (url.pathname === "/message" && req.method === "POST") {
+          let body = "";
+          req.on("data", (chunk) => { body += chunk; });
+          req.on("end", () => {
+            try {
+              const msg = JSON.parse(body);
+              // Process as if it came from a plugin WebSocket
+              handlePluginMessageHttp(msg, res);
+            } catch (e) {
+              res.writeHead(400, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: "Invalid JSON" }));
+            }
+          });
+          return;
+        }
+
+        // HTTP fallback: poll for messages (plugin polls this when WebSocket unavailable)
+        if (url.pathname === "/poll") {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          const msgs = httpPollQueue.splice(0, httpPollQueue.length);
+          res.end(JSON.stringify({ messages: msgs }));
+          return;
+        }
+
+        res.writeHead(404);
+        res.end("Not found");
       });
+
+      const wss = new WebSocketServer({ server });
+
+      server.listen(port, "0.0.0.0", () => {
+        PORT = port;
+        httpServer = server;
+        resolve(wss);
+      });
+
       server.on("error", (err) => {
         if (err.code === "EADDRINUSE" && attempt < maxRetries) {
           attempt++;
@@ -1277,6 +1358,61 @@ function createServerWithFallback(basePort, maxRetries = 9) {
     }
     tryPort(basePort);
   });
+}
+
+// HTTP fallback for Claude auth
+async function handleHttpClaudeAuth(req, res) {
+  try {
+    // Enqueue status update for HTTP poll clients
+    httpPollQueue.push({ type: "claude-auth-status", status: "signing-in" });
+    if (httpPollQueue.length > HTTP_POLL_MAX) httpPollQueue.shift();
+
+    try {
+      const result = await startClaudeAuth();
+      if (result && result.tokenData) {
+        authInfo = { loggedIn: true, email: result.email || null, provider: "claude" };
+      }
+      httpPollQueue.push({ type: "claude-auth-status", status: "success", email: authInfo.email });
+      if (httpPollQueue.length > HTTP_POLL_MAX) httpPollQueue.shift();
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true, status: "success" }));
+    } catch (directErr) {
+      console.log(`  Direct OAuth failed: ${directErr.message}, trying CLI…`);
+      try {
+        await startClaudeAuthViaCLI();
+        httpPollQueue.push({ type: "claude-auth-status", status: "polling" });
+        if (httpPollQueue.length > HTTP_POLL_MAX) httpPollQueue.shift();
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true, status: "polling" }));
+      } catch (cliErr) {
+        httpPollQueue.push({ type: "claude-auth-status", status: "error", error: cliErr.message });
+        if (httpPollQueue.length > HTTP_POLL_MAX) httpPollQueue.shift();
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: cliErr.message }));
+      }
+    }
+  } catch (err) {
+    res.writeHead(500, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: err.message }));
+  }
+}
+
+// HTTP fallback message handler (mirrors WebSocket plugin message handling)
+function handlePluginMessageHttp(msg, res) {
+  if (msg.type === "refresh-auth") {
+    refreshAuthState().catch(() => {});
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+  if (msg.type === "plugin-hello") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: true, relay: true, mcp: hasConnectedMcpSocket() }));
+    return;
+  }
+  // Default: acknowledge
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ ok: true }));
 }
 
 // ── Cloud Tunnel — outbound connection to cloud server ──────────────────────
@@ -1388,6 +1524,13 @@ console.log(`   MCP server   → connects to ws://localhost:${PORT}`);
 console.log(`   Figma plugin → connects to ws://localhost:${PORT}/plugin`);
 console.log(`   VS Code ext  → connects to ws://localhost:${PORT}/vscode`);
 console.log(`   Waiting for connections…\n`);
+
+// Write port file so the plugin and other tools can discover the actual port
+try {
+  const portDir = join(homedir(), ".figma-intelligence");
+  if (!existsSync(portDir)) mkdirSync(portDir, { recursive: true });
+  writeFileSync(join(portDir, "relay.port"), String(PORT));
+} catch {}
 
 // Connect to cloud tunnel (if configured)
 connectCloudTunnel();
@@ -2474,20 +2617,62 @@ wss.on("connection", (ws, req) => {
         return;
       }
 
-      // Trigger login from plugin UI
-      if (msg.type === "trigger-login") {
-        const { execSync } = require("child_process");
-        const provider = msg.provider || "claude";
-        console.log(`  Triggering ${provider} login…`);
-        try {
-          if (provider === "claude") {
-            require("child_process").spawn("claude", ["login"], { stdio: "inherit", detached: true }).unref();
-          } else if (provider === "openai") {
-            require("child_process").spawn("codex", ["login"], { stdio: "inherit", detached: true }).unref();
+      // Claude OAuth — direct HTTP OAuth primary, CLI fallback
+      if (msg.type === "claude-auth") {
+        (async () => {
+          try {
+            sendToPlugin({ type: "claude-auth-status", status: "signing-in" });
+
+            // Primary: direct HTTP OAuth with PKCE (opens browser, handles callback)
+            try {
+              console.log("  Claude: starting direct OAuth flow...");
+              const result = await startClaudeAuth();
+              // Token is persisted by startClaudeAuth; update in-memory auth state
+              authInfo = { loggedIn: true, email: result.email || null };
+              console.log(`  Claude: authenticated via direct OAuth`);
+              sendToPlugin({ type: "claude-auth-status", status: "success", email: authInfo.email });
+              sendRelayStatus(pluginSocket, hasConnectedMcpSocket());
+              return;
+            } catch (directErr) {
+              console.warn("  Claude: direct OAuth failed, trying CLI fallback:", directErr.message);
+            }
+
+            // Fallback: CLI-based OAuth (spawns `claude auth login`)
+            console.log("  Claude: trying CLI fallback...");
+            await startClaudeAuthViaCLI();
+            // Poll for auth completion (CLI handles token storage)
+            let pollCount = 0;
+            const pollInterval = setInterval(async () => {
+              pollCount++;
+              if (pollCount > 40) { clearInterval(pollInterval); return; } // 2 min max
+              await refreshAuthState({ force: true });
+              if (authInfo.loggedIn) {
+                clearInterval(pollInterval);
+                console.log(`  Claude: authenticated as ${authInfo.email || "unknown"}`);
+                sendToPlugin({ type: "claude-auth-status", status: "success", email: authInfo.email });
+              }
+            }, 3000);
+          } catch (err) {
+            console.error("  Claude auth failed:", err.message);
+            sendToPlugin({ type: "claude-auth-status", status: "error", error: "Could not open Claude sign-in. Please try again." });
           }
-        } catch (err) {
-          console.log(`  Login trigger failed: ${err.message}`);
+        })();
+        return;
+      }
+
+      // Legacy trigger-login (kept for backwards compatibility)
+      if (msg.type === "trigger-login") {
+        const provider = msg.provider || "claude";
+        if (provider === "claude") {
+          // Redirect to new claude-auth flow
+          ws.emit("message", JSON.stringify({ type: "claude-auth" }));
         }
+        return;
+      }
+
+      // Plugin requests auth refresh (e.g. after reconnect)
+      if (msg.type === "refresh-auth") {
+        refreshAuthState({ force: true }).catch(() => {});
         return;
       }
 
