@@ -10,6 +10,6 @@
     "allowedDomains": ["*"],
     "reasoning": "Plugin UI connects to a local WebSocket relay server for MCP bridge communication"
   },
-  "containsWidget": false,
+  "containsWidget": true,
   "permissions": ["currentuser"]
 }
