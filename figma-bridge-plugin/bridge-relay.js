@@ -1592,13 +1592,16 @@ process.on("SIGTERM", () => { releaseLock(); process.exit(0); });
 
 // ── WebSocket Server ─────────────────────────────────────────────────────────
 (async () => {
+  // Kill stale relay FIRST so the lock holder is dead before we check the lock
+  killStaleRelay(BASE_PORT);
+
+  // Clean up stale lock file left by a killed relay (SIGKILL can't trigger cleanup)
+  try { unlinkSync(LOCK_FILE); } catch {}
+
   if (!acquireLock()) {
     console.log("Another relay instance is already starting. Exiting.");
     process.exit(0);
   }
-
-  // Auto-kill any previous relay holding the port
-  killStaleRelay(BASE_PORT);
 
   let wss;
   try {

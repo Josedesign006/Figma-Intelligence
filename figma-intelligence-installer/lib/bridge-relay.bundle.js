@@ -138881,11 +138881,15 @@ process.on("SIGTERM", () => {
   process.exit(0);
 });
 (async () => {
+  killStaleRelay(BASE_PORT);
+  try {
+    unlinkSync(LOCK_FILE);
+  } catch {
+  }
   if (!acquireLock()) {
     console.log("Another relay instance is already starting. Exiting.");
     process.exit(0);
   }
-  killStaleRelay(BASE_PORT);
   let wss;
   try {
     wss = await createServerWithFallback(BASE_PORT);
