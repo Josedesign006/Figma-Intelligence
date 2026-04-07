@@ -1518,8 +1518,38 @@ function routeToCloudIfNeeded(requestId, raw) {
   return false;
 }
 
+// ── Kill stale relay on startup ──────────────────────────────────────────────
+function killStaleRelay(port) {
+  try {
+    const { execSync } = require("child_process");
+    const platform = require("os").platform();
+    if (platform === "win32") return;
+    // Find PIDs using our port (but not our own PID)
+    const result = execSync(`lsof -ti:${port} 2>/dev/null`, { encoding: "utf8" }).trim();
+    if (result) {
+      const pids = result.split("\n").filter(p => p && parseInt(p) !== process.pid);
+      for (const pid of pids) {
+        try { process.kill(parseInt(pid), "SIGTERM"); } catch {}
+      }
+      if (pids.length > 0) {
+        // Give the old process a moment to release the port
+        execSync("sleep 0.5", { stdio: "ignore" });
+        // Force-kill if still alive
+        for (const pid of pids) {
+          try { process.kill(parseInt(pid), "SIGKILL"); } catch {}
+        }
+        execSync("sleep 0.3", { stdio: "ignore" });
+        console.log(`  Killed stale relay process(es) on port ${port}`);
+      }
+    }
+  } catch {}
+}
+
 // ── WebSocket Server ─────────────────────────────────────────────────────────
 (async () => {
+  // Auto-kill any previous relay holding the port
+  killStaleRelay(BASE_PORT);
+
   let wss;
   try {
     wss = await createServerWithFallback(BASE_PORT);
