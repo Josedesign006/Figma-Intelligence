@@ -98,6 +98,14 @@ async function runSetup() {
     copyFileSync(proxySrc, proxyDest);
   }
 
+  // Install MCP server bundle (local figma-intelligence-layer for plugin chat)
+  const mcpServerSrc = join(__dirname, "mcp-server.bundle.js");
+  const mcpServerDest = join(CONFIG_DIR, "mcp-server.bundle.js");
+  if (existsSync(mcpServerSrc)) {
+    copyFileSync(mcpServerSrc, mcpServerDest);
+    console.log(`  MCP server installed to: ${mcpServerDest}`);
+  }
+
   // 7. Install Figma plugin files
   console.log("\n  Installing Figma plugin…");
   try {

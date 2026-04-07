@@ -138286,7 +138286,11 @@ function rgbToHex(r, g, b) {
 }
 var BASE_PORT = parseInt(process.argv[2] || process.env.BRIDGE_PORT || "9001", 10);
 var PORT = BASE_PORT;
-var MCP_SERVER_PATH = resolve(__dirname, "../figma-intelligence-layer/dist/index.js");
+var MCP_SERVER_DEV_PATH = resolve(__dirname, "../figma-intelligence-layer/dist/index.js");
+var MCP_SERVER_BUNDLE_PATH = resolve(homedir(), ".figma-intelligence", "mcp-server.bundle.js");
+var MCP_SERVER_BUNDLE_SAME_DIR = resolve(__dirname, "mcp-server.bundle.js");
+var MCP_SERVER_BUNDLE_LIB = resolve(__dirname, "..", "lib", "mcp-server.bundle.js");
+var MCP_SERVER_PATH = existsSync(MCP_SERVER_DEV_PATH) ? MCP_SERVER_DEV_PATH : existsSync(MCP_SERVER_BUNDLE_PATH) ? MCP_SERVER_BUNDLE_PATH : existsSync(MCP_SERVER_BUNDLE_SAME_DIR) ? MCP_SERVER_BUNDLE_SAME_DIR : existsSync(MCP_SERVER_BUNDLE_LIB) ? MCP_SERVER_BUNDLE_LIB : MCP_SERVER_DEV_PATH;
 var DEFAULT_CODEX_APP_BIN = "/Applications/Codex.app/Contents/Resources/codex";
 if (!process.env.CODEX_BIN_PATH && existsSync(DEFAULT_CODEX_APP_BIN)) {
   process.env.CODEX_BIN_PATH = DEFAULT_CODEX_APP_BIN;

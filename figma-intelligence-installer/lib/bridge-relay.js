@@ -926,7 +926,16 @@ function rgbToHex(r, g, b) {
 // P3: Port fallback — try PORT, then PORT+1 through PORT+9
 const BASE_PORT = parseInt(process.argv[2] || process.env.BRIDGE_PORT || "9001", 10);
 let PORT = BASE_PORT;
-const MCP_SERVER_PATH = resolve(__dirname, "../figma-intelligence-layer/dist/index.js");
+// MCP server path: prefer local dev build, then installed bundle
+const MCP_SERVER_DEV_PATH = resolve(__dirname, "../figma-intelligence-layer/dist/index.js");
+const MCP_SERVER_BUNDLE_PATH = resolve(homedir(), ".figma-intelligence", "mcp-server.bundle.js");
+const MCP_SERVER_BUNDLE_SAME_DIR = resolve(__dirname, "mcp-server.bundle.js");
+const MCP_SERVER_BUNDLE_LIB = resolve(__dirname, "..", "lib", "mcp-server.bundle.js");
+const MCP_SERVER_PATH = existsSync(MCP_SERVER_DEV_PATH) ? MCP_SERVER_DEV_PATH
+  : existsSync(MCP_SERVER_BUNDLE_PATH) ? MCP_SERVER_BUNDLE_PATH
+  : existsSync(MCP_SERVER_BUNDLE_SAME_DIR) ? MCP_SERVER_BUNDLE_SAME_DIR
+  : existsSync(MCP_SERVER_BUNDLE_LIB) ? MCP_SERVER_BUNDLE_LIB
+  : MCP_SERVER_DEV_PATH; // fallback (will fail with "not built" message)
 const DEFAULT_CODEX_APP_BIN = "/Applications/Codex.app/Contents/Resources/codex";
 
 if (!process.env.CODEX_BIN_PATH && existsSync(DEFAULT_CODEX_APP_BIN)) {
