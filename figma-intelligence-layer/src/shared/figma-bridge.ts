@@ -157,7 +157,7 @@ export async function ensureRelayServer(): Promise<void> {
 
   relayStartupPromise = new Promise<void>((resolve, reject) => {
     // Try to create our own relay server on the configured port
-    const wss = new WebSocketServer({ port: WS_PORT });
+    const wss = new WebSocketServer({ port: WS_PORT, host: "0.0.0.0" });
     let settled = false;
 
     const finish = (callback: () => unknown) => {

@@ -4304,7 +4304,7 @@ var require_chat_runner = __commonJS({
       const port = String(bridgePort || process.env.BRIDGE_PORT || "9001");
       const cloudConfig = loadCloudConfig2();
       let config2;
-      if (!forceLocal && cloudConfig && cloudConfig.cloudUrl && cloudConfig.sessionToken && claudeSupportsHttpMcp === true) {
+      if (!forceLocal && false) {
         config2 = {
           mcpServers: {
             "figma-intelligence": {
@@ -4316,7 +4316,7 @@ var require_chat_runner = __commonJS({
         mkdirSync2(tmpdir(), { recursive: true });
         writeFileSync2(MCP_CONFIG_PATH, JSON.stringify(config2, null, 2));
         console.log(`[chat-runner] MCP config written (cloud HTTP mode: ${cloudConfig.cloudUrl}/mcp)`);
-      } else if (cloudConfig && cloudConfig.cloudUrl && cloudConfig.sessionToken) {
+      } else if (!forceLocal && false) {
         const proxyScript = resolve2(__dirname, "..", "figma-intelligence-installer", "lib", "mcp-stdio-proxy.js");
         const installerProxyScript = resolve2(__dirname, "mcp-stdio-proxy.js");
         const proxyPath = existsSync2(proxyScript) ? proxyScript : existsSync2(installerProxyScript) ? installerProxyScript : resolve2(__dirname, "..", "lib", "mcp-stdio-proxy.js");
