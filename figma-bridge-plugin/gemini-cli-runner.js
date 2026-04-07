@@ -17,6 +17,15 @@ const { readFileSync, writeFileSync, existsSync, mkdirSync } = require("fs");
 const { homedir, platform } = require("os");
 const { join, resolve } = require("path");
 
+function getRelayPort() {
+  try {
+    const p = readFileSync(join(homedir(), ".figma-intelligence", "relay.port"), "utf8").trim();
+    const n = parseInt(p, 10);
+    if (n > 0 && n < 65536) return String(n);
+  } catch {}
+  return "9001";
+}
+
 const GEMINI_BIN = process.env.GEMINI_BIN_PATH || "gemini";
 const REPO_DIR = resolve(__dirname, "..");
 const CLAUDE_SETTINGS_PATH = join(homedir(), ".claude", "settings.json");
@@ -104,7 +113,7 @@ function ensureGeminiCliMcpRegistered() {
       args: [MCP_BUILD_PATH],
       env: {
         FIGMA_ACCESS_TOKEN: figmaToken,
-        FIGMA_BRIDGE_PORT: "9001",
+        FIGMA_BRIDGE_PORT: getRelayPort(),
         ENABLE_DECISION_LOG: "true",
       },
     };

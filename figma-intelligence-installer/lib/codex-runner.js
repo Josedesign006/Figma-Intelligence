@@ -16,6 +16,15 @@ const { readFileSync, writeFileSync, unlinkSync, existsSync } = require("fs");
 const { homedir, tmpdir } = require("os");
 const { join, resolve } = require("path");
 
+function getRelayPort() {
+  try {
+    const p = readFileSync(join(homedir(), ".figma-intelligence", "relay.port"), "utf8").trim();
+    const n = parseInt(p, 10);
+    if (n > 0 && n < 65536) return String(n);
+  } catch {}
+  return "9001";
+}
+
 // Codex CLI binary — respects CODEX_BIN_PATH env override
 const DEFAULT_CODEX_APP_BIN = "/Applications/Codex.app/Contents/Resources/codex";
 const CODEX_BIN = process.env.CODEX_BIN_PATH || (existsSync(DEFAULT_CODEX_APP_BIN) ? DEFAULT_CODEX_APP_BIN : "codex");
@@ -99,7 +108,7 @@ function ensureCodexMcpRegistered() {
     [
       "mcp", "add", "figma-intelligence-layer",
       "--env", `FIGMA_ACCESS_TOKEN=${figmaToken}`,
-      "--env", "FIGMA_BRIDGE_PORT=9001",
+      "--env", `FIGMA_BRIDGE_PORT=${getRelayPort()}`,
       "--env", "ENABLE_DECISION_LOG=true",
       "--", "node", MCP_BUILD_PATH,
     ],

@@ -196,7 +196,18 @@ if (components.length > 1) {
 return { error: "Not enough variants created" };
 `;
 
-const ws = new WebSocket("ws://localhost:9001");
+const { readFileSync, existsSync } = require("fs");
+const { join } = require("path");
+const { homedir } = require("os");
+function getRelayPort() {
+  try {
+    const p = readFileSync(join(homedir(), ".figma-intelligence", "relay.port"), "utf8").trim();
+    const n = parseInt(p, 10);
+    if (n > 0 && n < 65536) return n;
+  } catch {}
+  return 9001;
+}
+const ws = new WebSocket(`ws://localhost:${getRelayPort()}`);
 ws.on("open", () => {
   console.log("Connected to relay, sending button creation command...");
   console.log("Creating " + 3*5*6*4 + " variants (3 sizes x 5 styles x 6 states x 4 icon positions)...");

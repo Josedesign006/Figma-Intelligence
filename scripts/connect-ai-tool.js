@@ -20,6 +20,16 @@ const { spawnSync } = require("child_process");
 const ROOT_DIR = path.resolve(__dirname, "..");
 const MCP_SERVER_PATH = path.join(ROOT_DIR, "figma-intelligence-layer", "dist", "index.js");
 
+// ─── Port discovery ──────────────────────────────────────────────────────────
+function getRelayPort() {
+  try {
+    const p = fs.readFileSync(path.join(os.homedir(), ".figma-intelligence", "relay.port"), "utf8").trim();
+    const n = parseInt(p, 10);
+    if (n > 0 && n < 65536) return String(n);
+  } catch {}
+  return "9001";
+}
+
 // ─── MCP server entry used in every config ────────────────────────────────────
 function mcpEntry(figmaToken) {
   return {
@@ -27,7 +37,7 @@ function mcpEntry(figmaToken) {
     args: [MCP_SERVER_PATH],
     env: {
       FIGMA_ACCESS_TOKEN: figmaToken,
-      FIGMA_BRIDGE_PORT: "9001",
+      FIGMA_BRIDGE_PORT: getRelayPort(),
       ENABLE_DECISION_LOG: "true",
     },
   };

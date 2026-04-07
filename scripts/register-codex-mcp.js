@@ -11,6 +11,15 @@ const BUILD_PATH = path.join(ROOT_DIR, "figma-intelligence-layer", "dist", "inde
 const CLAUDE_SETTINGS_PATH = path.join(os.homedir(), ".claude", "settings.json");
 const MCP_NAME = "figma-intelligence-layer";
 
+function getRelayPort() {
+  try {
+    const p = fs.readFileSync(path.join(os.homedir(), ".figma-intelligence", "relay.port"), "utf8").trim();
+    const n = parseInt(p, 10);
+    if (n > 0 && n < 65536) return String(n);
+  } catch {}
+  return "9001";
+}
+
 function run(cmd, args, options = {}) {
   const result = spawnSync(cmd, args, {
     encoding: "utf8",
@@ -67,7 +76,7 @@ function main() {
     "--env",
     `FIGMA_ACCESS_TOKEN=${token}`,
     "--env",
-    "FIGMA_BRIDGE_PORT=9001",
+    `FIGMA_BRIDGE_PORT=${getRelayPort()}`,
     "--env",
     "ENABLE_DECISION_LOG=true",
     "--",

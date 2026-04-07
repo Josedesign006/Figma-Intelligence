@@ -19,7 +19,8 @@ import { join } from "path";
 import { homedir } from "os";
 
 function resolvePort(): number {
-  if (process.env.FIGMA_BRIDGE_PORT) return parseInt(process.env.FIGMA_BRIDGE_PORT, 10);
+  // 1. relay.port file is the source of truth — it reflects the ACTUAL running port
+  //    (the relay writes this after port fallback, so it's always correct)
   try {
     const portFile = join(homedir(), ".figma-intelligence", "relay.port");
     if (existsSync(portFile)) {
@@ -27,6 +28,9 @@ function resolvePort(): number {
       if (p > 0 && p < 65536) return p;
     }
   } catch {}
+  // 2. Env var override (set explicitly by bridge-relay for its child MCP server)
+  if (process.env.FIGMA_BRIDGE_PORT) return parseInt(process.env.FIGMA_BRIDGE_PORT, 10);
+  // 3. Default
   return 9001;
 }
 const WS_PORT = resolvePort();

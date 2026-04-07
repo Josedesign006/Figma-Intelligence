@@ -4703,6 +4703,15 @@ var require_codex_runner = __commonJS({
     var { readFileSync: readFileSync2, writeFileSync: writeFileSync2, unlinkSync: unlinkSync2, existsSync: existsSync2 } = require("fs");
     var { homedir: homedir2, tmpdir } = require("os");
     var { join: join2, resolve: resolve2 } = require("path");
+    function getRelayPort() {
+      try {
+        const p = readFileSync2(join2(homedir2(), ".figma-intelligence", "relay.port"), "utf8").trim();
+        const n = parseInt(p, 10);
+        if (n > 0 && n < 65536) return String(n);
+      } catch {
+      }
+      return "9001";
+    }
     var DEFAULT_CODEX_APP_BIN2 = "/Applications/Codex.app/Contents/Resources/codex";
     var CODEX_BIN = process.env.CODEX_BIN_PATH || (existsSync2(DEFAULT_CODEX_APP_BIN2) ? DEFAULT_CODEX_APP_BIN2 : "codex");
     var REPO_DIR = resolve2(__dirname, "..");
@@ -4775,7 +4784,7 @@ var require_codex_runner = __commonJS({
           "--env",
           `FIGMA_ACCESS_TOKEN=${figmaToken}`,
           "--env",
-          "FIGMA_BRIDGE_PORT=9001",
+          `FIGMA_BRIDGE_PORT=${getRelayPort()}`,
           "--env",
           "ENABLE_DECISION_LOG=true",
           "--",
@@ -5299,6 +5308,15 @@ var require_gemini_cli_runner = __commonJS({
     var { readFileSync: readFileSync2, writeFileSync: writeFileSync2, existsSync: existsSync2, mkdirSync: mkdirSync2 } = require("fs");
     var { homedir: homedir2, platform } = require("os");
     var { join: join2, resolve: resolve2 } = require("path");
+    function getRelayPort() {
+      try {
+        const p = readFileSync2(join2(homedir2(), ".figma-intelligence", "relay.port"), "utf8").trim();
+        const n = parseInt(p, 10);
+        if (n > 0 && n < 65536) return String(n);
+      } catch {
+      }
+      return "9001";
+    }
     var GEMINI_BIN = process.env.GEMINI_BIN_PATH || "gemini";
     var REPO_DIR = resolve2(__dirname, "..");
     var CLAUDE_SETTINGS_PATH = join2(homedir2(), ".claude", "settings.json");
@@ -5368,7 +5386,7 @@ var require_gemini_cli_runner = __commonJS({
           args: [MCP_BUILD_PATH],
           env: {
             FIGMA_ACCESS_TOKEN: figmaToken,
-            FIGMA_BRIDGE_PORT: "9001",
+            FIGMA_BRIDGE_PORT: getRelayPort(),
             ENABLE_DECISION_LOG: "true"
           }
         };

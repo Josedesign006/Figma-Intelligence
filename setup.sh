@@ -528,7 +528,10 @@ if [ -n "$CLAUDE_BIN" ]; then
   "$CLAUDE_BIN" mcp remove design-bridge >/dev/null 2>&1 || true
 
   # Build env flag list for figma-intelligence-layer
-  FIL_ENV_ARGS=(-e "FIGMA_ACCESS_TOKEN=$FIGMA_TOKEN" -e "FIGMA_BRIDGE_PORT=9001" -e "ENABLE_DECISION_LOG=true")
+  # Read relay port from port file (fallback to 9001)
+  RELAY_PORT="9001"
+  [ -f "$HOME/.figma-intelligence/relay.port" ] && RELAY_PORT="$(cat "$HOME/.figma-intelligence/relay.port" 2>/dev/null || echo 9001)"
+  FIL_ENV_ARGS=(-e "FIGMA_ACCESS_TOKEN=$FIGMA_TOKEN" -e "FIGMA_BRIDGE_PORT=$RELAY_PORT" -e "ENABLE_DECISION_LOG=true")
   [ -n "$UNSPLASH_ACCESS_KEY" ] && FIL_ENV_ARGS+=(-e "UNSPLASH_ACCESS_KEY=$UNSPLASH_ACCESS_KEY")
   [ -n "$PEXELS_API_KEY" ]      && FIL_ENV_ARGS+=(-e "PEXELS_API_KEY=$PEXELS_API_KEY")
 
@@ -619,7 +622,7 @@ if [ -n "$CODEX_BIN" ]; then
   "$CODEX_BIN" mcp remove figma-intelligence-layer >/dev/null 2>&1 || true
   if "$CODEX_BIN" mcp add figma-intelligence-layer \
     --env FIGMA_ACCESS_TOKEN="$FIGMA_TOKEN" \
-    --env FIGMA_BRIDGE_PORT=9001 \
+    --env FIGMA_BRIDGE_PORT="$RELAY_PORT" \
     --env ENABLE_DECISION_LOG=true \
     -- node "$REPO_DIR/figma-intelligence-layer/dist/index.js" >/dev/null; then
     echo "   ✔ figma-intelligence-layer registered in ~/.codex/config.toml"
@@ -696,7 +699,7 @@ settings.mcpServers['figma-intelligence-layer'] = {
   args: [mcpBuildPath],
   env: {
     FIGMA_ACCESS_TOKEN: figmaToken,
-    FIGMA_BRIDGE_PORT: '9001',
+    FIGMA_BRIDGE_PORT: '${RELAY_PORT}',
     ENABLE_DECISION_LOG: 'true',
     ...(dbEnv.UNSPLASH_ACCESS_KEY ? { UNSPLASH_ACCESS_KEY: dbEnv.UNSPLASH_ACCESS_KEY } : {}),
     ...(dbEnv.PEXELS_API_KEY ? { PEXELS_API_KEY: dbEnv.PEXELS_API_KEY } : {}),
@@ -758,7 +761,7 @@ const config = {
       args: [path.join(repoDir, "figma-intelligence-layer", "dist", "index.js")],
       env: {
         FIGMA_ACCESS_TOKEN: figmaToken,
-        FIGMA_BRIDGE_PORT: "9001",
+        FIGMA_BRIDGE_PORT: "${RELAY_PORT}",
         ENABLE_DECISION_LOG: "true",
         ...(dbEnv.UNSPLASH_ACCESS_KEY ? { UNSPLASH_ACCESS_KEY: dbEnv.UNSPLASH_ACCESS_KEY } : {}),
         ...(dbEnv.PEXELS_API_KEY ? { PEXELS_API_KEY: dbEnv.PEXELS_API_KEY } : {}),
@@ -826,7 +829,8 @@ mkdir -p "$PLIST_DIR"
 # Stop any existing instance cleanly
 launchctl unload "$PLIST_PATH" 2>/dev/null || true
 pkill -f "bridge-relay.js" 2>/dev/null || true
-lsof -ti :9001 2>/dev/null | xargs kill -9 2>/dev/null || true
+ACTIVE_PORT="${RELAY_PORT:-9001}"
+lsof -ti :"$ACTIVE_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
 sleep 0.5
 
 # Write the LaunchAgent plist
