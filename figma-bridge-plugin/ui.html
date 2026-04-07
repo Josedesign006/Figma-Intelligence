@@ -4515,25 +4515,24 @@
             (selectedLoginProvider === "gemini" && geminiCliLoggedIn) ||
             ((selectedLoginProvider === "stitch") && (msg.hasApiKey || msg.hasStitchOAuth)) ||
             (selectedLoginProvider === "perplexity" && msg.hasApiKey);
-          if ((!loginDismissed || window._loginScreenDeferred) && canSkipLogin) {
-            // Clear deferred login timer if still pending
-            if (window._loginDeferTimer) { clearTimeout(window._loginDeferTimer); window._loginDeferTimer = null; }
-            window._loginScreenDeferred = false;
-            // Persist provider to localStorage so login screen is skipped on reload
-            try {
-              localStorage.setItem("figma-intelligence-provider", selectedLoginProvider);
-              if (msg.hasApiKey) localStorage.setItem("figma-intelligence-has-key", "1");
-            } catch(e) {}
-            hideLoginScreen();
-            updateProviderBadge();
-            updateModeTabsVisibility();
-            if (selectedLoginProvider === "stitch" && activeMode === "chat") switchMode("code");
-            if (selectedLoginProvider === "perplexity" && activeMode !== "chat") switchMode("chat");
-            if (selectedLoginProvider === "stitch" && input) input.placeholder = "Describe the UI screen to generate...";
-            if (selectedLoginProvider === "perplexity" && input) input.placeholder = "Research any topic...";
-            // Send provider-select to relay so it has formal provider config
-            sendProviderToRelay();
-            updateStatus();
+          if (!loginDismissed || window._loginScreenDeferred) {
+            // First run or deferred — auto-skip login if possible
+            if (canSkipLogin) {
+              if (window._loginDeferTimer) { clearTimeout(window._loginDeferTimer); window._loginDeferTimer = null; }
+              window._loginScreenDeferred = false;
+              try {
+                localStorage.setItem("figma-intelligence-provider", selectedLoginProvider);
+                if (msg.hasApiKey) localStorage.setItem("figma-intelligence-has-key", "1");
+              } catch(e) {}
+              hideLoginScreen();
+              updateProviderBadge();
+              updateModeTabsVisibility();
+              if (selectedLoginProvider === "stitch" && activeMode === "chat") switchMode("code");
+              if (selectedLoginProvider === "perplexity" && activeMode !== "chat") switchMode("chat");
+              if (selectedLoginProvider === "stitch" && input) input.placeholder = "Describe the UI screen to generate...";
+              if (selectedLoginProvider === "perplexity" && input) input.placeholder = "Research any topic...";
+              sendProviderToRelay();
+            }
           }
           // If login was deferred and we can't skip, show login screen now
           if (window._loginScreenDeferred && !canSkipLogin) {
