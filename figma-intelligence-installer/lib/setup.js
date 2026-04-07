@@ -62,7 +62,12 @@ async function runSetup() {
   // 4. Cloud URL
   config.cloudUrl = config.cloudUrl || DEFAULT_CLOUD_URL;
   const customUrl = await ask(`  Cloud server URL [${config.cloudUrl}]: `);
-  if (customUrl) config.cloudUrl = customUrl;
+  // Only accept valid URLs — ignore accidental input like "clear", "y", etc.
+  if (customUrl && customUrl.startsWith("http")) config.cloudUrl = customUrl;
+  // Always ensure cloudUrl is a valid URL
+  if (!config.cloudUrl || !config.cloudUrl.startsWith("http")) {
+    config.cloudUrl = DEFAULT_CLOUD_URL;
+  }
 
   // 5. Figma access token
   if (!config.figmaAccessToken) {

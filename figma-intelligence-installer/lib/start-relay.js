@@ -79,25 +79,26 @@ async function startRelay() {
 }
 
 async function stopRelay() {
+  // Always try to kill any bridge-relay processes, even without PID file
+  try {
+    const { execSync } = require("child_process");
+    execSync("pkill -f bridge-relay 2>/dev/null", { stdio: "ignore" });
+  } catch {}
+
   if (!existsSync(PID_PATH)) {
-    console.log("  Relay is not running.");
+    console.log("  Relay stopped.");
     return;
   }
 
   const pid = parseInt(readFileSync(PID_PATH, "utf8").trim(), 10);
-  if (!pid) {
-    console.log("  Invalid PID file.");
-    return;
-  }
-
-  try {
-    process.kill(pid, "SIGTERM");
-    console.log(`  Relay stopped (PID ${pid})`);
-  } catch (err) {
-    if (err.code === "ESRCH") {
-      console.log("  Relay was not running (stale PID).");
-    } else {
-      throw err;
+  if (pid) {
+    try {
+      process.kill(pid, "SIGTERM");
+      console.log(`  Relay stopped (PID ${pid})`);
+    } catch (err) {
+      if (err.code === "ESRCH") {
+        console.log("  Relay stopped (stale PID cleaned up).");
+      }
     }
   }
 
