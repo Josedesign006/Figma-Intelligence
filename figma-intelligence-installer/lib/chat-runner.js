@@ -49,6 +49,10 @@ function resetSession(mode) {
   }
 }
 
+// ── MCP bundle detection (module-level so runClaude can reference it) ────────
+const mcpBundlePath = join(homedir(), ".figma-intelligence", "mcp-server.bundle.js");
+const mcpBundleExists = existsSync(mcpBundlePath);
+
 // ── MCP Config (written once at startup) ─────────────────────────────────────
 
 function getFigmaToken() {
@@ -125,8 +129,7 @@ function writeMcpConfig(bridgePort, forceLocal) {
   // Both connect to the LOCAL relay (ws://localhost:9001) which has the Figma plugin.
   // Cloud mode is a fallback only — the cloud server can't reach the local plugin.
   const localMcpExists = existsSync(join(REPO_DIR, "figma-intelligence-layer", "dist", "index.js"));
-  const mcpBundlePath = join(homedir(), ".figma-intelligence", "mcp-server.bundle.js");
-  const mcpBundleExists = existsSync(mcpBundlePath);
+  // mcpBundlePath and mcpBundleExists are defined at module level
 
   if (!forceLocal && !localMcpExists && mcpBundleExists) {
     // End-user mode: use local MCP server bundle (connects to local relay)
@@ -200,6 +203,7 @@ function writeMcpConfig(bridgePort, forceLocal) {
             ...existingFigmaEnv,
             FIGMA_ACCESS_TOKEN: figmaToken,
             FIGMA_BRIDGE_PORT: port,
+            FIGMA_BRIDGE_CLIENT_ONLY: "1",
             ENABLE_DECISION_LOG: "true",
           },
         },

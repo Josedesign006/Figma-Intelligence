@@ -1255,6 +1255,7 @@ function broadcastToVscodeSockets(payload) {
 const PLUGIN_GRACE_PERIOD_MS = 5000;
 let pluginGraceTimer = null;
 let pluginGraceState = null; // stashed state during grace period
+let pluginGraceQueue = []; // requests queued while plugin is in grace period
 
 // ── P3: Heartbeat — detect dead connections ──────────────────────────────────
 const HEARTBEAT_INTERVAL_MS = 30000;
@@ -1617,6 +1618,22 @@ wss.on("connection", (ws, req) => {
     }
     pluginSocket = ws;
     console.log("✅ Figma plugin connected");
+    // Flush any requests that were queued during the grace period
+    if (pluginGraceQueue.length > 0) {
+      console.log(`  ↺ Flushing ${pluginGraceQueue.length} queued request(s) to plugin`);
+      for (const queued of pluginGraceQueue) {
+        if (queued.senderSocket.readyState === 1) {
+          pendingRequests.set(queued.id, queued.senderSocket);
+          ws.send(JSON.stringify({
+            type: "bridge-request",
+            id: queued.id,
+            method: queued.method,
+            params: queued.params,
+          }));
+        }
+      }
+      pluginGraceQueue = [];
+    }
     sendRelayStatus(ws, hasConnectedMcpSocket());
     refreshAuthState().catch(() => {});
   } else {
@@ -2765,6 +2782,10 @@ wss.on("connection", (ws, req) => {
           params: msg.params || {},
         }));
         console.log(`  → mcp request: ${msg.method} (id: ${msg.id})`);
+      } else if (pluginGraceTimer) {
+        // Plugin disconnected but within grace period — queue request for when it reconnects
+        pluginGraceQueue.push({ id: msg.id, method: msg.method, params: msg.params || {}, senderSocket: ws });
+        console.log(`  ⏳ Queued request during grace period: ${msg.method} (id: ${msg.id})`);
       } else {
         ws.send(JSON.stringify({
           id: msg.id,
@@ -2784,6 +2805,16 @@ wss.on("connection", (ws, req) => {
         pluginSocket = null;
         pluginGraceTimer = null;
         pluginGraceState = null;
+        // Reject any requests that were queued during the grace period
+        for (const queued of pluginGraceQueue) {
+          if (queued.senderSocket.readyState === 1) {
+            queued.senderSocket.send(JSON.stringify({
+              id: queued.id,
+              error: "Figma plugin is not connected. Open Figma and run the Intelligence Bridge plugin.",
+            }));
+          }
+        }
+        pluginGraceQueue = [];
         console.log("⚠  Plugin grace period expired — fully disconnected");
         sendRelayStatus(null, hasConnectedMcpSocket());
       }, PLUGIN_GRACE_PERIOD_MS);

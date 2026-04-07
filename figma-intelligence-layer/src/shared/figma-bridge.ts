@@ -24,6 +24,8 @@ let relayPluginSocket: WebSocket | null = null;
 const relayMcpSockets = new Set<WebSocket>();
 const relayPendingRequests = new Map<string, WebSocket>();
 let relayStartupPromise: Promise<void> | null = null;
+let relayPluginGraceTimer: ReturnType<typeof setTimeout> | null = null;
+let relayPluginGraceQueue: Array<{ id: string; method: string; params: Record<string, unknown>; sender: WebSocket }> = [];
 
 type RelayMessage = {
   id?: string;
@@ -68,8 +70,23 @@ function setupRelayRouting(wss: WebSocketServer) {
     const isPlugin = path.includes("/plugin");
 
     if (isPlugin) {
+      // Cancel grace timer if plugin reconnects within grace period
+      if (relayPluginGraceTimer) {
+        clearTimeout(relayPluginGraceTimer);
+        relayPluginGraceTimer = null;
+      }
       relayPluginSocket = ws;
       process.stderr.write("Figma bridge plugin connected\n");
+      // Flush any requests queued during the grace period
+      if (relayPluginGraceQueue.length > 0) {
+        for (const queued of relayPluginGraceQueue) {
+          if (queued.sender.readyState === WebSocket.OPEN) {
+            relayPendingRequests.set(queued.id, queued.sender);
+            ws.send(JSON.stringify({ type: "bridge-request", id: queued.id, method: queued.method, params: queued.params }));
+          }
+        }
+        relayPluginGraceQueue = [];
+      }
       sendRelayStatus(ws, hasConnectedMcpSocket());
     } else {
       relayMcpSockets.add(ws);
@@ -119,6 +136,9 @@ function setupRelayRouting(wss: WebSocketServer) {
             method: msg.method,
             params: msg.params || {},
           }));
+        } else if (relayPluginGraceTimer) {
+          // Plugin in grace period — queue request for when it reconnects
+          relayPluginGraceQueue.push({ id: msg.id, method: msg.method, params: msg.params || {}, sender: ws });
         } else {
           ws.send(JSON.stringify({
             id: msg.id,
@@ -130,8 +150,22 @@ function setupRelayRouting(wss: WebSocketServer) {
 
     ws.on("close", () => {
       if (isPlugin && relayPluginSocket === ws) {
-        relayPluginSocket = null;
-        process.stderr.write("Figma bridge plugin disconnected\n");
+        process.stderr.write("Figma bridge plugin disconnected — 5s grace period\n");
+        relayPluginGraceTimer = setTimeout(() => {
+          relayPluginSocket = null;
+          relayPluginGraceTimer = null;
+          // Reject any queued requests
+          for (const queued of relayPluginGraceQueue) {
+            if (queued.sender.readyState === WebSocket.OPEN) {
+              queued.sender.send(JSON.stringify({
+                id: queued.id,
+                error: "Figma plugin is not connected. Open Figma and run the Intelligence Bridge plugin.",
+              }));
+            }
+          }
+          relayPluginGraceQueue = [];
+          process.stderr.write("Figma bridge plugin grace period expired\n");
+        }, 5000);
       }
 
       if (!isPlugin) {
@@ -217,6 +251,11 @@ export class FigmaBridge {
   private hasHydratedStatus = false;
   private hasHydratedSelection = false;
   private connected = false;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectDelay = 2000;
+  private intentionalClose = false;
+  private static readonly MAX_RECONNECT_DELAY = 30000;
+  private static readonly INITIAL_RECONNECT_DELAY = 2000;
   private connectPromise: Promise<void> | null = null;
   private capabilitiesCache: Record<string, unknown> | null = null;
   private _activeDesignSystemId: string | null = null;
@@ -339,6 +378,37 @@ export class FigmaBridge {
     }
   }
 
+  private scheduleReconnect(): void {
+    if (this.reconnectTimer) return;
+    const delay = this.reconnectDelay;
+    process.stderr.write(`FigmaBridge: reconnecting in ${delay / 1000}s\n`);
+    this.reconnectTimer = setTimeout(async () => {
+      this.reconnectTimer = null;
+      this.reconnectDelay = Math.min(
+        this.reconnectDelay * 1.5,
+        FigmaBridge.MAX_RECONNECT_DELAY,
+      );
+      try {
+        await this.connect();
+        process.stderr.write("FigmaBridge: reconnected successfully\n");
+      } catch {
+        this.scheduleReconnect();
+      }
+    }, delay);
+  }
+
+  async disconnect(): Promise<void> {
+    this.intentionalClose = true;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.close();
+    }
+    this.invalidateConnection(new Error("FigmaBridge: intentional close"));
+  }
+
   async connect(): Promise<void> {
     if (this.isConnected()) return;
     if (this.connectPromise) return this.connectPromise;
@@ -354,6 +424,8 @@ export class FigmaBridge {
       socket.on("open", () => {
         this.ws = socket;
         this.connected = true;
+        this.intentionalClose = false;
+        this.reconnectDelay = FigmaBridge.INITIAL_RECONNECT_DELAY;
         this.context = {
           ...this.context,
           status: "connected",
@@ -369,6 +441,9 @@ export class FigmaBridge {
       socket.on("message", (data) => this.handleMessage(String(data)));
       socket.on("close", () => {
         this.invalidateConnection(new Error("FigmaBridge: socket closed"));
+        if (!this.intentionalClose) {
+          this.scheduleReconnect();
+        }
       });
     }).finally((): void => {
       this.connectPromise = null;
@@ -516,7 +591,16 @@ export class FigmaBridge {
     return this.sendWithTimeout<T>(method, params, REQUEST_TIMEOUT);
   }
 
-  private sendWithTimeout<T>(method: string, params: Record<string, unknown> = {}, timeoutMs: number = REQUEST_TIMEOUT): Promise<T> {
+  private async sendWithTimeout<T>(method: string, params: Record<string, unknown> = {}, timeoutMs: number = REQUEST_TIMEOUT): Promise<T> {
+    // Defense in depth: if disconnected, try to reconnect before failing
+    if (!this.isConnected()) {
+      try {
+        await this.connect();
+      } catch {
+        throw new Error("FigmaBridge: not connected and reconnect failed");
+      }
+    }
+
     return new Promise((resolve, reject) => {
       if (!this.isConnected() || !this.ws) {
         reject(new Error("FigmaBridge: not connected"));
@@ -526,7 +610,9 @@ export class FigmaBridge {
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(id);
         const error = new Error(`FigmaBridge: timeout on method ${method}`);
-        this.invalidateConnection(error);
+        // Don't invalidateConnection — the WebSocket to the relay is likely fine;
+        // only this individual request timed out (plugin slow / not connected).
+        // Actual connection loss is detected by the socket "close" event.
         reject(error);
       }, timeoutMs);
 
@@ -726,18 +812,7 @@ export class FigmaBridge {
     }>;
   }
 
-  async disconnect(): Promise<void> {
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-      this.connected = false;
-      this.context = {
-        ...this.context,
-        status: "disconnected",
-        lastUpdatedAt: Date.now(),
-      };
-    }
-  }
+  // disconnect() is defined above with reconnect-cleanup logic
 
   async hydrateContext(): Promise<FigmaContextSnapshot> {
     if (!this.context.fileName || !this.context.currentPage) {
