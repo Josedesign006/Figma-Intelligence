@@ -1522,26 +1522,22 @@ function routeToCloudIfNeeded(requestId, raw) {
 function killStaleRelay(port) {
   try {
     const { execSync } = require("child_process");
-    const platform = require("os").platform();
-    if (platform === "win32") return;
-    // Find PIDs using our port (but not our own PID)
-    const result = execSync(`lsof -ti:${port} 2>/dev/null`, { encoding: "utf8" }).trim();
-    if (result) {
-      const pids = result.split("\n").filter(p => p && parseInt(p) !== process.pid);
-      for (const pid of pids) {
-        try { process.kill(parseInt(pid), "SIGTERM"); } catch {}
-      }
-      if (pids.length > 0) {
-        // Give the old process a moment to release the port
-        execSync("sleep 0.5", { stdio: "ignore" });
-        // Force-kill if still alive
+    const plat = require("os").platform();
+    if (plat === "win32") return;
+    // Kill by process name first (catches all relay instances)
+    try { execSync("pkill -9 -f 'bridge-relay' 2>/dev/null || true", { stdio: "ignore", timeout: 5000 }); } catch {}
+    // Also kill by port (catches anything else holding the port)
+    try {
+      const result = execSync(`lsof -ti:${port} 2>/dev/null`, { encoding: "utf8", timeout: 5000 }).trim();
+      if (result) {
+        const pids = result.split("\n").filter(p => p && parseInt(p) !== process.pid);
         for (const pid of pids) {
           try { process.kill(parseInt(pid), "SIGKILL"); } catch {}
         }
-        execSync("sleep 0.3", { stdio: "ignore" });
-        console.log(`  Killed stale relay process(es) on port ${port}`);
       }
-    }
+    } catch {}
+    // Wait for OS to fully release the port
+    execSync("sleep 1", { stdio: "ignore" });
   } catch {}
 }
 
