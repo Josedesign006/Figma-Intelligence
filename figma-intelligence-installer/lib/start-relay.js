@@ -27,6 +27,31 @@ function isProcessRunning(pid) {
   }
 }
 
+/**
+ * Free port 9001 (or the relay port) by killing whatever is using it.
+ * This prevents EADDRINUSE crashes when restarting the relay.
+ */
+function freePort(port) {
+  port = port || 9001;
+  try {
+    // macOS/Linux: find PID using the port and kill it
+    const result = execSync(`lsof -ti:${port} 2>/dev/null`, { encoding: "utf8" }).trim();
+    if (result) {
+      const pids = result.split("\n").filter(Boolean);
+      for (const pid of pids) {
+        try {
+          process.kill(parseInt(pid, 10), "SIGKILL");
+        } catch {}
+      }
+      console.log(`  Freed port ${port} (killed stale process)`);
+      // Brief pause to let OS release the port
+      execSync("sleep 1", { stdio: "ignore" });
+    }
+  } catch {
+    // No process on port, or lsof not available — that's fine
+  }
+}
+
 async function startRelay() {
   const config = loadConfig();
 
@@ -37,8 +62,15 @@ async function startRelay() {
       console.log(`  Relay already running (PID ${pid})`);
       return;
     }
-    // Stale PID file
+    // Stale PID file — clean up
+    try { require("fs").unlinkSync(PID_PATH); } catch {}
   }
+
+  // Kill any stale bridge-relay processes and free the port
+  try {
+    execSync("pkill -f bridge-relay 2>/dev/null", { stdio: "ignore" });
+  } catch {}
+  freePort(9001);
 
   // Resolve relay source — prefer installed bundle, then package bundle
   const installedBundle = join(homedir(), ".figma-intelligence", "bridge-relay.bundle.js");
@@ -72,6 +104,15 @@ async function startRelay() {
   child.unref();
   writeFileSync(PID_PATH, String(child.pid));
 
+  // Wait briefly and verify the relay didn't crash on startup
+  await new Promise((r) => setTimeout(r, 2000));
+  if (!isProcessRunning(child.pid)) {
+    try { require("fs").unlinkSync(PID_PATH); } catch {}
+    console.error("  ⚠  Relay crashed on startup. Try: npx figma-intelligence restart");
+    console.error("  Or run manually to see the error: node ~/.figma-intelligence/bridge-relay.bundle.js");
+    return;
+  }
+
   console.log(`  Relay started (PID ${child.pid})`);
   console.log(`  Local relay: ws://localhost:9001`);
   console.log(`  Cloud tunnel: ${config.cloudUrl}/tunnel`);
@@ -81,9 +122,11 @@ async function startRelay() {
 async function stopRelay() {
   // Always try to kill any bridge-relay processes, even without PID file
   try {
-    const { execSync } = require("child_process");
     execSync("pkill -f bridge-relay 2>/dev/null", { stdio: "ignore" });
   } catch {}
+
+  // Free the port in case something else grabbed it
+  freePort(9001);
 
   if (!existsSync(PID_PATH)) {
     console.log("  Relay stopped.");

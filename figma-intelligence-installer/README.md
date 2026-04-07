@@ -52,6 +52,7 @@ Open your AI tool and try:
 | `npx figma-intelligence@latest setup` | Install and configure |
 | `npx figma-intelligence@latest start` | Start the relay |
 | `npx figma-intelligence@latest stop` | Stop the relay |
+| `npx figma-intelligence@latest restart` | Stop, free ports, and restart |
 | `npx figma-intelligence@latest status` | Check connection |
 
 ---
@@ -78,28 +79,46 @@ Your design files stay in Figma. No design data is stored on the server.
 
 ## Troubleshooting
 
+**MCP shows "failed" in Claude Code / Cursor**
+```bash
+npx figma-intelligence@latest restart
+```
+Then reconnect the MCP in your AI tool (Claude Code: run `/mcp` → Reconnect).
+
+**Relay won't start / "EADDRINUSE" error**
+
+Port 9001 is stuck from a previous session. Fix it:
+```bash
+# Kill whatever is using port 9001 and restart
+lsof -ti:9001 | xargs kill -9 2>/dev/null
+npx figma-intelligence@latest restart
+```
+
 **Plugin shows "Bridge offline"**
 - Click the **Reconnect** button in the plugin
-- Or restart the relay: `npx figma-intelligence@latest stop && npx figma-intelligence@latest start`
+- Or restart the relay: `npx figma-intelligence@latest restart`
 
 **Plugin shows "Not logged in"**
-- Click the **Log in** button in the plugin
-- Or run `claude login` in your terminal
+- If you have Claude CLI installed, just run `claude login` in your terminal — the plugin will auto-detect it
+- No need to click "Sign in" in the plugin
 
 **MCP tools not showing in your AI tool**
 - Restart Claude / Cursor / VS Code after running setup
 - Check: `npx figma-intelligence@latest status`
 
-**Relay won't start**
-- Stop existing relay: `npx figma-intelligence@latest stop`
-- Check port: `lsof -i :9001`
+**Nuclear reset (fixes everything)**
+```bash
+pkill -f bridge-relay 2>/dev/null
+lsof -ti:9001 | xargs kill -9 2>/dev/null
+rm -f ~/.figma-intelligence/relay.pid
+npx figma-intelligence@latest setup
+```
 
 **Updating to latest version**
-- Just re-run setup — it preserves your config:
-  ```bash
-  npx figma-intelligence@latest setup
-  npx figma-intelligence start
-  ```
+```bash
+npx figma-intelligence@latest setup
+```
+Setup preserves your existing config and tokens.
 
 ---
 

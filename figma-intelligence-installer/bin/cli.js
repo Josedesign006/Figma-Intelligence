@@ -81,6 +81,14 @@ async function main() {
       break;
     }
 
+    case "restart": {
+      if (autoUpdate()) return;
+      const sr = require("../lib/start-relay");
+      await sr.stopRelay();
+      await sr.startRelay();
+      break;
+    }
+
     case "status": {
       const config = loadConfig();
       if (!config) {
@@ -102,11 +110,13 @@ async function main() {
     setup    First-time setup (download, configure, register)
     start    Start the local relay
     stop     Stop the local relay
+    restart  Stop, free ports, and restart the relay
     status   Check connection status
 
   Usage:
     npx figma-intelligence setup
     npx figma-intelligence start
+    npx figma-intelligence restart
 `);
       break;
   }
