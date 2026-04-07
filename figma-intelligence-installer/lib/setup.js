@@ -83,28 +83,48 @@ async function runSetup() {
     console.log(`  Figma token: ${config.figmaAccessToken.slice(0, 8)}… (already set)`);
   }
 
-  // 6. Install relay and proxy to persistent location (~/.figma-intelligence/)
+  // 6. Install relay and all dependencies to persistent location (~/.figma-intelligence/)
   console.log("\n  Installing relay…");
-  const bundleSrc = join(__dirname, "bridge-relay.bundle.js");
-  const bundleDest = join(CONFIG_DIR, "bridge-relay.bundle.js");
-  if (existsSync(bundleSrc)) {
-    copyFileSync(bundleSrc, bundleDest);
-    console.log(`  Relay installed to: ${bundleDest}`);
+  const relayFiles = [
+    "bridge-relay.bundle.js",
+    "chat-runner.js",
+    "shared-prompt-config.js",
+    "anthropic-chat-runner.js",
+    "codex-runner.js",
+    "gemini-runner.js",
+    "gemini-cli-runner.js",
+    "perplexity-runner.js",
+    "stitch-runner.js",
+    "stitch-auth.js",
+    "claude-auth.js",
+    "content-context.js",
+    "component-schemas.js",
+    "token-resolver.js",
+    "html-to-figma.js",
+    "create-button.js",
+    "mcp-stdio-proxy.js",
+    "mcp-server.bundle.js",
+  ];
+  for (const file of relayFiles) {
+    const src = join(__dirname, file);
+    const dest = join(CONFIG_DIR, file);
+    if (existsSync(src)) {
+      copyFileSync(src, dest);
+    }
   }
-
-  const proxySrc = join(__dirname, "mcp-stdio-proxy.js");
-  const proxyDest = join(CONFIG_DIR, "mcp-stdio-proxy.js");
-  if (existsSync(proxySrc)) {
-    copyFileSync(proxySrc, proxyDest);
-  }
-
-  // Install MCP server bundle (local figma-intelligence-layer for plugin chat)
-  const mcpServerSrc = join(__dirname, "mcp-server.bundle.js");
-  const mcpServerDest = join(CONFIG_DIR, "mcp-server.bundle.js");
-  if (existsSync(mcpServerSrc)) {
-    copyFileSync(mcpServerSrc, mcpServerDest);
-    console.log(`  MCP server installed to: ${mcpServerDest}`);
-  }
+  // Copy spec-helpers directory
+  const specHelpersSrc = join(__dirname, "spec-helpers");
+  const specHelpersDest = join(CONFIG_DIR, "spec-helpers");
+  try {
+    mkdirSync(specHelpersDest, { recursive: true });
+    const { readdirSync } = require("fs");
+    if (existsSync(specHelpersSrc)) {
+      for (const f of readdirSync(specHelpersSrc)) {
+        copyFileSync(join(specHelpersSrc, f), join(specHelpersDest, f));
+      }
+    }
+  } catch {}
+  console.log(`  Relay installed to: ${CONFIG_DIR}`);
 
   // 7. Install Figma plugin files
   console.log("\n  Installing Figma plugin…");
