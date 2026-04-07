@@ -5,9 +5,9 @@ var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
 };
 
-// node_modules/zod/v3/helpers/util.cjs
+// figma-intelligence-layer/node_modules/zod/v3/helpers/util.cjs
 var require_util = __commonJS({
-  "node_modules/zod/v3/helpers/util.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v3/helpers/util.cjs"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getParsedType = exports2.ZodParsedType = exports2.objectUtil = exports2.util = void 0;
@@ -147,9 +147,9 @@ var require_util = __commonJS({
   }
 });
 
-// node_modules/zod/v3/ZodError.cjs
+// figma-intelligence-layer/node_modules/zod/v3/ZodError.cjs
 var require_ZodError = __commonJS({
-  "node_modules/zod/v3/ZodError.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v3/ZodError.cjs"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.ZodError = exports2.quotelessJson = exports2.ZodIssueCode = void 0;
@@ -275,9 +275,9 @@ var require_ZodError = __commonJS({
   }
 });
 
-// node_modules/zod/v3/locales/en.cjs
+// figma-intelligence-layer/node_modules/zod/v3/locales/en.cjs
 var require_en = __commonJS({
-  "node_modules/zod/v3/locales/en.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v3/locales/en.cjs"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var ZodError_js_1 = require_ZodError();
@@ -386,9 +386,9 @@ var require_en = __commonJS({
   }
 });
 
-// node_modules/zod/v3/errors.cjs
+// figma-intelligence-layer/node_modules/zod/v3/errors.cjs
 var require_errors = __commonJS({
-  "node_modules/zod/v3/errors.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v3/errors.cjs"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -409,9 +409,9 @@ var require_errors = __commonJS({
   }
 });
 
-// node_modules/zod/v3/helpers/parseUtil.cjs
+// figma-intelligence-layer/node_modules/zod/v3/helpers/parseUtil.cjs
 var require_parseUtil = __commonJS({
-  "node_modules/zod/v3/helpers/parseUtil.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v3/helpers/parseUtil.cjs"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -540,17 +540,17 @@ var require_parseUtil = __commonJS({
   }
 });
 
-// node_modules/zod/v3/helpers/typeAliases.cjs
+// figma-intelligence-layer/node_modules/zod/v3/helpers/typeAliases.cjs
 var require_typeAliases = __commonJS({
-  "node_modules/zod/v3/helpers/typeAliases.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v3/helpers/typeAliases.cjs"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
   }
 });
 
-// node_modules/zod/v3/helpers/errorUtil.cjs
+// figma-intelligence-layer/node_modules/zod/v3/helpers/errorUtil.cjs
 var require_errorUtil = __commonJS({
-  "node_modules/zod/v3/helpers/errorUtil.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v3/helpers/errorUtil.cjs"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.errorUtil = void 0;
@@ -562,9 +562,9 @@ var require_errorUtil = __commonJS({
   }
 });
 
-// node_modules/zod/v3/types.cjs
+// figma-intelligence-layer/node_modules/zod/v3/types.cjs
 var require_types = __commonJS({
-  "node_modules/zod/v3/types.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v3/types.cjs"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.discriminatedUnion = exports2.date = exports2.boolean = exports2.bigint = exports2.array = exports2.any = exports2.coerce = exports2.ZodFirstPartyTypeKind = exports2.late = exports2.ZodSchema = exports2.Schema = exports2.ZodReadonly = exports2.ZodPipeline = exports2.ZodBranded = exports2.BRAND = exports2.ZodNaN = exports2.ZodCatch = exports2.ZodDefault = exports2.ZodNullable = exports2.ZodOptional = exports2.ZodTransformer = exports2.ZodEffects = exports2.ZodPromise = exports2.ZodNativeEnum = exports2.ZodEnum = exports2.ZodLiteral = exports2.ZodLazy = exports2.ZodFunction = exports2.ZodSet = exports2.ZodMap = exports2.ZodRecord = exports2.ZodTuple = exports2.ZodIntersection = exports2.ZodDiscriminatedUnion = exports2.ZodUnion = exports2.ZodObject = exports2.ZodArray = exports2.ZodVoid = exports2.ZodNever = exports2.ZodUnknown = exports2.ZodAny = exports2.ZodNull = exports2.ZodUndefined = exports2.ZodSymbol = exports2.ZodDate = exports2.ZodBoolean = exports2.ZodBigInt = exports2.ZodNumber = exports2.ZodString = exports2.ZodType = void 0;
@@ -4104,9 +4104,9 @@ var require_types = __commonJS({
   }
 });
 
-// node_modules/zod/v3/external.cjs
+// figma-intelligence-layer/node_modules/zod/v3/external.cjs
 var require_external = __commonJS({
-  "node_modules/zod/v3/external.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v3/external.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -4134,9 +4134,9 @@ var require_external = __commonJS({
   }
 });
 
-// node_modules/zod/v3/index.cjs
+// figma-intelligence-layer/node_modules/zod/v3/index.cjs
 var require_v3 = __commonJS({
-  "node_modules/zod/v3/index.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v3/index.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -4177,9 +4177,9 @@ var require_v3 = __commonJS({
   }
 });
 
-// node_modules/zod/v4/core/core.cjs
+// figma-intelligence-layer/node_modules/zod/v4/core/core.cjs
 var require_core = __commonJS({
-  "node_modules/zod/v4/core/core.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/core/core.cjs"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.globalConfig = exports2.$ZodAsyncError = exports2.$brand = exports2.NEVER = void 0;
@@ -4246,9 +4246,9 @@ var require_core = __commonJS({
   }
 });
 
-// node_modules/zod/v4/core/util.cjs
+// figma-intelligence-layer/node_modules/zod/v4/core/util.cjs
 var require_util2 = __commonJS({
-  "node_modules/zod/v4/core/util.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/core/util.cjs"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Class = exports2.BIGINT_FORMAT_RANGES = exports2.NUMBER_FORMAT_RANGES = exports2.primitiveTypes = exports2.propertyKeyTypes = exports2.getParsedType = exports2.allowsEval = exports2.captureStackTrace = void 0;
@@ -4765,9 +4765,9 @@ var require_util2 = __commonJS({
   }
 });
 
-// node_modules/zod/v4/core/errors.cjs
+// figma-intelligence-layer/node_modules/zod/v4/core/errors.cjs
 var require_errors2 = __commonJS({
-  "node_modules/zod/v4/core/errors.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/core/errors.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -4953,9 +4953,9 @@ var require_errors2 = __commonJS({
   }
 });
 
-// node_modules/zod/v4/core/parse.cjs
+// figma-intelligence-layer/node_modules/zod/v4/core/parse.cjs
 var require_parse = __commonJS({
-  "node_modules/zod/v4/core/parse.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/core/parse.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -5046,9 +5046,9 @@ var require_parse = __commonJS({
   }
 });
 
-// node_modules/zod/v4/core/regexes.cjs
+// figma-intelligence-layer/node_modules/zod/v4/core/regexes.cjs
 var require_regexes = __commonJS({
-  "node_modules/zod/v4/core/regexes.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/core/regexes.cjs"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.uppercase = exports2.lowercase = exports2.undefined = exports2.null = exports2.boolean = exports2.number = exports2.integer = exports2.bigint = exports2.string = exports2.date = exports2.e164 = exports2.domain = exports2.hostname = exports2.base64url = exports2.base64 = exports2.cidrv6 = exports2.cidrv4 = exports2.ipv6 = exports2.ipv4 = exports2._emoji = exports2.browserEmail = exports2.unicodeEmail = exports2.rfc5322Email = exports2.html5Email = exports2.email = exports2.uuid7 = exports2.uuid6 = exports2.uuid4 = exports2.uuid = exports2.guid = exports2.extendedDuration = exports2.duration = exports2.nanoid = exports2.ksuid = exports2.xid = exports2.ulid = exports2.cuid2 = exports2.cuid = void 0;
@@ -5129,9 +5129,9 @@ var require_regexes = __commonJS({
   }
 });
 
-// node_modules/zod/v4/core/checks.cjs
+// figma-intelligence-layer/node_modules/zod/v4/core/checks.cjs
 var require_checks = __commonJS({
-  "node_modules/zod/v4/core/checks.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/core/checks.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -5704,9 +5704,9 @@ var require_checks = __commonJS({
   }
 });
 
-// node_modules/zod/v4/core/doc.cjs
+// figma-intelligence-layer/node_modules/zod/v4/core/doc.cjs
 var require_doc = __commonJS({
-  "node_modules/zod/v4/core/doc.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/core/doc.cjs"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Doc = void 0;
@@ -5748,9 +5748,9 @@ var require_doc = __commonJS({
   }
 });
 
-// node_modules/zod/v4/core/versions.cjs
+// figma-intelligence-layer/node_modules/zod/v4/core/versions.cjs
 var require_versions = __commonJS({
-  "node_modules/zod/v4/core/versions.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/core/versions.cjs"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.version = void 0;
@@ -5762,9 +5762,9 @@ var require_versions = __commonJS({
   }
 });
 
-// node_modules/zod/v4/core/schemas.cjs
+// figma-intelligence-layer/node_modules/zod/v4/core/schemas.cjs
 var require_schemas = __commonJS({
-  "node_modules/zod/v4/core/schemas.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/core/schemas.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -7438,9 +7438,9 @@ var require_schemas = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/ar.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/ar.cjs
 var require_ar = __commonJS({
-  "node_modules/zod/v4/locales/ar.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/ar.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -7590,9 +7590,9 @@ var require_ar = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/az.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/az.cjs
 var require_az = __commonJS({
-  "node_modules/zod/v4/locales/az.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/az.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -7741,9 +7741,9 @@ var require_az = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/be.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/be.cjs
 var require_be = __commonJS({
-  "node_modules/zod/v4/locales/be.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/be.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -7941,9 +7941,9 @@ var require_be = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/ca.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/ca.cjs
 var require_ca = __commonJS({
-  "node_modules/zod/v4/locales/ca.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/ca.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -8096,9 +8096,9 @@ var require_ca = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/cs.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/cs.cjs
 var require_cs = __commonJS({
-  "node_modules/zod/v4/locales/cs.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/cs.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -8267,9 +8267,9 @@ var require_cs = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/de.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/de.cjs
 var require_de = __commonJS({
-  "node_modules/zod/v4/locales/de.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/de.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -8419,9 +8419,9 @@ var require_de = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/en.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/en.cjs
 var require_en2 = __commonJS({
-  "node_modules/zod/v4/locales/en.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/en.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -8574,9 +8574,9 @@ var require_en2 = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/eo.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/eo.cjs
 var require_eo = __commonJS({
-  "node_modules/zod/v4/locales/eo.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/eo.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -8728,9 +8728,9 @@ var require_eo = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/es.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/es.cjs
 var require_es = __commonJS({
-  "node_modules/zod/v4/locales/es.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/es.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -8881,9 +8881,9 @@ var require_es = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/fa.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/fa.cjs
 var require_fa = __commonJS({
-  "node_modules/zod/v4/locales/fa.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/fa.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -9039,9 +9039,9 @@ var require_fa = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/fi.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/fi.cjs
 var require_fi = __commonJS({
-  "node_modules/zod/v4/locales/fi.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/fi.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -9197,9 +9197,9 @@ var require_fi = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/fr.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/fr.cjs
 var require_fr = __commonJS({
-  "node_modules/zod/v4/locales/fr.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/fr.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -9349,9 +9349,9 @@ var require_fr = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/fr-CA.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/fr-CA.cjs
 var require_fr_CA = __commonJS({
-  "node_modules/zod/v4/locales/fr-CA.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/fr-CA.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -9502,9 +9502,9 @@ var require_fr_CA = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/he.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/he.cjs
 var require_he = __commonJS({
-  "node_modules/zod/v4/locales/he.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/he.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -9655,9 +9655,9 @@ var require_he = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/hu.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/hu.cjs
 var require_hu = __commonJS({
-  "node_modules/zod/v4/locales/hu.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/hu.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -9808,9 +9808,9 @@ var require_hu = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/id.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/id.cjs
 var require_id = __commonJS({
-  "node_modules/zod/v4/locales/id.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/id.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -9960,9 +9960,9 @@ var require_id = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/it.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/it.cjs
 var require_it = __commonJS({
-  "node_modules/zod/v4/locales/it.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/it.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -10113,9 +10113,9 @@ var require_it = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/ja.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/ja.cjs
 var require_ja = __commonJS({
-  "node_modules/zod/v4/locales/ja.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/ja.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -10264,9 +10264,9 @@ var require_ja = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/kh.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/kh.cjs
 var require_kh = __commonJS({
-  "node_modules/zod/v4/locales/kh.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/kh.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -10417,9 +10417,9 @@ var require_kh = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/ko.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/ko.cjs
 var require_ko = __commonJS({
-  "node_modules/zod/v4/locales/ko.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/ko.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -10574,9 +10574,9 @@ var require_ko = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/mk.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/mk.cjs
 var require_mk = __commonJS({
-  "node_modules/zod/v4/locales/mk.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/mk.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -10728,9 +10728,9 @@ var require_mk = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/ms.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/ms.cjs
 var require_ms = __commonJS({
-  "node_modules/zod/v4/locales/ms.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/ms.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -10880,9 +10880,9 @@ var require_ms = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/nl.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/nl.cjs
 var require_nl = __commonJS({
-  "node_modules/zod/v4/locales/nl.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/nl.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -11033,9 +11033,9 @@ var require_nl = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/no.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/no.cjs
 var require_no = __commonJS({
-  "node_modules/zod/v4/locales/no.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/no.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -11185,9 +11185,9 @@ var require_no = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/ota.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/ota.cjs
 var require_ota = __commonJS({
-  "node_modules/zod/v4/locales/ota.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/ota.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -11338,9 +11338,9 @@ var require_ota = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/ps.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/ps.cjs
 var require_ps = __commonJS({
-  "node_modules/zod/v4/locales/ps.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/ps.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -11496,9 +11496,9 @@ var require_ps = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/pl.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/pl.cjs
 var require_pl = __commonJS({
-  "node_modules/zod/v4/locales/pl.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/pl.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -11649,9 +11649,9 @@ var require_pl = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/pt.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/pt.cjs
 var require_pt = __commonJS({
-  "node_modules/zod/v4/locales/pt.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/pt.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -11801,9 +11801,9 @@ var require_pt = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/ru.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/ru.cjs
 var require_ru = __commonJS({
-  "node_modules/zod/v4/locales/ru.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/ru.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -12001,9 +12001,9 @@ var require_ru = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/sl.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/sl.cjs
 var require_sl = __commonJS({
-  "node_modules/zod/v4/locales/sl.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/sl.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -12154,9 +12154,9 @@ var require_sl = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/sv.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/sv.cjs
 var require_sv = __commonJS({
-  "node_modules/zod/v4/locales/sv.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/sv.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -12308,9 +12308,9 @@ var require_sv = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/ta.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/ta.cjs
 var require_ta = __commonJS({
-  "node_modules/zod/v4/locales/ta.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/ta.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -12461,9 +12461,9 @@ var require_ta = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/th.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/th.cjs
 var require_th = __commonJS({
-  "node_modules/zod/v4/locales/th.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/th.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -12614,9 +12614,9 @@ var require_th = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/tr.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/tr.cjs
 var require_tr = __commonJS({
-  "node_modules/zod/v4/locales/tr.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/tr.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -12767,9 +12767,9 @@ var require_tr = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/ua.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/ua.cjs
 var require_ua = __commonJS({
-  "node_modules/zod/v4/locales/ua.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/ua.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -12920,9 +12920,9 @@ var require_ua = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/ur.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/ur.cjs
 var require_ur = __commonJS({
-  "node_modules/zod/v4/locales/ur.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/ur.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -13073,9 +13073,9 @@ var require_ur = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/vi.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/vi.cjs
 var require_vi = __commonJS({
-  "node_modules/zod/v4/locales/vi.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/vi.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -13225,9 +13225,9 @@ var require_vi = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/zh-CN.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/zh-CN.cjs
 var require_zh_CN = __commonJS({
-  "node_modules/zod/v4/locales/zh-CN.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/zh-CN.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -13377,9 +13377,9 @@ var require_zh_CN = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/zh-TW.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/zh-TW.cjs
 var require_zh_TW = __commonJS({
-  "node_modules/zod/v4/locales/zh-TW.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/zh-TW.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -13530,9 +13530,9 @@ var require_zh_TW = __commonJS({
   }
 });
 
-// node_modules/zod/v4/locales/index.cjs
+// figma-intelligence-layer/node_modules/zod/v4/locales/index.cjs
 var require_locales = __commonJS({
-  "node_modules/zod/v4/locales/index.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/locales/index.cjs"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -13698,9 +13698,9 @@ var require_locales = __commonJS({
   }
 });
 
-// node_modules/zod/v4/core/registries.cjs
+// figma-intelligence-layer/node_modules/zod/v4/core/registries.cjs
 var require_registries = __commonJS({
-  "node_modules/zod/v4/core/registries.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/core/registries.cjs"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.globalRegistry = exports2.$ZodRegistry = exports2.$input = exports2.$output = void 0;
@@ -13757,9 +13757,9 @@ var require_registries = __commonJS({
   }
 });
 
-// node_modules/zod/v4/core/api.cjs
+// figma-intelligence-layer/node_modules/zod/v4/core/api.cjs
 var require_api = __commonJS({
-  "node_modules/zod/v4/core/api.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/core/api.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -14765,9 +14765,9 @@ var require_api = __commonJS({
   }
 });
 
-// node_modules/zod/v4/core/function.cjs
+// figma-intelligence-layer/node_modules/zod/v4/core/function.cjs
 var require_function = __commonJS({
-  "node_modules/zod/v4/core/function.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/core/function.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -14875,9 +14875,9 @@ var require_function = __commonJS({
   }
 });
 
-// node_modules/zod/v4/core/to-json-schema.cjs
+// figma-intelligence-layer/node_modules/zod/v4/core/to-json-schema.cjs
 var require_to_json_schema = __commonJS({
-  "node_modules/zod/v4/core/to-json-schema.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/core/to-json-schema.cjs"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.JSONSchemaGenerator = void 0;
@@ -15653,17 +15653,17 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
   }
 });
 
-// node_modules/zod/v4/core/json-schema.cjs
+// figma-intelligence-layer/node_modules/zod/v4/core/json-schema.cjs
 var require_json_schema = __commonJS({
-  "node_modules/zod/v4/core/json-schema.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/core/json-schema.cjs"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
   }
 });
 
-// node_modules/zod/v4/core/index.cjs
+// figma-intelligence-layer/node_modules/zod/v4/core/index.cjs
 var require_core2 = __commonJS({
-  "node_modules/zod/v4/core/index.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/core/index.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -15715,9 +15715,9 @@ var require_core2 = __commonJS({
   }
 });
 
-// node_modules/zod/v4/mini/parse.cjs
+// figma-intelligence-layer/node_modules/zod/v4/mini/parse.cjs
 var require_parse2 = __commonJS({
-  "node_modules/zod/v4/mini/parse.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/mini/parse.cjs"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.safeParseAsync = exports2.parseAsync = exports2.safeParse = exports2.parse = void 0;
@@ -15737,9 +15737,9 @@ var require_parse2 = __commonJS({
   }
 });
 
-// node_modules/zod/v4/mini/schemas.cjs
+// figma-intelligence-layer/node_modules/zod/v4/mini/schemas.cjs
 var require_schemas2 = __commonJS({
-  "node_modules/zod/v4/mini/schemas.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/mini/schemas.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -16553,9 +16553,9 @@ var require_schemas2 = __commonJS({
   }
 });
 
-// node_modules/zod/v4/mini/checks.cjs
+// figma-intelligence-layer/node_modules/zod/v4/mini/checks.cjs
 var require_checks2 = __commonJS({
-  "node_modules/zod/v4/mini/checks.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/mini/checks.cjs"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.toUpperCase = exports2.toLowerCase = exports2.trim = exports2.normalize = exports2.overwrite = exports2.mime = exports2.property = exports2.endsWith = exports2.startsWith = exports2.includes = exports2.uppercase = exports2.lowercase = exports2.regex = exports2.length = exports2.minLength = exports2.maxLength = exports2.size = exports2.minSize = exports2.maxSize = exports2.multipleOf = exports2.nonnegative = exports2.nonpositive = exports2.negative = exports2.positive = exports2.minimum = exports2.gte = exports2.gt = exports2.maximum = exports2.lte = exports2.lt = void 0;
@@ -16653,9 +16653,9 @@ var require_checks2 = __commonJS({
   }
 });
 
-// node_modules/zod/v4/mini/iso.cjs
+// figma-intelligence-layer/node_modules/zod/v4/mini/iso.cjs
 var require_iso = __commonJS({
-  "node_modules/zod/v4/mini/iso.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/mini/iso.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -16723,9 +16723,9 @@ var require_iso = __commonJS({
   }
 });
 
-// node_modules/zod/v4/mini/coerce.cjs
+// figma-intelligence-layer/node_modules/zod/v4/mini/coerce.cjs
 var require_coerce = __commonJS({
-  "node_modules/zod/v4/mini/coerce.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/mini/coerce.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -16780,9 +16780,9 @@ var require_coerce = __commonJS({
   }
 });
 
-// node_modules/zod/v4/mini/external.cjs
+// figma-intelligence-layer/node_modules/zod/v4/mini/external.cjs
 var require_external2 = __commonJS({
-  "node_modules/zod/v4/mini/external.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/mini/external.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -16888,9 +16888,9 @@ var require_external2 = __commonJS({
   }
 });
 
-// node_modules/zod/v4/mini/index.cjs
+// figma-intelligence-layer/node_modules/zod/v4/mini/index.cjs
 var require_mini = __commonJS({
-  "node_modules/zod/v4/mini/index.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/mini/index.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -16930,9 +16930,9 @@ var require_mini = __commonJS({
   }
 });
 
-// node_modules/zod/v4-mini/index.cjs
+// figma-intelligence-layer/node_modules/zod/v4-mini/index.cjs
 var require_v4_mini = __commonJS({
-  "node_modules/zod/v4-mini/index.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4-mini/index.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -16955,9 +16955,9 @@ var require_v4_mini = __commonJS({
   }
 });
 
-// node_modules/@modelcontextprotocol/sdk/dist/cjs/server/zod-compat.js
+// figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/server/zod-compat.js
 var require_zod_compat = __commonJS({
-  "node_modules/@modelcontextprotocol/sdk/dist/cjs/server/zod-compat.js"(exports2) {
+  "figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/server/zod-compat.js"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -17144,9 +17144,9 @@ var require_zod_compat = __commonJS({
   }
 });
 
-// node_modules/zod/v4/classic/checks.cjs
+// figma-intelligence-layer/node_modules/zod/v4/classic/checks.cjs
 var require_checks3 = __commonJS({
-  "node_modules/zod/v4/classic/checks.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/classic/checks.cjs"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.toUpperCase = exports2.toLowerCase = exports2.trim = exports2.normalize = exports2.overwrite = exports2.mime = exports2.property = exports2.endsWith = exports2.startsWith = exports2.includes = exports2.uppercase = exports2.lowercase = exports2.regex = exports2.length = exports2.minLength = exports2.maxLength = exports2.size = exports2.minSize = exports2.maxSize = exports2.multipleOf = exports2.nonnegative = exports2.nonpositive = exports2.negative = exports2.positive = exports2.gte = exports2.gt = exports2.lte = exports2.lt = void 0;
@@ -17238,9 +17238,9 @@ var require_checks3 = __commonJS({
   }
 });
 
-// node_modules/zod/v4/classic/iso.cjs
+// figma-intelligence-layer/node_modules/zod/v4/classic/iso.cjs
 var require_iso2 = __commonJS({
-  "node_modules/zod/v4/classic/iso.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/classic/iso.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -17308,9 +17308,9 @@ var require_iso2 = __commonJS({
   }
 });
 
-// node_modules/zod/v4/classic/errors.cjs
+// figma-intelligence-layer/node_modules/zod/v4/classic/errors.cjs
 var require_errors3 = __commonJS({
-  "node_modules/zod/v4/classic/errors.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/classic/errors.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -17378,9 +17378,9 @@ var require_errors3 = __commonJS({
   }
 });
 
-// node_modules/zod/v4/classic/parse.cjs
+// figma-intelligence-layer/node_modules/zod/v4/classic/parse.cjs
 var require_parse3 = __commonJS({
-  "node_modules/zod/v4/classic/parse.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/classic/parse.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -17420,9 +17420,9 @@ var require_parse3 = __commonJS({
   }
 });
 
-// node_modules/zod/v4/classic/schemas.cjs
+// figma-intelligence-layer/node_modules/zod/v4/classic/schemas.cjs
 var require_schemas3 = __commonJS({
-  "node_modules/zod/v4/classic/schemas.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/classic/schemas.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -18479,9 +18479,9 @@ var require_schemas3 = __commonJS({
   }
 });
 
-// node_modules/zod/v4/classic/compat.cjs
+// figma-intelligence-layer/node_modules/zod/v4/classic/compat.cjs
 var require_compat = __commonJS({
-  "node_modules/zod/v4/classic/compat.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/classic/compat.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -18546,9 +18546,9 @@ var require_compat = __commonJS({
   }
 });
 
-// node_modules/zod/v4/classic/coerce.cjs
+// figma-intelligence-layer/node_modules/zod/v4/classic/coerce.cjs
 var require_coerce2 = __commonJS({
-  "node_modules/zod/v4/classic/coerce.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/classic/coerce.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -18603,9 +18603,9 @@ var require_coerce2 = __commonJS({
   }
 });
 
-// node_modules/zod/v4/classic/external.cjs
+// figma-intelligence-layer/node_modules/zod/v4/classic/external.cjs
 var require_external3 = __commonJS({
-  "node_modules/zod/v4/classic/external.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/classic/external.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -18719,9 +18719,9 @@ var require_external3 = __commonJS({
   }
 });
 
-// node_modules/zod/v4/classic/index.cjs
+// figma-intelligence-layer/node_modules/zod/v4/classic/index.cjs
 var require_classic = __commonJS({
-  "node_modules/zod/v4/classic/index.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/classic/index.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -18762,9 +18762,9 @@ var require_classic = __commonJS({
   }
 });
 
-// node_modules/zod/v4/index.cjs
+// figma-intelligence-layer/node_modules/zod/v4/index.cjs
 var require_v4 = __commonJS({
-  "node_modules/zod/v4/index.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/v4/index.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -18792,9 +18792,9 @@ var require_v4 = __commonJS({
   }
 });
 
-// node_modules/@modelcontextprotocol/sdk/dist/cjs/types.js
+// figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/types.js
 var require_types2 = __commonJS({
-  "node_modules/@modelcontextprotocol/sdk/dist/cjs/types.js"(exports2) {
+  "figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/types.js"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -20366,9 +20366,9 @@ var require_types2 = __commonJS({
   }
 });
 
-// node_modules/@modelcontextprotocol/sdk/dist/cjs/experimental/tasks/interfaces.js
+// figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/experimental/tasks/interfaces.js
 var require_interfaces = __commonJS({
-  "node_modules/@modelcontextprotocol/sdk/dist/cjs/experimental/tasks/interfaces.js"(exports2) {
+  "figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/experimental/tasks/interfaces.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.isTerminal = isTerminal;
@@ -20378,9 +20378,9 @@ var require_interfaces = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/Options.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/Options.js
 var require_Options = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/Options.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/Options.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getDefaultOptions = exports2.defaultOptions = exports2.jsonDescription = exports2.ignoreOverride = void 0;
@@ -20433,9 +20433,9 @@ var require_Options = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/Refs.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/Refs.js
 var require_Refs = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/Refs.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/Refs.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getRefs = void 0;
@@ -20463,9 +20463,9 @@ var require_Refs = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/errorMessages.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/errorMessages.js
 var require_errorMessages = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/errorMessages.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/errorMessages.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.setResponseValueAndErrors = exports2.addErrorMessage = void 0;
@@ -20488,9 +20488,9 @@ var require_errorMessages = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/getRelativePath.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/getRelativePath.js
 var require_getRelativePath = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/getRelativePath.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/getRelativePath.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getRelativePath = void 0;
@@ -20506,9 +20506,9 @@ var require_getRelativePath = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/any.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/any.js
 var require_any = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/any.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/any.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseAnyDef = void 0;
@@ -20531,9 +20531,9 @@ var require_any = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/array.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/array.js
 var require_array = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/array.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/array.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseArrayDef = void 0;
@@ -20566,9 +20566,9 @@ var require_array = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/bigint.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/bigint.js
 var require_bigint = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/bigint.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/bigint.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseBigintDef = void 0;
@@ -20621,9 +20621,9 @@ var require_bigint = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/boolean.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/boolean.js
 var require_boolean = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/boolean.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/boolean.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseBooleanDef = void 0;
@@ -20636,9 +20636,9 @@ var require_boolean = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/branded.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/branded.js
 var require_branded = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/branded.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/branded.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseBrandedDef = void 0;
@@ -20650,9 +20650,9 @@ var require_branded = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/catch.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/catch.js
 var require_catch = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/catch.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/catch.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseCatchDef = void 0;
@@ -20664,9 +20664,9 @@ var require_catch = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/date.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/date.js
 var require_date = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/date.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/date.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseDateDef = void 0;
@@ -20732,9 +20732,9 @@ var require_date = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/default.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/default.js
 var require_default = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/default.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/default.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseDefaultDef = void 0;
@@ -20749,9 +20749,9 @@ var require_default = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/effects.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/effects.js
 var require_effects = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/effects.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/effects.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseEffectsDef = void 0;
@@ -20764,9 +20764,9 @@ var require_effects = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/enum.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/enum.js
 var require_enum = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/enum.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/enum.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseEnumDef = void 0;
@@ -20780,9 +20780,9 @@ var require_enum = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/intersection.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/intersection.js
 var require_intersection = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/intersection.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/intersection.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseIntersectionDef = void 0;
@@ -20831,9 +20831,9 @@ var require_intersection = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/literal.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/literal.js
 var require_literal = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/literal.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/literal.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseLiteralDef = void 0;
@@ -20859,9 +20859,9 @@ var require_literal = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/string.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/string.js
 var require_string = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/string.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/string.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseStringDef = exports2.zodPatterns = void 0;
@@ -21193,9 +21193,9 @@ var require_string = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/record.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/record.js
 var require_record = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/record.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/record.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseRecordDef = void 0;
@@ -21258,9 +21258,9 @@ var require_record = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/map.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/map.js
 var require_map = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/map.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/map.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseMapDef = void 0;
@@ -21294,9 +21294,9 @@ var require_map = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/nativeEnum.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/nativeEnum.js
 var require_nativeEnum = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/nativeEnum.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/nativeEnum.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseNativeEnumDef = void 0;
@@ -21316,9 +21316,9 @@ var require_nativeEnum = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/never.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/never.js
 var require_never = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/never.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/never.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseNeverDef = void 0;
@@ -21335,9 +21335,9 @@ var require_never = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/null.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/null.js
 var require_null = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/null.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/null.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseNullDef = void 0;
@@ -21353,9 +21353,9 @@ var require_null = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/union.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/union.js
 var require_union = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/union.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/union.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseUnionDef = exports2.primitiveMappings = void 0;
@@ -21430,9 +21430,9 @@ var require_union = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/nullable.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/nullable.js
 var require_nullable = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/nullable.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/nullable.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseNullableDef = void 0;
@@ -21472,9 +21472,9 @@ var require_nullable = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/number.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/number.js
 var require_number = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/number.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/number.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseNumberDef = void 0;
@@ -21530,9 +21530,9 @@ var require_number = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/object.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/object.js
 var require_object = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/object.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/object.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseObjectDef = void 0;
@@ -21609,9 +21609,9 @@ var require_object = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/optional.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/optional.js
 var require_optional = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/optional.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/optional.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseOptionalDef = void 0;
@@ -21638,9 +21638,9 @@ var require_optional = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/pipeline.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/pipeline.js
 var require_pipeline = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/pipeline.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/pipeline.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parsePipelineDef = void 0;
@@ -21667,9 +21667,9 @@ var require_pipeline = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/promise.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/promise.js
 var require_promise = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/promise.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/promise.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parsePromiseDef = void 0;
@@ -21681,9 +21681,9 @@ var require_promise = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/set.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/set.js
 var require_set = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/set.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/set.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseSetDef = void 0;
@@ -21711,9 +21711,9 @@ var require_set = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/tuple.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/tuple.js
 var require_tuple = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/tuple.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/tuple.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseTupleDef = void 0;
@@ -21748,9 +21748,9 @@ var require_tuple = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/undefined.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/undefined.js
 var require_undefined = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/undefined.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/undefined.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseUndefinedDef = void 0;
@@ -21764,9 +21764,9 @@ var require_undefined = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/unknown.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/unknown.js
 var require_unknown = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/unknown.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/unknown.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseUnknownDef = void 0;
@@ -21778,9 +21778,9 @@ var require_unknown = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parsers/readonly.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/readonly.js
 var require_readonly = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parsers/readonly.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parsers/readonly.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseReadonlyDef = void 0;
@@ -21792,9 +21792,9 @@ var require_readonly = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/selectParser.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/selectParser.js
 var require_selectParser = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/selectParser.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/selectParser.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.selectParser = void 0;
@@ -21907,9 +21907,9 @@ var require_selectParser = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parseDef.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parseDef.js
 var require_parseDef = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parseDef.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parseDef.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.parseDef = void 0;
@@ -21975,17 +21975,17 @@ var require_parseDef = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/parseTypes.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parseTypes.js
 var require_parseTypes = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/parseTypes.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/parseTypes.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/zodToJsonSchema.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/zodToJsonSchema.js
 var require_zodToJsonSchema = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/zodToJsonSchema.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/zodToJsonSchema.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.zodToJsonSchema = void 0;
@@ -22056,9 +22056,9 @@ var require_zodToJsonSchema = __commonJS({
   }
 });
 
-// node_modules/zod-to-json-schema/dist/cjs/index.js
+// figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/index.js
 var require_cjs = __commonJS({
-  "node_modules/zod-to-json-schema/dist/cjs/index.js"(exports2) {
+  "figma-intelligence-layer/node_modules/zod-to-json-schema/dist/cjs/index.js"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -22120,9 +22120,9 @@ var require_cjs = __commonJS({
   }
 });
 
-// node_modules/@modelcontextprotocol/sdk/dist/cjs/server/zod-json-schema-compat.js
+// figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/server/zod-json-schema-compat.js
 var require_zod_json_schema_compat = __commonJS({
-  "node_modules/@modelcontextprotocol/sdk/dist/cjs/server/zod-json-schema-compat.js"(exports2) {
+  "figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/server/zod-json-schema-compat.js"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -22201,9 +22201,9 @@ var require_zod_json_schema_compat = __commonJS({
   }
 });
 
-// node_modules/@modelcontextprotocol/sdk/dist/cjs/shared/protocol.js
+// figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/shared/protocol.js
 var require_protocol = __commonJS({
-  "node_modules/@modelcontextprotocol/sdk/dist/cjs/shared/protocol.js"(exports2) {
+  "figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/shared/protocol.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Protocol = exports2.DEFAULT_REQUEST_TIMEOUT_MSEC = void 0;
@@ -23162,9 +23162,9 @@ var require_protocol = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/codegen/code.js
+// figma-intelligence-layer/node_modules/ajv/dist/compile/codegen/code.js
 var require_code = __commonJS({
-  "node_modules/ajv/dist/compile/codegen/code.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/compile/codegen/code.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.regexpCode = exports2.getEsmExportName = exports2.getProperty = exports2.safeStringify = exports2.stringify = exports2.strConcat = exports2.addCodeArg = exports2.str = exports2._ = exports2.nil = exports2._Code = exports2.Name = exports2.IDENTIFIER = exports2._CodeOrName = void 0;
@@ -23316,9 +23316,9 @@ var require_code = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/codegen/scope.js
+// figma-intelligence-layer/node_modules/ajv/dist/compile/codegen/scope.js
 var require_scope = __commonJS({
-  "node_modules/ajv/dist/compile/codegen/scope.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/compile/codegen/scope.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.ValueScope = exports2.ValueScopeName = exports2.Scope = exports2.varKinds = exports2.UsedValueState = void 0;
@@ -23461,9 +23461,9 @@ var require_scope = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/codegen/index.js
+// figma-intelligence-layer/node_modules/ajv/dist/compile/codegen/index.js
 var require_codegen = __commonJS({
-  "node_modules/ajv/dist/compile/codegen/index.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/compile/codegen/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.or = exports2.and = exports2.not = exports2.CodeGen = exports2.operators = exports2.varKinds = exports2.ValueScopeName = exports2.ValueScope = exports2.Scope = exports2.Name = exports2.regexpCode = exports2.stringify = exports2.getProperty = exports2.nil = exports2.strConcat = exports2.str = exports2._ = void 0;
@@ -24181,9 +24181,9 @@ var require_codegen = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/util.js
+// figma-intelligence-layer/node_modules/ajv/dist/compile/util.js
 var require_util3 = __commonJS({
-  "node_modules/ajv/dist/compile/util.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/compile/util.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.checkStrictMode = exports2.getErrorPath = exports2.Type = exports2.useFunc = exports2.setEvaluated = exports2.evaluatedPropsToName = exports2.mergeEvaluated = exports2.eachItem = exports2.unescapeJsonPointer = exports2.escapeJsonPointer = exports2.escapeFragment = exports2.unescapeFragment = exports2.schemaRefOrVal = exports2.schemaHasRulesButRef = exports2.schemaHasRules = exports2.checkUnknownRules = exports2.alwaysValidSchema = exports2.toHash = void 0;
@@ -24348,9 +24348,9 @@ var require_util3 = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/names.js
+// figma-intelligence-layer/node_modules/ajv/dist/compile/names.js
 var require_names = __commonJS({
-  "node_modules/ajv/dist/compile/names.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/compile/names.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -24387,9 +24387,9 @@ var require_names = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/errors.js
+// figma-intelligence-layer/node_modules/ajv/dist/compile/errors.js
 var require_errors4 = __commonJS({
-  "node_modules/ajv/dist/compile/errors.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/compile/errors.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.extendErrors = exports2.resetErrorsCount = exports2.reportExtraError = exports2.reportError = exports2.keyword$DataError = exports2.keywordError = void 0;
@@ -24509,9 +24509,9 @@ var require_errors4 = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/validate/boolSchema.js
+// figma-intelligence-layer/node_modules/ajv/dist/compile/validate/boolSchema.js
 var require_boolSchema = __commonJS({
-  "node_modules/ajv/dist/compile/validate/boolSchema.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/compile/validate/boolSchema.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.boolOrEmptySchema = exports2.topBoolOrEmptySchema = void 0;
@@ -24560,9 +24560,9 @@ var require_boolSchema = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/rules.js
+// figma-intelligence-layer/node_modules/ajv/dist/compile/rules.js
 var require_rules = __commonJS({
-  "node_modules/ajv/dist/compile/rules.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/compile/rules.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getRules = exports2.isJSONType = void 0;
@@ -24591,9 +24591,9 @@ var require_rules = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/validate/applicability.js
+// figma-intelligence-layer/node_modules/ajv/dist/compile/validate/applicability.js
 var require_applicability = __commonJS({
-  "node_modules/ajv/dist/compile/validate/applicability.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/compile/validate/applicability.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.shouldUseRule = exports2.shouldUseGroup = exports2.schemaHasRulesForType = void 0;
@@ -24614,9 +24614,9 @@ var require_applicability = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/validate/dataType.js
+// figma-intelligence-layer/node_modules/ajv/dist/compile/validate/dataType.js
 var require_dataType = __commonJS({
-  "node_modules/ajv/dist/compile/validate/dataType.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/compile/validate/dataType.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.reportTypeError = exports2.checkDataTypes = exports2.checkDataType = exports2.coerceAndCheckDataType = exports2.getJSONTypes = exports2.getSchemaTypes = exports2.DataType = void 0;
@@ -24798,9 +24798,9 @@ var require_dataType = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/validate/defaults.js
+// figma-intelligence-layer/node_modules/ajv/dist/compile/validate/defaults.js
 var require_defaults = __commonJS({
-  "node_modules/ajv/dist/compile/validate/defaults.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/compile/validate/defaults.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.assignDefaults = void 0;
@@ -24835,9 +24835,9 @@ var require_defaults = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/code.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/code.js
 var require_code2 = __commonJS({
-  "node_modules/ajv/dist/vocabularies/code.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/code.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.validateUnion = exports2.validateArray = exports2.usePattern = exports2.callValidateCode = exports2.schemaProperties = exports2.allSchemaProperties = exports2.noPropertyInData = exports2.propertyInData = exports2.isOwnProperty = exports2.hasPropFunc = exports2.reportMissingProp = exports2.checkMissingProp = exports2.checkReportMissingProp = void 0;
@@ -24968,9 +24968,9 @@ var require_code2 = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/validate/keyword.js
+// figma-intelligence-layer/node_modules/ajv/dist/compile/validate/keyword.js
 var require_keyword = __commonJS({
-  "node_modules/ajv/dist/compile/validate/keyword.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/compile/validate/keyword.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.validateKeywordUsage = exports2.validSchemaType = exports2.funcKeywordCode = exports2.macroKeywordCode = void 0;
@@ -25086,9 +25086,9 @@ var require_keyword = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/validate/subschema.js
+// figma-intelligence-layer/node_modules/ajv/dist/compile/validate/subschema.js
 var require_subschema = __commonJS({
-  "node_modules/ajv/dist/compile/validate/subschema.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/compile/validate/subschema.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.extendSubschemaMode = exports2.extendSubschemaData = exports2.getSubschema = void 0;
@@ -25169,9 +25169,9 @@ var require_subschema = __commonJS({
   }
 });
 
-// node_modules/fast-deep-equal/index.js
+// figma-intelligence-layer/node_modules/fast-deep-equal/index.js
 var require_fast_deep_equal = __commonJS({
-  "node_modules/fast-deep-equal/index.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/fast-deep-equal/index.js"(exports2, module2) {
     "use strict";
     module2.exports = function equal(a, b) {
       if (a === b) return true;
@@ -25204,9 +25204,9 @@ var require_fast_deep_equal = __commonJS({
   }
 });
 
-// node_modules/json-schema-traverse/index.js
+// figma-intelligence-layer/node_modules/json-schema-traverse/index.js
 var require_json_schema_traverse = __commonJS({
-  "node_modules/json-schema-traverse/index.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/json-schema-traverse/index.js"(exports2, module2) {
     "use strict";
     var traverse = module2.exports = function(schema, opts, cb) {
       if (typeof opts == "function") {
@@ -25292,9 +25292,9 @@ var require_json_schema_traverse = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/resolve.js
+// figma-intelligence-layer/node_modules/ajv/dist/compile/resolve.js
 var require_resolve = __commonJS({
-  "node_modules/ajv/dist/compile/resolve.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/compile/resolve.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getSchemaRefs = exports2.resolveUrl = exports2.normalizeId = exports2._getFullPath = exports2.getFullPath = exports2.inlineRef = void 0;
@@ -25448,9 +25448,9 @@ var require_resolve = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/validate/index.js
+// figma-intelligence-layer/node_modules/ajv/dist/compile/validate/index.js
 var require_validate = __commonJS({
-  "node_modules/ajv/dist/compile/validate/index.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/compile/validate/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getData = exports2.KeywordCxt = exports2.validateFunctionCode = void 0;
@@ -25956,9 +25956,9 @@ var require_validate = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/runtime/validation_error.js
+// figma-intelligence-layer/node_modules/ajv/dist/runtime/validation_error.js
 var require_validation_error = __commonJS({
-  "node_modules/ajv/dist/runtime/validation_error.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/runtime/validation_error.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var ValidationError = class extends Error {
@@ -25972,9 +25972,9 @@ var require_validation_error = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/ref_error.js
+// figma-intelligence-layer/node_modules/ajv/dist/compile/ref_error.js
 var require_ref_error = __commonJS({
-  "node_modules/ajv/dist/compile/ref_error.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/compile/ref_error.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var resolve_1 = require_resolve();
@@ -25989,9 +25989,9 @@ var require_ref_error = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/compile/index.js
+// figma-intelligence-layer/node_modules/ajv/dist/compile/index.js
 var require_compile = __commonJS({
-  "node_modules/ajv/dist/compile/index.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/compile/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.resolveSchema = exports2.getCompilingSchema = exports2.resolveRef = exports2.compileSchema = exports2.SchemaEnv = void 0;
@@ -26213,9 +26213,9 @@ var require_compile = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/refs/data.json
+// figma-intelligence-layer/node_modules/ajv/dist/refs/data.json
 var require_data = __commonJS({
-  "node_modules/ajv/dist/refs/data.json"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/refs/data.json"(exports2, module2) {
     module2.exports = {
       $id: "https://raw.githubusercontent.com/ajv-validator/ajv/master/lib/refs/data.json#",
       description: "Meta-schema for $data reference (JSON AnySchema extension proposal)",
@@ -26232,9 +26232,9 @@ var require_data = __commonJS({
   }
 });
 
-// node_modules/fast-uri/lib/utils.js
+// figma-intelligence-layer/node_modules/fast-uri/lib/utils.js
 var require_utils = __commonJS({
-  "node_modules/fast-uri/lib/utils.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/fast-uri/lib/utils.js"(exports2, module2) {
     "use strict";
     var isUUID = RegExp.prototype.test.bind(/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/iu);
     var isIPv4 = RegExp.prototype.test.bind(/^(?:(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)$/u);
@@ -26489,9 +26489,9 @@ var require_utils = __commonJS({
   }
 });
 
-// node_modules/fast-uri/lib/schemes.js
+// figma-intelligence-layer/node_modules/fast-uri/lib/schemes.js
 var require_schemes = __commonJS({
-  "node_modules/fast-uri/lib/schemes.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/fast-uri/lib/schemes.js"(exports2, module2) {
     "use strict";
     var { isUUID } = require_utils();
     var URN_REG = /([\da-z][\d\-a-z]{0,31}):((?:[\w!$'()*+,\-.:;=@]|%[\da-f]{2})+)/iu;
@@ -26699,9 +26699,9 @@ var require_schemes = __commonJS({
   }
 });
 
-// node_modules/fast-uri/index.js
+// figma-intelligence-layer/node_modules/fast-uri/index.js
 var require_fast_uri = __commonJS({
-  "node_modules/fast-uri/index.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/fast-uri/index.js"(exports2, module2) {
     "use strict";
     var { normalizeIPv6, removeDotSegments, recomposeAuthority, normalizeComponentEncoding, isIPv4, nonSimpleDomain } = require_utils();
     var { SCHEMES, getSchemeHandler } = require_schemes();
@@ -26954,9 +26954,9 @@ var require_fast_uri = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/runtime/uri.js
+// figma-intelligence-layer/node_modules/ajv/dist/runtime/uri.js
 var require_uri = __commonJS({
-  "node_modules/ajv/dist/runtime/uri.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/runtime/uri.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var uri = require_fast_uri();
@@ -26965,9 +26965,9 @@ var require_uri = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/core.js
+// figma-intelligence-layer/node_modules/ajv/dist/core.js
 var require_core3 = __commonJS({
-  "node_modules/ajv/dist/core.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/core.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.CodeGen = exports2.Name = exports2.nil = exports2.stringify = exports2.str = exports2._ = exports2.KeywordCxt = void 0;
@@ -27576,9 +27576,9 @@ var require_core3 = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/core/id.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/core/id.js
 var require_id2 = __commonJS({
-  "node_modules/ajv/dist/vocabularies/core/id.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/core/id.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var def = {
@@ -27591,9 +27591,9 @@ var require_id2 = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/core/ref.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/core/ref.js
 var require_ref = __commonJS({
-  "node_modules/ajv/dist/vocabularies/core/ref.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/core/ref.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.callRef = exports2.getValidate = void 0;
@@ -27713,9 +27713,9 @@ var require_ref = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/core/index.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/core/index.js
 var require_core4 = __commonJS({
-  "node_modules/ajv/dist/vocabularies/core/index.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/core/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var id_1 = require_id2();
@@ -27734,9 +27734,9 @@ var require_core4 = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/limitNumber.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/limitNumber.js
 var require_limitNumber = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/limitNumber.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/limitNumber.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -27766,9 +27766,9 @@ var require_limitNumber = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/multipleOf.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/multipleOf.js
 var require_multipleOf = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/multipleOf.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/multipleOf.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -27794,9 +27794,9 @@ var require_multipleOf = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/runtime/ucs2length.js
+// figma-intelligence-layer/node_modules/ajv/dist/runtime/ucs2length.js
 var require_ucs2length = __commonJS({
-  "node_modules/ajv/dist/runtime/ucs2length.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/runtime/ucs2length.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     function ucs2length(str) {
@@ -27820,9 +27820,9 @@ var require_ucs2length = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/limitLength.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/limitLength.js
 var require_limitLength = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/limitLength.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/limitLength.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -27852,9 +27852,9 @@ var require_limitLength = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/pattern.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/pattern.js
 var require_pattern = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/pattern.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/pattern.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var code_1 = require_code2();
@@ -27889,9 +27889,9 @@ var require_pattern = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/limitProperties.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/limitProperties.js
 var require_limitProperties = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/limitProperties.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/limitProperties.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -27918,9 +27918,9 @@ var require_limitProperties = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/required.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/required.js
 var require_required = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/required.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/required.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var code_1 = require_code2();
@@ -28000,9 +28000,9 @@ var require_required = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/limitItems.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/limitItems.js
 var require_limitItems = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/limitItems.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/limitItems.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -28029,9 +28029,9 @@ var require_limitItems = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/runtime/equal.js
+// figma-intelligence-layer/node_modules/ajv/dist/runtime/equal.js
 var require_equal = __commonJS({
-  "node_modules/ajv/dist/runtime/equal.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/runtime/equal.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var equal = require_fast_deep_equal();
@@ -28040,9 +28040,9 @@ var require_equal = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/uniqueItems.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/uniqueItems.js
 var require_uniqueItems = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/uniqueItems.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/uniqueItems.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var dataType_1 = require_dataType();
@@ -28107,9 +28107,9 @@ var require_uniqueItems = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/const.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/const.js
 var require_const = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/const.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/const.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -28136,9 +28136,9 @@ var require_const = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/enum.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/enum.js
 var require_enum2 = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/enum.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/enum.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -28185,9 +28185,9 @@ var require_enum2 = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/validation/index.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/index.js
 var require_validation = __commonJS({
-  "node_modules/ajv/dist/vocabularies/validation/index.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/validation/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var limitNumber_1 = require_limitNumber();
@@ -28223,9 +28223,9 @@ var require_validation = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/additionalItems.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/additionalItems.js
 var require_additionalItems = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/additionalItems.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/additionalItems.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.validateAdditionalItems = void 0;
@@ -28276,9 +28276,9 @@ var require_additionalItems = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/items.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/items.js
 var require_items = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/items.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/items.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.validateTuple = void 0;
@@ -28333,9 +28333,9 @@ var require_items = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/prefixItems.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/prefixItems.js
 var require_prefixItems = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/prefixItems.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/prefixItems.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var items_1 = require_items();
@@ -28350,9 +28350,9 @@ var require_prefixItems = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/items2020.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/items2020.js
 var require_items2020 = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/items2020.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/items2020.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -28385,9 +28385,9 @@ var require_items2020 = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/contains.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/contains.js
 var require_contains = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/contains.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/contains.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -28479,9 +28479,9 @@ var require_contains = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/dependencies.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/dependencies.js
 var require_dependencies = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/dependencies.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/dependencies.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.validateSchemaDeps = exports2.validatePropertyDeps = exports2.error = void 0;
@@ -28573,9 +28573,9 @@ var require_dependencies = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/propertyNames.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/propertyNames.js
 var require_propertyNames = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/propertyNames.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/propertyNames.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -28616,9 +28616,9 @@ var require_propertyNames = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js
 var require_additionalProperties = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var code_1 = require_code2();
@@ -28722,9 +28722,9 @@ var require_additionalProperties = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/properties.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/properties.js
 var require_properties = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/properties.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/properties.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var validate_1 = require_validate();
@@ -28780,9 +28780,9 @@ var require_properties = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/patternProperties.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/patternProperties.js
 var require_patternProperties = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/patternProperties.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/patternProperties.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var code_1 = require_code2();
@@ -28854,9 +28854,9 @@ var require_patternProperties = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/not.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/not.js
 var require_not = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/not.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/not.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var util_1 = require_util3();
@@ -28885,9 +28885,9 @@ var require_not = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/anyOf.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/anyOf.js
 var require_anyOf = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/anyOf.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/anyOf.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var code_1 = require_code2();
@@ -28902,9 +28902,9 @@ var require_anyOf = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/oneOf.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/oneOf.js
 var require_oneOf = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/oneOf.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/oneOf.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -28960,9 +28960,9 @@ var require_oneOf = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/allOf.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/allOf.js
 var require_allOf = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/allOf.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/allOf.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var util_1 = require_util3();
@@ -28987,9 +28987,9 @@ var require_allOf = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/if.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/if.js
 var require_if = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/if.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/if.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -29056,9 +29056,9 @@ var require_if = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/thenElse.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/thenElse.js
 var require_thenElse = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/thenElse.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/thenElse.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var util_1 = require_util3();
@@ -29074,9 +29074,9 @@ var require_thenElse = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/applicator/index.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/index.js
 var require_applicator = __commonJS({
-  "node_modules/ajv/dist/vocabularies/applicator/index.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/applicator/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var additionalItems_1 = require_additionalItems();
@@ -29122,9 +29122,9 @@ var require_applicator = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/format/format.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/format/format.js
 var require_format = __commonJS({
-  "node_modules/ajv/dist/vocabularies/format/format.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/format/format.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -29212,9 +29212,9 @@ var require_format = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/format/index.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/format/index.js
 var require_format2 = __commonJS({
-  "node_modules/ajv/dist/vocabularies/format/index.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/format/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var format_1 = require_format();
@@ -29223,9 +29223,9 @@ var require_format2 = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/metadata.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/metadata.js
 var require_metadata = __commonJS({
-  "node_modules/ajv/dist/vocabularies/metadata.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/metadata.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.contentVocabulary = exports2.metadataVocabulary = void 0;
@@ -29246,9 +29246,9 @@ var require_metadata = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/draft7.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/draft7.js
 var require_draft7 = __commonJS({
-  "node_modules/ajv/dist/vocabularies/draft7.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/draft7.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var core_1 = require_core4();
@@ -29268,9 +29268,9 @@ var require_draft7 = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/discriminator/types.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/discriminator/types.js
 var require_types3 = __commonJS({
-  "node_modules/ajv/dist/vocabularies/discriminator/types.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/discriminator/types.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.DiscrError = void 0;
@@ -29282,9 +29282,9 @@ var require_types3 = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/vocabularies/discriminator/index.js
+// figma-intelligence-layer/node_modules/ajv/dist/vocabularies/discriminator/index.js
 var require_discriminator = __commonJS({
-  "node_modules/ajv/dist/vocabularies/discriminator/index.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/vocabularies/discriminator/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var codegen_1 = require_codegen();
@@ -29387,9 +29387,9 @@ var require_discriminator = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/refs/json-schema-draft-07.json
+// figma-intelligence-layer/node_modules/ajv/dist/refs/json-schema-draft-07.json
 var require_json_schema_draft_07 = __commonJS({
-  "node_modules/ajv/dist/refs/json-schema-draft-07.json"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/refs/json-schema-draft-07.json"(exports2, module2) {
     module2.exports = {
       $schema: "http://json-schema.org/draft-07/schema#",
       $id: "http://json-schema.org/draft-07/schema#",
@@ -29544,9 +29544,9 @@ var require_json_schema_draft_07 = __commonJS({
   }
 });
 
-// node_modules/ajv/dist/ajv.js
+// figma-intelligence-layer/node_modules/ajv/dist/ajv.js
 var require_ajv = __commonJS({
-  "node_modules/ajv/dist/ajv.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/ajv/dist/ajv.js"(exports2, module2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.MissingRefError = exports2.ValidationError = exports2.CodeGen = exports2.Name = exports2.nil = exports2.stringify = exports2.str = exports2._ = exports2.KeywordCxt = exports2.Ajv = void 0;
@@ -29614,9 +29614,9 @@ var require_ajv = __commonJS({
   }
 });
 
-// node_modules/ajv-formats/dist/formats.js
+// figma-intelligence-layer/node_modules/ajv-formats/dist/formats.js
 var require_formats = __commonJS({
-  "node_modules/ajv-formats/dist/formats.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv-formats/dist/formats.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.formatNames = exports2.fastFormats = exports2.fullFormats = void 0;
@@ -29817,9 +29817,9 @@ var require_formats = __commonJS({
   }
 });
 
-// node_modules/ajv-formats/dist/limit.js
+// figma-intelligence-layer/node_modules/ajv-formats/dist/limit.js
 var require_limit = __commonJS({
-  "node_modules/ajv-formats/dist/limit.js"(exports2) {
+  "figma-intelligence-layer/node_modules/ajv-formats/dist/limit.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.formatLimitDefinition = void 0;
@@ -29889,9 +29889,9 @@ var require_limit = __commonJS({
   }
 });
 
-// node_modules/ajv-formats/dist/index.js
+// figma-intelligence-layer/node_modules/ajv-formats/dist/index.js
 var require_dist = __commonJS({
-  "node_modules/ajv-formats/dist/index.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/ajv-formats/dist/index.js"(exports2, module2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     var formats_1 = require_formats();
@@ -29931,9 +29931,9 @@ var require_dist = __commonJS({
   }
 });
 
-// node_modules/@modelcontextprotocol/sdk/dist/cjs/validation/ajv-provider.js
+// figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/validation/ajv-provider.js
 var require_ajv_provider = __commonJS({
-  "node_modules/@modelcontextprotocol/sdk/dist/cjs/validation/ajv-provider.js"(exports2) {
+  "figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/validation/ajv-provider.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -30010,9 +30010,9 @@ var require_ajv_provider = __commonJS({
   }
 });
 
-// node_modules/@modelcontextprotocol/sdk/dist/cjs/experimental/tasks/server.js
+// figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/experimental/tasks/server.js
 var require_server = __commonJS({
-  "node_modules/@modelcontextprotocol/sdk/dist/cjs/experimental/tasks/server.js"(exports2) {
+  "figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/experimental/tasks/server.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.ExperimentalServerTasks = void 0;
@@ -30232,9 +30232,9 @@ var require_server = __commonJS({
   }
 });
 
-// node_modules/@modelcontextprotocol/sdk/dist/cjs/experimental/tasks/helpers.js
+// figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/experimental/tasks/helpers.js
 var require_helpers = __commonJS({
-  "node_modules/@modelcontextprotocol/sdk/dist/cjs/experimental/tasks/helpers.js"(exports2) {
+  "figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/experimental/tasks/helpers.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.assertToolsCallTaskCapability = assertToolsCallTaskCapability;
@@ -30275,9 +30275,9 @@ var require_helpers = __commonJS({
   }
 });
 
-// node_modules/@modelcontextprotocol/sdk/dist/cjs/server/index.js
+// figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/server/index.js
 var require_server2 = __commonJS({
-  "node_modules/@modelcontextprotocol/sdk/dist/cjs/server/index.js"(exports2) {
+  "figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/server/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Server = void 0;
@@ -30669,9 +30669,9 @@ var require_server2 = __commonJS({
   }
 });
 
-// node_modules/@modelcontextprotocol/sdk/dist/cjs/shared/stdio.js
+// figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/shared/stdio.js
 var require_stdio = __commonJS({
-  "node_modules/@modelcontextprotocol/sdk/dist/cjs/shared/stdio.js"(exports2) {
+  "figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/shared/stdio.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.ReadBuffer = void 0;
@@ -30708,9 +30708,9 @@ var require_stdio = __commonJS({
   }
 });
 
-// node_modules/@modelcontextprotocol/sdk/dist/cjs/server/stdio.js
+// figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/server/stdio.js
 var require_stdio2 = __commonJS({
-  "node_modules/@modelcontextprotocol/sdk/dist/cjs/server/stdio.js"(exports2) {
+  "figma-intelligence-layer/node_modules/@modelcontextprotocol/sdk/dist/cjs/server/stdio.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -30782,9 +30782,9 @@ var require_stdio2 = __commonJS({
   }
 });
 
-// node_modules/zod/index.cjs
+// figma-intelligence-layer/node_modules/zod/index.cjs
 var require_zod = __commonJS({
-  "node_modules/zod/index.cjs"(exports2) {
+  "figma-intelligence-layer/node_modules/zod/index.cjs"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -30825,9 +30825,9 @@ var require_zod = __commonJS({
   }
 });
 
-// dist/shared/vision-provider-openai.js
+// figma-intelligence-layer/dist/shared/vision-provider-openai.js
 var require_vision_provider_openai = __commonJS({
-  "dist/shared/vision-provider-openai.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/vision-provider-openai.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.OpenAIVisionProvider = void 0;
@@ -31253,9 +31253,9 @@ var require_vision_provider_openai = __commonJS({
   }
 });
 
-// dist/shared/vision-provider-anthropic.js
+// figma-intelligence-layer/dist/shared/vision-provider-anthropic.js
 var require_vision_provider_anthropic = __commonJS({
-  "dist/shared/vision-provider-anthropic.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/vision-provider-anthropic.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.AnthropicVisionProvider = void 0;
@@ -31531,9 +31531,9 @@ Your previous answer was not strict valid JSON. Return only valid JSON with no m
   }
 });
 
-// dist/shared/vision-client.js
+// figma-intelligence-layer/dist/shared/vision-client.js
 var require_vision_client = __commonJS({
-  "dist/shared/vision-client.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/vision-client.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.VisionClient = void 0;
@@ -31945,9 +31945,9 @@ Return ONLY valid JSON.`;
   }
 });
 
-// node_modules/ws/lib/constants.js
+// figma-intelligence-layer/node_modules/ws/lib/constants.js
 var require_constants = __commonJS({
-  "node_modules/ws/lib/constants.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/ws/lib/constants.js"(exports2, module2) {
     "use strict";
     var BINARY_TYPES = ["nodebuffer", "arraybuffer", "fragments"];
     var hasBlob = typeof Blob !== "undefined";
@@ -31968,9 +31968,9 @@ var require_constants = __commonJS({
   }
 });
 
-// node_modules/ws/lib/buffer-util.js
+// figma-intelligence-layer/node_modules/ws/lib/buffer-util.js
 var require_buffer_util = __commonJS({
-  "node_modules/ws/lib/buffer-util.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/ws/lib/buffer-util.js"(exports2, module2) {
     "use strict";
     var { EMPTY_BUFFER } = require_constants();
     var FastBuffer = Buffer[Symbol.species];
@@ -32043,9 +32043,9 @@ var require_buffer_util = __commonJS({
   }
 });
 
-// node_modules/ws/lib/limiter.js
+// figma-intelligence-layer/node_modules/ws/lib/limiter.js
 var require_limiter = __commonJS({
-  "node_modules/ws/lib/limiter.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/ws/lib/limiter.js"(exports2, module2) {
     "use strict";
     var kDone = /* @__PURE__ */ Symbol("kDone");
     var kRun = /* @__PURE__ */ Symbol("kRun");
@@ -32093,9 +32093,9 @@ var require_limiter = __commonJS({
   }
 });
 
-// node_modules/ws/lib/permessage-deflate.js
+// figma-intelligence-layer/node_modules/ws/lib/permessage-deflate.js
 var require_permessage_deflate = __commonJS({
-  "node_modules/ws/lib/permessage-deflate.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/ws/lib/permessage-deflate.js"(exports2, module2) {
     "use strict";
     var zlib = require("zlib");
     var bufferUtil = require_buffer_util();
@@ -32476,9 +32476,9 @@ var require_permessage_deflate = __commonJS({
   }
 });
 
-// node_modules/ws/lib/validation.js
+// figma-intelligence-layer/node_modules/ws/lib/validation.js
 var require_validation2 = __commonJS({
-  "node_modules/ws/lib/validation.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/ws/lib/validation.js"(exports2, module2) {
     "use strict";
     var { isUtf8 } = require("buffer");
     var { hasBlob } = require_constants();
@@ -32677,9 +32677,9 @@ var require_validation2 = __commonJS({
   }
 });
 
-// node_modules/ws/lib/receiver.js
+// figma-intelligence-layer/node_modules/ws/lib/receiver.js
 var require_receiver = __commonJS({
-  "node_modules/ws/lib/receiver.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/ws/lib/receiver.js"(exports2, module2) {
     "use strict";
     var { Writable } = require("stream");
     var PerMessageDeflate = require_permessage_deflate();
@@ -33269,9 +33269,9 @@ var require_receiver = __commonJS({
   }
 });
 
-// node_modules/ws/lib/sender.js
+// figma-intelligence-layer/node_modules/ws/lib/sender.js
 var require_sender = __commonJS({
-  "node_modules/ws/lib/sender.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/ws/lib/sender.js"(exports2, module2) {
     "use strict";
     var { Duplex } = require("stream");
     var { randomFillSync } = require("crypto");
@@ -33757,9 +33757,9 @@ var require_sender = __commonJS({
   }
 });
 
-// node_modules/ws/lib/event-target.js
+// figma-intelligence-layer/node_modules/ws/lib/event-target.js
 var require_event_target = __commonJS({
-  "node_modules/ws/lib/event-target.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/ws/lib/event-target.js"(exports2, module2) {
     "use strict";
     var { kForOnEventAttribute, kListener } = require_constants();
     var kCode = /* @__PURE__ */ Symbol("kCode");
@@ -33986,9 +33986,9 @@ var require_event_target = __commonJS({
   }
 });
 
-// node_modules/ws/lib/extension.js
+// figma-intelligence-layer/node_modules/ws/lib/extension.js
 var require_extension = __commonJS({
-  "node_modules/ws/lib/extension.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/ws/lib/extension.js"(exports2, module2) {
     "use strict";
     var { tokenChars } = require_validation2();
     function push(dest, name, elem) {
@@ -34139,9 +34139,9 @@ var require_extension = __commonJS({
   }
 });
 
-// node_modules/ws/lib/websocket.js
+// figma-intelligence-layer/node_modules/ws/lib/websocket.js
 var require_websocket = __commonJS({
-  "node_modules/ws/lib/websocket.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/ws/lib/websocket.js"(exports2, module2) {
     "use strict";
     var EventEmitter = require("events");
     var https = require("https");
@@ -35025,9 +35025,9 @@ var require_websocket = __commonJS({
   }
 });
 
-// node_modules/ws/lib/stream.js
+// figma-intelligence-layer/node_modules/ws/lib/stream.js
 var require_stream = __commonJS({
-  "node_modules/ws/lib/stream.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/ws/lib/stream.js"(exports2, module2) {
     "use strict";
     var WebSocket = require_websocket();
     var { Duplex } = require("stream");
@@ -35123,9 +35123,9 @@ var require_stream = __commonJS({
   }
 });
 
-// node_modules/ws/lib/subprotocol.js
+// figma-intelligence-layer/node_modules/ws/lib/subprotocol.js
 var require_subprotocol = __commonJS({
-  "node_modules/ws/lib/subprotocol.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/ws/lib/subprotocol.js"(exports2, module2) {
     "use strict";
     var { tokenChars } = require_validation2();
     function parse(header) {
@@ -35168,9 +35168,9 @@ var require_subprotocol = __commonJS({
   }
 });
 
-// node_modules/ws/lib/websocket-server.js
+// figma-intelligence-layer/node_modules/ws/lib/websocket-server.js
 var require_websocket_server = __commonJS({
-  "node_modules/ws/lib/websocket-server.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/ws/lib/websocket-server.js"(exports2, module2) {
     "use strict";
     var EventEmitter = require("events");
     var http = require("http");
@@ -35561,9 +35561,9 @@ var require_websocket_server = __commonJS({
   }
 });
 
-// node_modules/ws/index.js
+// figma-intelligence-layer/node_modules/ws/index.js
 var require_ws = __commonJS({
-  "node_modules/ws/index.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/ws/index.js"(exports2, module2) {
     "use strict";
     var WebSocket = require_websocket();
     WebSocket.createWebSocketStream = require_stream();
@@ -35576,9 +35576,9 @@ var require_ws = __commonJS({
   }
 });
 
-// dist/shared/enrichment-pipeline.js
+// figma-intelligence-layer/dist/shared/enrichment-pipeline.js
 var require_enrichment_pipeline = __commonJS({
-  "dist/shared/enrichment-pipeline.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/enrichment-pipeline.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.rgbaToHex = rgbaToHex;
@@ -36023,9 +36023,9 @@ var require_enrichment_pipeline = __commonJS({
   }
 });
 
-// dist/shared/cache.js
+// figma-intelligence-layer/dist/shared/cache.js
 var require_cache = __commonJS({
-  "dist/shared/cache.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/cache.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.BridgeCache = exports2.ResponseCache = void 0;
@@ -36172,9 +36172,9 @@ var require_cache = __commonJS({
   }
 });
 
-// dist/shared/response-compression.js
+// figma-intelligence-layer/dist/shared/response-compression.js
 var require_response_compression = __commonJS({
-  "dist/shared/response-compression.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/response-compression.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.compressNodeTree = compressNodeTree;
@@ -36484,9 +36484,9 @@ var require_response_compression = __commonJS({
   }
 });
 
-// dist/shared/design-system-tokens.js
+// figma-intelligence-layer/dist/shared/design-system-tokens.js
 var require_design_system_tokens = __commonJS({
-  "dist/shared/design-system-tokens.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/design-system-tokens.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getDesignSystemTokens = getDesignSystemTokens;
@@ -36718,9 +36718,9 @@ var require_design_system_tokens = __commonJS({
   }
 });
 
-// dist/shared/concept-taxonomy.js
+// figma-intelligence-layer/dist/shared/concept-taxonomy.js
 var require_concept_taxonomy = __commonJS({
-  "dist/shared/concept-taxonomy.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/concept-taxonomy.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.CONCEPT_TAXONOMY = exports2.GRAMMAR = void 0;
@@ -37269,9 +37269,9 @@ var require_concept_taxonomy = __commonJS({
   }
 });
 
-// dist/shared/token-binder.js
+// figma-intelligence-layer/dist/shared/token-binder.js
 var require_token_binder = __commonJS({
-  "dist/shared/token-binder.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/token-binder.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.resolveTokenId = resolveTokenId;
@@ -37573,9 +37573,9 @@ var require_token_binder = __commonJS({
   }
 });
 
-// dist/cloud/session-manager.js
+// figma-intelligence-layer/dist/cloud/session-manager.js
 var require_session_manager = __commonJS({
-  "dist/cloud/session-manager.js"(exports2) {
+  "figma-intelligence-layer/dist/cloud/session-manager.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -37708,9 +37708,9 @@ var require_session_manager = __commonJS({
   }
 });
 
-// dist/shared/figma-bridge.js
+// figma-intelligence-layer/dist/shared/figma-bridge.js
 var require_figma_bridge = __commonJS({
-  "dist/shared/figma-bridge.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/figma-bridge.js"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -37757,7 +37757,24 @@ var require_figma_bridge = __commonJS({
     var cache_js_1 = require_cache();
     var response_compression_js_12 = require_response_compression();
     var enrichment_pipeline_js_1 = require_enrichment_pipeline();
-    var WS_PORT = parseInt(process.env.FIGMA_BRIDGE_PORT || "9001", 10);
+    var fs_1 = require("fs");
+    var path_1 = require("path");
+    var os_1 = require("os");
+    function resolvePort() {
+      try {
+        const portFile = (0, path_1.join)((0, os_1.homedir)(), ".figma-intelligence", "relay.port");
+        if ((0, fs_1.existsSync)(portFile)) {
+          const p = parseInt((0, fs_1.readFileSync)(portFile, "utf8").trim(), 10);
+          if (p > 0 && p < 65536)
+            return p;
+        }
+      } catch {
+      }
+      if (process.env.FIGMA_BRIDGE_PORT)
+        return parseInt(process.env.FIGMA_BRIDGE_PORT, 10);
+      return 9001;
+    }
+    var WS_PORT = resolvePort();
     var CLOUD_MODE = process.env.CLOUD_MODE === "true";
     var REQUEST_TIMEOUT = parseInt(process.env.FIGMA_REQUEST_TIMEOUT || "30000", 10);
     var relayServer = null;
@@ -39017,9 +39034,9 @@ var require_figma_bridge = __commonJS({
   }
 });
 
-// dist/shared/design-system-normalizers.js
+// figma-intelligence-layer/dist/shared/design-system-normalizers.js
 var require_design_system_normalizers = __commonJS({
-  "dist/shared/design-system-normalizers.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/design-system-normalizers.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.normalizeName = normalizeName;
@@ -39191,9 +39208,9 @@ var require_design_system_normalizers = __commonJS({
   }
 });
 
-// dist/shared/design-system-intelligence.js
+// figma-intelligence-layer/dist/shared/design-system-intelligence.js
 var require_design_system_intelligence = __commonJS({
-  "dist/shared/design-system-intelligence.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/design-system-intelligence.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildDesignSystemIntelligence = buildDesignSystemIntelligence;
@@ -39261,9 +39278,9 @@ var require_design_system_intelligence = __commonJS({
   }
 });
 
-// dist/shared/design-system-context.js
+// figma-intelligence-layer/dist/shared/design-system-context.js
 var require_design_system_context = __commonJS({
-  "dist/shared/design-system-context.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/design-system-context.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.DesignSystemContextStore = void 0;
@@ -39644,9 +39661,9 @@ var require_design_system_context = __commonJS({
   }
 });
 
-// dist/shared/decision-log.js
+// figma-intelligence-layer/dist/shared/decision-log.js
 var require_decision_log = __commonJS({
-  "dist/shared/decision-log.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/decision-log.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -39758,9 +39775,9 @@ ${e.rationale}`);
   }
 });
 
-// node_modules/fuse.js/dist/fuse.cjs
+// figma-intelligence-layer/node_modules/fuse.js/dist/fuse.cjs
 var require_fuse = __commonJS({
-  "node_modules/fuse.js/dist/fuse.cjs"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/fuse.js/dist/fuse.cjs"(exports2, module2) {
     "use strict";
     function ownKeys(object, enumerableOnly) {
       var keys = Object.keys(object);
@@ -41454,9 +41471,9 @@ var require_fuse = __commonJS({
   }
 });
 
-// dist/shared/design-system-matcher.js
+// figma-intelligence-layer/dist/shared/design-system-matcher.js
 var require_design_system_matcher = __commonJS({
-  "dist/shared/design-system-matcher.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/design-system-matcher.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -41600,9 +41617,9 @@ var require_design_system_matcher = __commonJS({
   }
 });
 
-// dist/tools/phase1-vision/screen-cloner/font-matcher.js
+// figma-intelligence-layer/dist/tools/phase1-vision/screen-cloner/font-matcher.js
 var require_font_matcher = __commonJS({
-  "dist/tools/phase1-vision/screen-cloner/font-matcher.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase1-vision/screen-cloner/font-matcher.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.resolveFontStyleMatch = resolveFontStyleMatch;
@@ -41694,9 +41711,9 @@ var require_font_matcher = __commonJS({
   }
 });
 
-// dist/shared/icon-catalog.js
+// figma-intelligence-layer/dist/shared/icon-catalog.js
 var require_icon_catalog = __commonJS({
-  "dist/shared/icon-catalog.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/icon-catalog.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.DEFAULT_ICON_CATALOG = void 0;
@@ -41942,9 +41959,9 @@ var require_icon_catalog = __commonJS({
   }
 });
 
-// dist/tools/phase1-vision/screen-cloner/icon-resolver.js
+// figma-intelligence-layer/dist/tools/phase1-vision/screen-cloner/icon-resolver.js
 var require_icon_resolver = __commonJS({
-  "dist/tools/phase1-vision/screen-cloner/icon-resolver.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase1-vision/screen-cloner/icon-resolver.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -42022,9 +42039,9 @@ var require_icon_resolver = __commonJS({
   }
 });
 
-// dist/tools/phase1-vision/screen-cloner/index.js
+// figma-intelligence-layer/dist/tools/phase1-vision/screen-cloner/index.js
 var require_screen_cloner = __commonJS({
-  "dist/tools/phase1-vision/screen-cloner/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase1-vision/screen-cloner/index.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -42738,9 +42755,9 @@ var require_screen_cloner = __commonJS({
   }
 });
 
-// dist/tools/phase1-vision/visual-audit/index.js
+// figma-intelligence-layer/dist/tools/phase1-vision/visual-audit/index.js
 var require_visual_audit = __commonJS({
-  "dist/tools/phase1-vision/visual-audit/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase1-vision/visual-audit/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.visualAuditHandler = visualAuditHandler;
@@ -42865,9 +42882,9 @@ var require_visual_audit = __commonJS({
   }
 });
 
-// dist/shared/token-utils.js
+// figma-intelligence-layer/dist/shared/token-utils.js
 var require_token_utils = __commonJS({
-  "dist/shared/token-utils.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/token-utils.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.snapToSpacingToken = snapToSpacingToken;
@@ -43201,9 +43218,9 @@ var require_token_utils = __commonJS({
   }
 });
 
-// dist/tools/phase1-vision/a11y-audit/wcag-checker.js
+// figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/wcag-checker.js
 var require_wcag_checker = __commonJS({
-  "dist/tools/phase1-vision/a11y-audit/wcag-checker.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/wcag-checker.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.MIN_TARGET_SIZE_AA = exports2.MIN_TOUCH_TARGET = void 0;
@@ -43965,9 +43982,9 @@ var require_wcag_checker = __commonJS({
   }
 });
 
-// dist/tools/phase1-vision/a11y-audit/wcag-criteria.js
+// figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/wcag-criteria.js
 var require_wcag_criteria = __commonJS({
-  "dist/tools/phase1-vision/a11y-audit/wcag-criteria.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/wcag-criteria.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.WCAG_CRITERIA = void 0;
@@ -44898,9 +44915,9 @@ var require_wcag_criteria = __commonJS({
   }
 });
 
-// dist/tools/phase1-vision/a11y-audit/vpat-report.js
+// figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/vpat-report.js
 var require_vpat_report = __commonJS({
-  "dist/tools/phase1-vision/a11y-audit/vpat-report.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/vpat-report.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildVPATReport = buildVPATReport;
@@ -45456,9 +45473,9 @@ MANUAL VERIFY: ${criterion.manualGuidance}`;
   }
 });
 
-// dist/tools/phase1-vision/a11y-audit/vpat-figma-page.js
+// figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/vpat-figma-page.js
 var require_vpat_figma_page = __commonJS({
-  "dist/tools/phase1-vision/a11y-audit/vpat-figma-page.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/vpat-figma-page.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.renderVPATPage = renderVPATPage;
@@ -45882,9 +45899,9 @@ await lf("r",[{family:"Inter",style:"Regular"},{family:"Roboto",style:"Regular"}
   }
 });
 
-// dist/tools/phase1-vision/a11y-audit/index.js
+// figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/index.js
 var require_a11y_audit = __commonJS({
-  "dist/tools/phase1-vision/a11y-audit/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.a11yAuditHandler = a11yAuditHandler;
@@ -46439,9 +46456,9 @@ var require_a11y_audit = __commonJS({
   }
 });
 
-// dist/tools/phase1-vision/a11y-audit/keyboard-sr-order-analyzer.js
+// figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/keyboard-sr-order-analyzer.js
 var require_keyboard_sr_order_analyzer = __commonJS({
-  "dist/tools/phase1-vision/a11y-audit/keyboard-sr-order-analyzer.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/keyboard-sr-order-analyzer.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.analyzeKeyboardAndScreenReaderOrder = analyzeKeyboardAndScreenReaderOrder;
@@ -47208,9 +47225,9 @@ var require_keyboard_sr_order_analyzer = __commonJS({
   }
 });
 
-// dist/tools/phase1-vision/a11y-audit/keyboard-sr-order-figma-page.js
+// figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/keyboard-sr-order-figma-page.js
 var require_keyboard_sr_order_figma_page = __commonJS({
-  "dist/tools/phase1-vision/a11y-audit/keyboard-sr-order-figma-page.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/keyboard-sr-order-figma-page.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.renderKeyboardSrOrderPage = renderKeyboardSrOrderPage;
@@ -48415,9 +48432,9 @@ await lf("mono",[{family:"Roboto Mono",style:"Regular"},{family:"Courier New",st
   }
 });
 
-// dist/tools/phase1-vision/a11y-audit/keyboard-sr-order-handler.js
+// figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/keyboard-sr-order-handler.js
 var require_keyboard_sr_order_handler = __commonJS({
-  "dist/tools/phase1-vision/a11y-audit/keyboard-sr-order-handler.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/keyboard-sr-order-handler.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.keyboardSrOrderHandler = keyboardSrOrderHandler;
@@ -48528,9 +48545,9 @@ var require_keyboard_sr_order_handler = __commonJS({
   }
 });
 
-// dist/tools/phase1-vision/a11y-audit/a11y-annotation-kit.js
+// figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/a11y-annotation-kit.js
 var require_a11y_annotation_kit = __commonJS({
-  "dist/tools/phase1-vision/a11y-audit/a11y-annotation-kit.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/a11y-annotation-kit.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.DETAILS_CARD_SPECS = exports2.STAMP_SPECS = exports2.ANNOTATION_TYPES = exports2.ANNOTATION_COLORS = void 0;
@@ -48770,9 +48787,9 @@ var require_a11y_annotation_kit = __commonJS({
   }
 });
 
-// dist/tools/phase1-vision/a11y-audit/a11y-annotate-renderer.js
+// figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/a11y-annotate-renderer.js
 var require_a11y_annotate_renderer = __commonJS({
-  "dist/tools/phase1-vision/a11y-audit/a11y-annotate-renderer.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/a11y-annotate-renderer.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.renderAnnotationPage = renderAnnotationPage;
@@ -49192,9 +49209,9 @@ await lf("r",[{family:"Inter",style:"Regular"},{family:"Roboto",style:"Regular"}
   }
 });
 
-// dist/tools/phase1-vision/a11y-audit/a11y-annotate-handler.js
+// figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/a11y-annotate-handler.js
 var require_a11y_annotate_handler = __commonJS({
-  "dist/tools/phase1-vision/a11y-audit/a11y-annotate-handler.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase1-vision/a11y-audit/a11y-annotate-handler.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.a11yAnnotateHandler = a11yAnnotateHandler;
@@ -49733,9 +49750,9 @@ var require_a11y_annotate_handler = __commonJS({
   }
 });
 
-// dist/tools/phase1-vision/sketch-to-design/index.js
+// figma-intelligence-layer/dist/tools/phase1-vision/sketch-to-design/index.js
 var require_sketch_to_design = __commonJS({
-  "dist/tools/phase1-vision/sketch-to-design/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase1-vision/sketch-to-design/index.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -49937,9 +49954,9 @@ var require_sketch_to_design = __commonJS({
   }
 });
 
-// dist/tools/phase1-vision/design-from-ref/index.js
+// figma-intelligence-layer/dist/tools/phase1-vision/design-from-ref/index.js
 var require_design_from_ref = __commonJS({
-  "dist/tools/phase1-vision/design-from-ref/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase1-vision/design-from-ref/index.js"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -50280,9 +50297,9 @@ var require_design_from_ref = __commonJS({
   }
 });
 
-// dist/tools/phase2-accuracy/intent-translator/index.js
+// figma-intelligence-layer/dist/tools/phase2-accuracy/intent-translator/index.js
 var require_intent_translator = __commonJS({
-  "dist/tools/phase2-accuracy/intent-translator/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase2-accuracy/intent-translator/index.js"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -50541,9 +50558,9 @@ var require_intent_translator = __commonJS({
   }
 });
 
-// dist/shared/auto-layout-validator.js
+// figma-intelligence-layer/dist/shared/auto-layout-validator.js
 var require_auto_layout_validator = __commonJS({
-  "dist/shared/auto-layout-validator.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/auto-layout-validator.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.generateValidatorScript = generateValidatorScript;
@@ -50925,9 +50942,9 @@ var require_auto_layout_validator = __commonJS({
   }
 });
 
-// dist/tools/phase2-accuracy/layout-intelligence/index.js
+// figma-intelligence-layer/dist/tools/phase2-accuracy/layout-intelligence/index.js
 var require_layout_intelligence = __commonJS({
-  "dist/tools/phase2-accuracy/layout-intelligence/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase2-accuracy/layout-intelligence/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.layoutIntelligenceHandler = layoutIntelligenceHandler;
@@ -51487,9 +51504,9 @@ var require_layout_intelligence = __commonJS({
   }
 });
 
-// dist/shared/font-config.js
+// figma-intelligence-layer/dist/shared/font-config.js
 var require_font_config = __commonJS({
-  "dist/shared/font-config.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/font-config.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.DEFAULT_FONT_CONFIG = void 0;
@@ -51573,9 +51590,9 @@ var require_font_config = __commonJS({
   }
 });
 
-// dist/tools/phase2-accuracy/variant-expander/token-override-maps.js
+// figma-intelligence-layer/dist/tools/phase2-accuracy/variant-expander/token-override-maps.js
 var require_token_override_maps = __commonJS({
-  "dist/tools/phase2-accuracy/variant-expander/token-override-maps.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase2-accuracy/variant-expander/token-override-maps.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.DIMENSION_OVERRIDES = exports2.TYPE_OVERRIDES = exports2.THEME_OVERRIDES = exports2.SIZE_OVERRIDES = exports2.STATE_OVERRIDES = void 0;
@@ -51752,9 +51769,9 @@ var require_token_override_maps = __commonJS({
   }
 });
 
-// dist/tools/phase2-accuracy/variant-expander/index.js
+// figma-intelligence-layer/dist/tools/phase2-accuracy/variant-expander/index.js
 var require_variant_expander = __commonJS({
-  "dist/tools/phase2-accuracy/variant-expander/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase2-accuracy/variant-expander/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.variantExpanderHandler = variantExpanderHandler;
@@ -52018,9 +52035,9 @@ var require_variant_expander = __commonJS({
   }
 });
 
-// dist/tools/phase2-accuracy/theme-generator/index.js
+// figma-intelligence-layer/dist/tools/phase2-accuracy/theme-generator/index.js
 var require_theme_generator = __commonJS({
-  "dist/tools/phase2-accuracy/theme-generator/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase2-accuracy/theme-generator/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.themeGeneratorHandler = themeGeneratorHandler;
@@ -52353,9 +52370,9 @@ var require_theme_generator = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/common.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/common.js
 var require_common = __commonJS({
-  "node_modules/js-yaml/lib/common.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/common.js"(exports2, module2) {
     "use strict";
     function isNothing(subject) {
       return typeof subject === "undefined" || subject === null;
@@ -52398,9 +52415,9 @@ var require_common = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/exception.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/exception.js
 var require_exception = __commonJS({
-  "node_modules/js-yaml/lib/exception.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/exception.js"(exports2, module2) {
     "use strict";
     function formatError(exception, compact) {
       var where = "", message = exception.reason || "(unknown reason)";
@@ -52435,9 +52452,9 @@ var require_exception = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/snippet.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/snippet.js
 var require_snippet = __commonJS({
-  "node_modules/js-yaml/lib/snippet.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/snippet.js"(exports2, module2) {
     "use strict";
     var common = require_common();
     function getLine(buffer, lineStart, lineEnd, position, maxLineLength) {
@@ -52515,9 +52532,9 @@ var require_snippet = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/type.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/type.js
 var require_type = __commonJS({
-  "node_modules/js-yaml/lib/type.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/type.js"(exports2, module2) {
     "use strict";
     var YAMLException = require_exception();
     var TYPE_CONSTRUCTOR_OPTIONS = [
@@ -52579,9 +52596,9 @@ var require_type = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/schema.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/schema.js
 var require_schema = __commonJS({
-  "node_modules/js-yaml/lib/schema.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/schema.js"(exports2, module2) {
     "use strict";
     var YAMLException = require_exception();
     var Type = require_type();
@@ -52668,9 +52685,9 @@ var require_schema = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/type/str.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/type/str.js
 var require_str = __commonJS({
-  "node_modules/js-yaml/lib/type/str.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/type/str.js"(exports2, module2) {
     "use strict";
     var Type = require_type();
     module2.exports = new Type("tag:yaml.org,2002:str", {
@@ -52682,9 +52699,9 @@ var require_str = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/type/seq.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/type/seq.js
 var require_seq = __commonJS({
-  "node_modules/js-yaml/lib/type/seq.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/type/seq.js"(exports2, module2) {
     "use strict";
     var Type = require_type();
     module2.exports = new Type("tag:yaml.org,2002:seq", {
@@ -52696,9 +52713,9 @@ var require_seq = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/type/map.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/type/map.js
 var require_map2 = __commonJS({
-  "node_modules/js-yaml/lib/type/map.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/type/map.js"(exports2, module2) {
     "use strict";
     var Type = require_type();
     module2.exports = new Type("tag:yaml.org,2002:map", {
@@ -52710,9 +52727,9 @@ var require_map2 = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/schema/failsafe.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/schema/failsafe.js
 var require_failsafe = __commonJS({
-  "node_modules/js-yaml/lib/schema/failsafe.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/schema/failsafe.js"(exports2, module2) {
     "use strict";
     var Schema = require_schema();
     module2.exports = new Schema({
@@ -52725,9 +52742,9 @@ var require_failsafe = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/type/null.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/type/null.js
 var require_null2 = __commonJS({
-  "node_modules/js-yaml/lib/type/null.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/type/null.js"(exports2, module2) {
     "use strict";
     var Type = require_type();
     function resolveYamlNull(data) {
@@ -52768,9 +52785,9 @@ var require_null2 = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/type/bool.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/type/bool.js
 var require_bool = __commonJS({
-  "node_modules/js-yaml/lib/type/bool.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/type/bool.js"(exports2, module2) {
     "use strict";
     var Type = require_type();
     function resolveYamlBoolean(data) {
@@ -52805,9 +52822,9 @@ var require_bool = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/type/int.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/type/int.js
 var require_int = __commonJS({
-  "node_modules/js-yaml/lib/type/int.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/type/int.js"(exports2, module2) {
     "use strict";
     var common = require_common();
     var Type = require_type();
@@ -52927,9 +52944,9 @@ var require_int = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/type/float.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/type/float.js
 var require_float = __commonJS({
-  "node_modules/js-yaml/lib/type/float.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/type/float.js"(exports2, module2) {
     "use strict";
     var common = require_common();
     var Type = require_type();
@@ -53010,9 +53027,9 @@ var require_float = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/schema/json.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/schema/json.js
 var require_json = __commonJS({
-  "node_modules/js-yaml/lib/schema/json.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/schema/json.js"(exports2, module2) {
     "use strict";
     module2.exports = require_failsafe().extend({
       implicit: [
@@ -53025,17 +53042,17 @@ var require_json = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/schema/core.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/schema/core.js
 var require_core5 = __commonJS({
-  "node_modules/js-yaml/lib/schema/core.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/schema/core.js"(exports2, module2) {
     "use strict";
     module2.exports = require_json();
   }
 });
 
-// node_modules/js-yaml/lib/type/timestamp.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/type/timestamp.js
 var require_timestamp = __commonJS({
-  "node_modules/js-yaml/lib/type/timestamp.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/type/timestamp.js"(exports2, module2) {
     "use strict";
     var Type = require_type();
     var YAML_DATE_REGEXP = new RegExp(
@@ -53094,9 +53111,9 @@ var require_timestamp = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/type/merge.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/type/merge.js
 var require_merge = __commonJS({
-  "node_modules/js-yaml/lib/type/merge.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/type/merge.js"(exports2, module2) {
     "use strict";
     var Type = require_type();
     function resolveYamlMerge(data) {
@@ -53109,9 +53126,9 @@ var require_merge = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/type/binary.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/type/binary.js
 var require_binary = __commonJS({
-  "node_modules/js-yaml/lib/type/binary.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/type/binary.js"(exports2, module2) {
     "use strict";
     var Type = require_type();
     var BASE64_MAP = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=\n\r";
@@ -53192,9 +53209,9 @@ var require_binary = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/type/omap.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/type/omap.js
 var require_omap = __commonJS({
-  "node_modules/js-yaml/lib/type/omap.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/type/omap.js"(exports2, module2) {
     "use strict";
     var Type = require_type();
     var _hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -53229,9 +53246,9 @@ var require_omap = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/type/pairs.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/type/pairs.js
 var require_pairs = __commonJS({
-  "node_modules/js-yaml/lib/type/pairs.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/type/pairs.js"(exports2, module2) {
     "use strict";
     var Type = require_type();
     var _toString = Object.prototype.toString;
@@ -53267,9 +53284,9 @@ var require_pairs = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/type/set.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/type/set.js
 var require_set2 = __commonJS({
-  "node_modules/js-yaml/lib/type/set.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/type/set.js"(exports2, module2) {
     "use strict";
     var Type = require_type();
     var _hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -53294,9 +53311,9 @@ var require_set2 = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/schema/default.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/schema/default.js
 var require_default2 = __commonJS({
-  "node_modules/js-yaml/lib/schema/default.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/schema/default.js"(exports2, module2) {
     "use strict";
     module2.exports = require_core5().extend({
       implicit: [
@@ -53313,9 +53330,9 @@ var require_default2 = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/loader.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/loader.js
 var require_loader = __commonJS({
-  "node_modules/js-yaml/lib/loader.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/loader.js"(exports2, module2) {
     "use strict";
     var common = require_common();
     var YAMLException = require_exception();
@@ -54477,9 +54494,9 @@ var require_loader = __commonJS({
   }
 });
 
-// node_modules/js-yaml/lib/dumper.js
+// figma-intelligence-layer/node_modules/js-yaml/lib/dumper.js
 var require_dumper = __commonJS({
-  "node_modules/js-yaml/lib/dumper.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/lib/dumper.js"(exports2, module2) {
     "use strict";
     var common = require_common();
     var YAMLException = require_exception();
@@ -55106,9 +55123,9 @@ var require_dumper = __commonJS({
   }
 });
 
-// node_modules/js-yaml/index.js
+// figma-intelligence-layer/node_modules/js-yaml/index.js
 var require_js_yaml = __commonJS({
-  "node_modules/js-yaml/index.js"(exports2, module2) {
+  "figma-intelligence-layer/node_modules/js-yaml/index.js"(exports2, module2) {
     "use strict";
     var loader = require_loader();
     var dumper = require_dumper();
@@ -55148,9 +55165,9 @@ var require_js_yaml = __commonJS({
   }
 });
 
-// dist/tools/phase2-accuracy/lint-rules/index.js
+// figma-intelligence-layer/dist/tools/phase2-accuracy/lint-rules/index.js
 var require_lint_rules = __commonJS({
-  "dist/tools/phase2-accuracy/lint-rules/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase2-accuracy/lint-rules/index.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -55587,9 +55604,9 @@ var require_lint_rules = __commonJS({
   }
 });
 
-// dist/tools/phase2-accuracy/component-audit/index.js
+// figma-intelligence-layer/dist/tools/phase2-accuracy/component-audit/index.js
 var require_component_audit = __commonJS({
-  "dist/tools/phase2-accuracy/component-audit/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase2-accuracy/component-audit/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.componentAuditHandler = componentAuditHandler;
@@ -55877,9 +55894,9 @@ var require_component_audit = __commonJS({
   }
 });
 
-// dist/tools/phase3-generation/component-archaeologist/index.js
+// figma-intelligence-layer/dist/tools/phase3-generation/component-archaeologist/index.js
 var require_component_archaeologist = __commonJS({
-  "dist/tools/phase3-generation/component-archaeologist/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase3-generation/component-archaeologist/index.js"(exports2) {
     "use strict";
     var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -56371,9 +56388,9 @@ import { ${bestMatch.replace(/\s+/g, "")} } from "@ds/components";
   }
 });
 
-// dist/shared/prototype-script-builder.js
+// figma-intelligence-layer/dist/shared/prototype-script-builder.js
 var require_prototype_script_builder = __commonJS({
-  "dist/shared/prototype-script-builder.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/prototype-script-builder.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildWireScript = buildWireScript;
@@ -56469,9 +56486,9 @@ var require_prototype_script_builder = __commonJS({
   }
 });
 
-// dist/shared/unsplash.js
+// figma-intelligence-layer/dist/shared/unsplash.js
 var require_unsplash = __commonJS({
-  "dist/shared/unsplash.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/unsplash.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.searchUnsplashPhotos = searchUnsplashPhotos;
@@ -56575,9 +56592,9 @@ var require_unsplash = __commonJS({
   }
 });
 
-// dist/tools/phase3-generation/page-architect/index.js
+// figma-intelligence-layer/dist/tools/phase3-generation/page-architect/index.js
 var require_page_architect = __commonJS({
-  "dist/tools/phase3-generation/page-architect/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase3-generation/page-architect/index.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -58058,9 +58075,9 @@ Rules:
   }
 });
 
-// dist/tools/phase3-generation/ai-image-insert/index.js
+// figma-intelligence-layer/dist/tools/phase3-generation/ai-image-insert/index.js
 var require_ai_image_insert = __commonJS({
-  "dist/tools/phase3-generation/ai-image-insert/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase3-generation/ai-image-insert/index.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -58466,9 +58483,9 @@ Visual style: ${cleanStyle}`;
   }
 });
 
-// dist/tools/phase3-generation/unsplash-search/index.js
+// figma-intelligence-layer/dist/tools/phase3-generation/unsplash-search/index.js
 var require_unsplash_search = __commonJS({
-  "dist/tools/phase3-generation/unsplash-search/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase3-generation/unsplash-search/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.figmaUnsplashSearchHandler = figmaUnsplashSearchHandler;
@@ -58518,15 +58535,22 @@ var require_unsplash_search = __commonJS({
   }
 });
 
-// dist/tools/phase3-generation/url-to-frame/index.js
+// figma-intelligence-layer/node_modules/playwright/index.js
+var require_playwright = __commonJS({
+  "figma-intelligence-layer/node_modules/playwright/index.js"(exports2, module2) {
+    module2.exports = require("playwright-core");
+  }
+});
+
+// figma-intelligence-layer/dist/tools/phase3-generation/url-to-frame/index.js
 var require_url_to_frame = __commonJS({
-  "dist/tools/phase3-generation/url-to-frame/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase3-generation/url-to-frame/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.urlToFrameHandler = urlToFrameHandler;
     var chromium;
     try {
-      const pw = require("playwright");
+      const pw = require_playwright();
       chromium = pw.chromium;
     } catch {
     }
@@ -58776,9 +58800,9 @@ Return ONLY a valid JSON array, no markdown.`);
   }
 });
 
-// dist/tools/phase3-generation/system-drift/index.js
+// figma-intelligence-layer/dist/tools/phase3-generation/system-drift/index.js
 var require_system_drift = __commonJS({
-  "dist/tools/phase3-generation/system-drift/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase3-generation/system-drift/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.systemDriftHandler = systemDriftHandler;
@@ -59099,9 +59123,9 @@ var require_system_drift = __commonJS({
   }
 });
 
-// dist/tools/phase3-generation/prototype-map/index.js
+// figma-intelligence-layer/dist/tools/phase3-generation/prototype-map/index.js
 var require_prototype_map = __commonJS({
-  "dist/tools/phase3-generation/prototype-map/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase3-generation/prototype-map/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prototypeMapHandler = prototypeMapHandler;
@@ -59324,9 +59348,9 @@ var require_prototype_map = __commonJS({
   }
 });
 
-// dist/tools/phase3-generation/prototype-wire/index.js
+// figma-intelligence-layer/dist/tools/phase3-generation/prototype-wire/index.js
 var require_prototype_wire = __commonJS({
-  "dist/tools/phase3-generation/prototype-wire/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase3-generation/prototype-wire/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prototypeScanHandler = prototypeScanHandler;
@@ -59782,9 +59806,9 @@ var require_prototype_wire = __commonJS({
   }
 });
 
-// dist/tools/phase3-generation/figma-animated-build.js
+// figma-intelligence-layer/dist/tools/phase3-generation/figma-animated-build.js
 var require_figma_animated_build = __commonJS({
-  "dist/tools/phase3-generation/figma-animated-build.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase3-generation/figma-animated-build.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.animatedBuildHandler = animatedBuildHandler;
@@ -60104,9 +60128,9 @@ var require_figma_animated_build = __commonJS({
   }
 });
 
-// dist/shared/component-templates.js
+// figma-intelligence-layer/dist/shared/component-templates.js
 var require_component_templates = __commonJS({
-  "dist/shared/component-templates.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/component-templates.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.COMPONENT_BLUEPRINTS = void 0;
@@ -62753,9 +62777,9 @@ var require_component_templates = __commonJS({
   }
 });
 
-// dist/tools/phase3-generation/composition-builder/index.js
+// figma-intelligence-layer/dist/tools/phase3-generation/composition-builder/index.js
 var require_composition_builder = __commonJS({
-  "dist/tools/phase3-generation/composition-builder/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase3-generation/composition-builder/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.compositionBuilderHandler = compositionBuilderHandler;
@@ -63183,9 +63207,9 @@ var require_composition_builder = __commonJS({
   }
 });
 
-// dist/tools/phase3-generation/swarm-build/index.js
+// figma-intelligence-layer/dist/tools/phase3-generation/swarm-build/index.js
 var require_swarm_build = __commonJS({
-  "dist/tools/phase3-generation/swarm-build/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase3-generation/swarm-build/index.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -63788,9 +63812,9 @@ Return ONLY valid JSON (no markdown):
   }
 });
 
-// dist/tools/phase4-sync/animation-specifier/index.js
+// figma-intelligence-layer/dist/tools/phase4-sync/animation-specifier/index.js
 var require_animation_specifier = __commonJS({
-  "dist/tools/phase4-sync/animation-specifier/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase4-sync/animation-specifier/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.animationSpecifierHandler = animationSpecifierHandler;
@@ -64241,9 +64265,9 @@ var require_animation_specifier = __commonJS({
   }
 });
 
-// dist/tools/phase4-sync/sync-from-code/index.js
+// figma-intelligence-layer/dist/tools/phase4-sync/sync-from-code/index.js
 var require_sync_from_code = __commonJS({
-  "dist/tools/phase4-sync/sync-from-code/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase4-sync/sync-from-code/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.syncFromCodeHandler = syncFromCodeHandler;
@@ -64527,9 +64551,9 @@ var require_sync_from_code = __commonJS({
   }
 });
 
-// dist/shared/semantic-token-catalog.js
+// figma-intelligence-layer/dist/shared/semantic-token-catalog.js
 var require_semantic_token_catalog = __commonJS({
-  "dist/shared/semantic-token-catalog.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/semantic-token-catalog.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.SEMANTIC_TOKEN_CATALOG = void 0;
@@ -64769,9 +64793,9 @@ var require_semantic_token_catalog = __commonJS({
   }
 });
 
-// dist/shared/token-math.js
+// figma-intelligence-layer/dist/shared/token-math.js
 var require_token_math = __commonJS({
-  "dist/shared/token-math.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/token-math.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.SCALE_RATIOS = void 0;
@@ -65053,9 +65077,9 @@ var require_token_math = __commonJS({
   }
 });
 
-// dist/tools/phase4-sync/export-tokens/index.js
+// figma-intelligence-layer/dist/tools/phase4-sync/export-tokens/index.js
 var require_export_tokens = __commonJS({
-  "dist/tools/phase4-sync/export-tokens/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase4-sync/export-tokens/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.exportTokensHandler = exportTokensHandler;
@@ -66250,9 +66274,9 @@ var require_export_tokens = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/extractors/snapshot.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/extractors/snapshot.js
 var require_snapshot = __commonJS({
-  "dist/tools/phase5-governance/component-spec/extractors/snapshot.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/extractors/snapshot.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.resolveTargetNodeId = resolveTargetNodeId;
@@ -66543,9 +66567,9 @@ var require_snapshot = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/extractors/anatomy.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/extractors/anatomy.js
 var require_anatomy = __commonJS({
-  "dist/tools/phase5-governance/component-spec/extractors/anatomy.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/extractors/anatomy.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.extractAnatomy = extractAnatomy;
@@ -66835,9 +66859,9 @@ var require_anatomy = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/extractors/properties.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/extractors/properties.js
 var require_properties2 = __commonJS({
-  "dist/tools/phase5-governance/component-spec/extractors/properties.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/extractors/properties.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.extractProperties = extractProperties;
@@ -66886,9 +66910,9 @@ var require_properties2 = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/extractors/states.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/extractors/states.js
 var require_states = __commonJS({
-  "dist/tools/phase5-governance/component-spec/extractors/states.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/extractors/states.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.extractStates = extractStates;
@@ -66928,9 +66952,9 @@ var require_states = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/extractors/spacing.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/extractors/spacing.js
 var require_spacing = __commonJS({
-  "dist/tools/phase5-governance/component-spec/extractors/spacing.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/extractors/spacing.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.extractSpacing = extractSpacing;
@@ -67003,9 +67027,9 @@ var require_spacing = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/extractors/color-tokens.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/extractors/color-tokens.js
 var require_color_tokens = __commonJS({
-  "dist/tools/phase5-governance/component-spec/extractors/color-tokens.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/extractors/color-tokens.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.extractColorTokens = extractColorTokens;
@@ -67084,9 +67108,9 @@ var require_color_tokens = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/extractors/typography.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/extractors/typography.js
 var require_typography = __commonJS({
-  "dist/tools/phase5-governance/component-spec/extractors/typography.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/extractors/typography.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.extractTypography = extractTypography;
@@ -67159,9 +67183,9 @@ var require_typography = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/component-detection.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/component-detection.js
 var require_component_detection = __commonJS({
-  "dist/tools/phase5-governance/component-spec/component-detection.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/component-detection.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.detectComponentType = detectComponentType;
@@ -67777,9 +67801,9 @@ var require_component_detection = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/button.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/button.js
 var require_button = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/button.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/button.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buttonKnowledge = void 0;
@@ -68009,9 +68033,9 @@ var require_button = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/checkbox.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/checkbox.js
 var require_checkbox = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/checkbox.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/checkbox.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.checkboxKnowledge = void 0;
@@ -68225,9 +68249,9 @@ var require_checkbox = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/input.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/input.js
 var require_input = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/input.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/input.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.inputKnowledge = void 0;
@@ -68522,9 +68546,9 @@ var require_input = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/select.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/select.js
 var require_select = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/select.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/select.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.selectKnowledge = void 0;
@@ -68809,9 +68833,9 @@ var require_select = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/toggle.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/toggle.js
 var require_toggle = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/toggle.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/toggle.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.toggleKnowledge = void 0;
@@ -69066,9 +69090,9 @@ var require_toggle = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/radio.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/radio.js
 var require_radio = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/radio.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/radio.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.radioKnowledge = void 0;
@@ -69200,9 +69224,9 @@ var require_radio = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/modal.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/modal.js
 var require_modal = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/modal.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/modal.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.modalKnowledge = void 0;
@@ -69336,9 +69360,9 @@ var require_modal = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/tabs.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/tabs.js
 var require_tabs = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/tabs.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/tabs.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.tabsKnowledge = void 0;
@@ -69471,9 +69495,9 @@ var require_tabs = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/card.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/card.js
 var require_card = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/card.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/card.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.cardKnowledge = void 0;
@@ -69606,9 +69630,9 @@ var require_card = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/toast.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/toast.js
 var require_toast = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/toast.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/toast.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.toastKnowledge = void 0;
@@ -69742,9 +69766,9 @@ var require_toast = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/accordion.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/accordion.js
 var require_accordion = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/accordion.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/accordion.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.accordionKnowledge = void 0;
@@ -69963,9 +69987,9 @@ var require_accordion = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/tooltip.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/tooltip.js
 var require_tooltip = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/tooltip.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/tooltip.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.tooltipKnowledge = void 0;
@@ -70184,9 +70208,9 @@ var require_tooltip = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/slider.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/slider.js
 var require_slider = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/slider.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/slider.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.sliderKnowledge = void 0;
@@ -70405,9 +70429,9 @@ var require_slider = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/alert.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/alert.js
 var require_alert = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/alert.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/alert.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.alertKnowledge = void 0;
@@ -70628,9 +70652,9 @@ var require_alert = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/badge.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/badge.js
 var require_badge = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/badge.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/badge.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.badgeKnowledge = void 0;
@@ -70848,9 +70872,9 @@ var require_badge = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/avatar.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/avatar.js
 var require_avatar = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/avatar.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/avatar.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.avatarKnowledge = void 0;
@@ -71086,9 +71110,9 @@ var require_avatar = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/chip.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/chip.js
 var require_chip = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/chip.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/chip.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.chipKnowledge = void 0;
@@ -71308,9 +71332,9 @@ var require_chip = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/table.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/table.js
 var require_table = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/table.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/table.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.tableKnowledge = void 0;
@@ -71541,9 +71565,9 @@ var require_table = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/navigation.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/navigation.js
 var require_navigation = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/navigation.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/navigation.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.navigationKnowledge = void 0;
@@ -71781,9 +71805,9 @@ var require_navigation = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/progress.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/progress.js
 var require_progress = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/progress.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/progress.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.progressKnowledge = void 0;
@@ -72021,9 +72045,9 @@ var require_progress = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/icon.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/icon.js
 var require_icon = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/icon.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/icon.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.iconKnowledge = void 0;
@@ -72265,9 +72289,9 @@ var require_icon = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/link.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/link.js
 var require_link = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/link.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/link.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.linkKnowledge = void 0;
@@ -72501,9 +72525,9 @@ var require_link = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/menu.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/menu.js
 var require_menu = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/menu.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/menu.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.menuKnowledge = void 0;
@@ -72737,9 +72761,9 @@ var require_menu = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/spinner.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/spinner.js
 var require_spinner = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/spinner.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/spinner.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.spinnerKnowledge = void 0;
@@ -72965,9 +72989,9 @@ var require_spinner = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/breadcrumb.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/breadcrumb.js
 var require_breadcrumb = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/breadcrumb.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/breadcrumb.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.breadcrumbKnowledge = void 0;
@@ -73194,9 +73218,9 @@ var require_breadcrumb = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/tag.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/tag.js
 var require_tag = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/tag.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/tag.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.tagKnowledge = void 0;
@@ -73426,9 +73450,9 @@ var require_tag = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/navbar.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/navbar.js
 var require_navbar = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/navbar.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/navbar.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.navbarKnowledge = void 0;
@@ -73679,9 +73703,9 @@ var require_navbar = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/textarea.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/textarea.js
 var require_textarea = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/textarea.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/textarea.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.textareaKnowledge = void 0;
@@ -73927,9 +73951,9 @@ var require_textarea = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/search.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/search.js
 var require_search = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/search.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/search.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.searchKnowledge = void 0;
@@ -74174,9 +74198,9 @@ var require_search = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/combobox.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/combobox.js
 var require_combobox = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/combobox.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/combobox.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.comboboxKnowledge = void 0;
@@ -74445,9 +74469,9 @@ var require_combobox = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/datepicker.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/datepicker.js
 var require_datepicker = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/datepicker.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/datepicker.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.datepickerKnowledge = void 0;
@@ -74710,9 +74734,9 @@ var require_datepicker = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/number-input.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/number-input.js
 var require_number_input = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/number-input.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/number-input.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.numberInputKnowledge = void 0;
@@ -74960,9 +74984,9 @@ var require_number_input = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/form.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/form.js
 var require_form = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/form.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/form.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.formKnowledge = void 0;
@@ -75214,9 +75238,9 @@ var require_form = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/pagination.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/pagination.js
 var require_pagination = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/pagination.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/pagination.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.paginationKnowledge = void 0;
@@ -75451,9 +75475,9 @@ var require_pagination = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/list.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/list.js
 var require_list = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/list.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/list.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.listKnowledge = void 0;
@@ -75690,9 +75714,9 @@ var require_list = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/treeview.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/treeview.js
 var require_treeview = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/treeview.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/treeview.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.treeviewKnowledge = void 0;
@@ -75936,9 +75960,9 @@ var require_treeview = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/typography.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/typography.js
 var require_typography2 = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/typography.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/typography.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.typographyKnowledge = void 0;
@@ -76244,9 +76268,9 @@ var require_typography2 = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/divider.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/divider.js
 var require_divider = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/divider.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/divider.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.dividerKnowledge = void 0;
@@ -76456,9 +76480,9 @@ var require_divider = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/skeleton.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/skeleton.js
 var require_skeleton = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/skeleton.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/skeleton.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.skeletonKnowledge = void 0;
@@ -76701,9 +76725,9 @@ var require_skeleton = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/popover.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/popover.js
 var require_popover = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/popover.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/popover.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.popoverKnowledge = void 0;
@@ -76960,9 +76984,9 @@ var require_popover = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/dropdown-menu.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/dropdown-menu.js
 var require_dropdown_menu = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/dropdown-menu.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/dropdown-menu.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.dropdownMenuKnowledge = void 0;
@@ -77238,9 +77262,9 @@ var require_dropdown_menu = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/avatar-group.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/avatar-group.js
 var require_avatar_group = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/avatar-group.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/avatar-group.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.avatarGroupKnowledge = void 0;
@@ -77497,9 +77521,9 @@ var require_avatar_group = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/grid.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/grid.js
 var require_grid = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/grid.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/grid.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.gridKnowledge = void 0;
@@ -77724,9 +77748,9 @@ var require_grid = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/empty-state.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/empty-state.js
 var require_empty_state = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/empty-state.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/empty-state.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.emptyStateKnowledge = void 0;
@@ -77974,9 +77998,9 @@ var require_empty_state = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/banner.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/banner.js
 var require_banner = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/banner.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/banner.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.bannerKnowledge = void 0;
@@ -78256,9 +78280,9 @@ var require_banner = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/drawer.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/drawer.js
 var require_drawer = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/drawer.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/drawer.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.drawerKnowledge = void 0;
@@ -78500,9 +78524,9 @@ var require_drawer = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/segmented-control.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/segmented-control.js
 var require_segmented_control = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/segmented-control.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/segmented-control.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.segmentedControlKnowledge = void 0;
@@ -78754,9 +78778,9 @@ var require_segmented_control = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/stepper.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/stepper.js
 var require_stepper = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/stepper.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/stepper.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.stepperKnowledge = void 0;
@@ -79013,9 +79037,9 @@ var require_stepper = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/file-uploader.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/file-uploader.js
 var require_file_uploader = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/file-uploader.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/file-uploader.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.fileUploaderKnowledge = void 0;
@@ -79292,9 +79316,9 @@ var require_file_uploader = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/inline-message.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/inline-message.js
 var require_inline_message = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/inline-message.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/inline-message.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.inlineMessageKnowledge = void 0;
@@ -79536,9 +79560,9 @@ var require_inline_message = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/toolbar.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/toolbar.js
 var require_toolbar = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/toolbar.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/toolbar.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.toolbarKnowledge = void 0;
@@ -79792,9 +79816,9 @@ var require_toolbar = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/calendar.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/calendar.js
 var require_calendar = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/calendar.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/calendar.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.calendarKnowledge = void 0;
@@ -80088,9 +80112,9 @@ var require_calendar = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/time-picker.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/time-picker.js
 var require_time_picker = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/time-picker.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/time-picker.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.timePickerKnowledge = void 0;
@@ -80370,9 +80394,9 @@ var require_time_picker = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/range-slider.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/range-slider.js
 var require_range_slider = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/range-slider.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/range-slider.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.rangeSliderKnowledge = void 0;
@@ -80641,9 +80665,9 @@ var require_range_slider = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/inline-edit.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/inline-edit.js
 var require_inline_edit = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/inline-edit.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/inline-edit.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.inlineEditKnowledge = void 0;
@@ -80916,9 +80940,9 @@ var require_inline_edit = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/status-dot.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/status-dot.js
 var require_status_dot = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/status-dot.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/status-dot.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.statusDotKnowledge = void 0;
@@ -81157,9 +81181,9 @@ var require_status_dot = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/rating.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/rating.js
 var require_rating = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/rating.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/rating.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.ratingKnowledge = void 0;
@@ -81396,9 +81420,9 @@ var require_rating = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/_default.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/_default.js
 var require_default3 = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/_default.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/_default.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.defaultKnowledge = void 0;
@@ -81550,9 +81574,9 @@ var require_default3 = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/knowledge/index.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/index.js
 var require_knowledge = __commonJS({
-  "dist/tools/phase5-governance/component-spec/knowledge/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/knowledge/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getComponentKnowledge = getComponentKnowledge;
@@ -81681,9 +81705,9 @@ var require_knowledge = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/sections/overview.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/overview.js
 var require_overview = __commonJS({
-  "dist/tools/phase5-governance/component-spec/sections/overview.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/overview.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildOverviewSection = buildOverviewSection;
@@ -81756,9 +81780,9 @@ var require_overview = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/sections/anatomy.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/anatomy.js
 var require_anatomy2 = __commonJS({
-  "dist/tools/phase5-governance/component-spec/sections/anatomy.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/anatomy.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildAnatomySection = buildAnatomySection;
@@ -81789,9 +81813,9 @@ var require_anatomy2 = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/sections/variants.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/variants.js
 var require_variants = __commonJS({
-  "dist/tools/phase5-governance/component-spec/sections/variants.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/variants.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildVariantsSection = buildVariantsSection;
@@ -81861,9 +81885,9 @@ var require_variants = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/sections/states.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/states.js
 var require_states2 = __commonJS({
-  "dist/tools/phase5-governance/component-spec/sections/states.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/states.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildStatesSection = buildStatesSection;
@@ -81909,9 +81933,9 @@ var require_states2 = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/sections/state-specs.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/state-specs.js
 var require_state_specs = __commonJS({
-  "dist/tools/phase5-governance/component-spec/sections/state-specs.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/state-specs.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildStateSpecsSection = buildStateSpecsSection;
@@ -81977,9 +82001,9 @@ var require_state_specs = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/sections/properties-api.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/properties-api.js
 var require_properties_api = __commonJS({
-  "dist/tools/phase5-governance/component-spec/sections/properties-api.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/properties-api.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildPropertiesSection = buildPropertiesSection;
@@ -82039,9 +82063,9 @@ var require_properties_api = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/sections/size-specs.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/size-specs.js
 var require_size_specs = __commonJS({
-  "dist/tools/phase5-governance/component-spec/sections/size-specs.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/size-specs.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildSizeSpecsSection = buildSizeSpecsSection;
@@ -82091,9 +82115,9 @@ var require_size_specs = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/sections/spacing-structure.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/spacing-structure.js
 var require_spacing_structure = __commonJS({
-  "dist/tools/phase5-governance/component-spec/sections/spacing-structure.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/spacing-structure.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildSpacingSection = buildSpacingSection;
@@ -82144,9 +82168,9 @@ var require_spacing_structure = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/sections/color-tokens.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/color-tokens.js
 var require_color_tokens2 = __commonJS({
-  "dist/tools/phase5-governance/component-spec/sections/color-tokens.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/color-tokens.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildColorTokensSection = buildColorTokensSection;
@@ -82199,9 +82223,9 @@ var require_color_tokens2 = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/sections/design-tokens.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/design-tokens.js
 var require_design_tokens = __commonJS({
-  "dist/tools/phase5-governance/component-spec/sections/design-tokens.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/design-tokens.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildDesignTokensSection = buildDesignTokensSection;
@@ -82245,9 +82269,9 @@ var require_design_tokens = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/sections/typography.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/typography.js
 var require_typography3 = __commonJS({
-  "dist/tools/phase5-governance/component-spec/sections/typography.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/typography.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildTypographySection = buildTypographySection;
@@ -82299,9 +82323,9 @@ var require_typography3 = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/sections/type-hierarchy.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/type-hierarchy.js
 var require_type_hierarchy = __commonJS({
-  "dist/tools/phase5-governance/component-spec/sections/type-hierarchy.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/type-hierarchy.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildTypeHierarchySection = buildTypeHierarchySection;
@@ -82331,9 +82355,9 @@ var require_type_hierarchy = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/sections/interaction-rules.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/interaction-rules.js
 var require_interaction_rules = __commonJS({
-  "dist/tools/phase5-governance/component-spec/sections/interaction-rules.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/interaction-rules.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildInteractionRulesSection = buildInteractionRulesSection;
@@ -82354,9 +82378,9 @@ var require_interaction_rules = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/sections/content-guidance.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/content-guidance.js
 var require_content_guidance = __commonJS({
-  "dist/tools/phase5-governance/component-spec/sections/content-guidance.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/content-guidance.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildContentGuidanceSection = buildContentGuidanceSection;
@@ -82376,9 +82400,9 @@ var require_content_guidance = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/sections/responsive.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/responsive.js
 var require_responsive = __commonJS({
-  "dist/tools/phase5-governance/component-spec/sections/responsive.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/responsive.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildResponsiveSection = buildResponsiveSection;
@@ -82399,9 +82423,9 @@ var require_responsive = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/sections/accessibility.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/accessibility.js
 var require_accessibility = __commonJS({
-  "dist/tools/phase5-governance/component-spec/sections/accessibility.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/accessibility.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildAccessibilitySection = buildAccessibilitySection;
@@ -82492,9 +82516,9 @@ var require_accessibility = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/sections/qa-criteria.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/qa-criteria.js
 var require_qa_criteria = __commonJS({
-  "dist/tools/phase5-governance/component-spec/sections/qa-criteria.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/qa-criteria.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildQaCriteriaSection = buildQaCriteriaSection;
@@ -82515,9 +82539,9 @@ var require_qa_criteria = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/sections/usage-guidelines.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/usage-guidelines.js
 var require_usage_guidelines = __commonJS({
-  "dist/tools/phase5-governance/component-spec/sections/usage-guidelines.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/usage-guidelines.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildUsageSection = buildUsageSection;
@@ -82571,9 +82595,9 @@ var require_usage_guidelines = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/sections/related-components.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/related-components.js
 var require_related_components = __commonJS({
-  "dist/tools/phase5-governance/component-spec/sections/related-components.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/sections/related-components.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildRelatedSection = buildRelatedSection;
@@ -82676,9 +82700,9 @@ var require_related_components = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/renderers/markdown.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/renderers/markdown.js
 var require_markdown = __commonJS({
-  "dist/tools/phase5-governance/component-spec/renderers/markdown.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/renderers/markdown.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.renderMarkdown = renderMarkdown;
@@ -82752,9 +82776,9 @@ var require_markdown = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/renderers/anatomy-diagram.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/renderers/anatomy-diagram.js
 var require_anatomy_diagram = __commonJS({
-  "dist/tools/phase5-governance/component-spec/renderers/anatomy-diagram.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/renderers/anatomy-diagram.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.computeMarkerPositions = computeMarkerPositions;
@@ -83114,9 +83138,9 @@ var require_anatomy_diagram = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/renderers/visual-doc.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/renderers/visual-doc.js
 var require_visual_doc = __commonJS({
-  "dist/tools/phase5-governance/component-spec/renderers/visual-doc.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/renderers/visual-doc.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.renderVisualDoc = renderVisualDoc;
@@ -84924,9 +84948,9 @@ function extractStyle(node){
   }
 });
 
-// dist/tools/phase5-governance/component-spec/renderers/json.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/renderers/json.js
 var require_json2 = __commonJS({
-  "dist/tools/phase5-governance/component-spec/renderers/json.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/renderers/json.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.renderJson = renderJson;
@@ -85015,9 +85039,9 @@ var require_json2 = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/types.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/types.js
 var require_types4 = __commonJS({
-  "dist/tools/phase5-governance/component-spec/types.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/types.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.ALL_SECTIONS = void 0;
@@ -85045,9 +85069,9 @@ var require_types4 = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/legacy-compat.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/legacy-compat.js
 var require_legacy_compat = __commonJS({
-  "dist/tools/phase5-governance/component-spec/legacy-compat.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/legacy-compat.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.formatDocumentReport = formatDocumentReport;
@@ -85166,9 +85190,9 @@ var require_legacy_compat = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec/index.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec/index.js
 var require_component_spec = __commonJS({
-  "dist/tools/phase5-governance/component-spec/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.formatDocumentReport = exports2.createDocumentationPages = exports2.captureSnapshot = exports2.resolveTargetNodeId = void 0;
@@ -85337,9 +85361,9 @@ var require_component_spec = __commonJS({
   }
 });
 
-// dist/tools/phase4-sync/generate-component-code/index.js
+// figma-intelligence-layer/dist/tools/phase4-sync/generate-component-code/index.js
 var require_generate_component_code = __commonJS({
-  "dist/tools/phase4-sync/generate-component-code/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase4-sync/generate-component-code/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.generateComponentCodeHandler = generateComponentCodeHandler;
@@ -85983,9 +86007,9 @@ export const Default: Story = {
   }
 });
 
-// dist/tools/phase4-sync/webhook-listener/index.js
+// figma-intelligence-layer/dist/tools/phase4-sync/webhook-listener/index.js
 var require_webhook_listener = __commonJS({
-  "dist/tools/phase4-sync/webhook-listener/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase4-sync/webhook-listener/index.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -86367,9 +86391,9 @@ var require_webhook_listener = __commonJS({
   }
 });
 
-// dist/tools/phase4-sync/handoff-spec/index.js
+// figma-intelligence-layer/dist/tools/phase4-sync/handoff-spec/index.js
 var require_handoff_spec = __commonJS({
-  "dist/tools/phase4-sync/handoff-spec/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase4-sync/handoff-spec/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.handoffSpecHandler = handoffSpecHandler;
@@ -86885,9 +86909,9 @@ var require_handoff_spec = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/health-report/index.js
+// figma-intelligence-layer/dist/tools/phase5-governance/health-report/index.js
 var require_health_report = __commonJS({
-  "dist/tools/phase5-governance/health-report/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/health-report/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.healthReportHandler = healthReportHandler;
@@ -87233,9 +87257,9 @@ ${topActions.map((a, i) => `${i + 1}. ${a}`).join("\n")}`
   }
 });
 
-// dist/tools/phase4-sync/ci-check/index.js
+// figma-intelligence-layer/dist/tools/phase4-sync/ci-check/index.js
 var require_ci_check = __commonJS({
-  "dist/tools/phase4-sync/ci-check/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase4-sync/ci-check/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.ciCheckHandler = ciCheckHandler;
@@ -87556,9 +87580,9 @@ jobs:
   }
 });
 
-// dist/tools/phase4-sync/watch-docs/index.js
+// figma-intelligence-layer/dist/tools/phase4-sync/watch-docs/index.js
 var require_watch_docs = __commonJS({
-  "dist/tools/phase4-sync/watch-docs/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase4-sync/watch-docs/index.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -88096,9 +88120,9 @@ var require_watch_docs = __commonJS({
   }
 });
 
-// dist/tools/phase4-sync/icon-library-sync/index.js
+// figma-intelligence-layer/dist/tools/phase4-sync/icon-library-sync/index.js
 var require_icon_library_sync = __commonJS({
-  "dist/tools/phase4-sync/icon-library-sync/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase4-sync/icon-library-sync/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.iconLibrarySyncHandler = iconLibrarySyncHandler;
@@ -88446,9 +88470,9 @@ import { ICON_CATALOG, type IconName } from './icons';`
   }
 });
 
-// dist/shared/typography-presets.js
+// figma-intelligence-layer/dist/shared/typography-presets.js
 var require_typography_presets = __commonJS({
-  "dist/shared/typography-presets.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/typography-presets.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.TYPOGRAPHY_PRESETS = void 0;
@@ -88505,9 +88529,9 @@ var require_typography_presets = __commonJS({
   }
 });
 
-// dist/shared/component-script-builder.js
+// figma-intelligence-layer/dist/shared/component-script-builder.js
 var require_component_script_builder = __commonJS({
-  "dist/shared/component-script-builder.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/component-script-builder.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildComponentScript = buildComponentScript;
@@ -88858,9 +88882,9 @@ ${fontLoads}
   }
 });
 
-// dist/tools/phase5-governance/ds-scaffolder/index.js
+// figma-intelligence-layer/dist/tools/phase5-governance/ds-scaffolder/index.js
 var require_ds_scaffolder = __commonJS({
-  "dist/tools/phase5-governance/ds-scaffolder/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/ds-scaffolder/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.dsScaffolderHandler = dsScaffolderHandler;
@@ -89444,9 +89468,9 @@ ${fontLoads}
   }
 });
 
-// dist/tools/phase5-governance/ds-primitives/index.js
+// figma-intelligence-layer/dist/tools/phase5-governance/ds-primitives/index.js
 var require_ds_primitives = __commonJS({
-  "dist/tools/phase5-governance/ds-primitives/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/ds-primitives/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.dsPrimitivesHandler = dsPrimitivesHandler;
@@ -89771,9 +89795,9 @@ var require_ds_primitives = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/ds-variables/index.js
+// figma-intelligence-layer/dist/tools/phase5-governance/ds-variables/index.js
 var require_ds_variables = __commonJS({
-  "dist/tools/phase5-governance/ds-variables/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/ds-variables/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.dsVariablesHandler = dsVariablesHandler;
@@ -90090,9 +90114,9 @@ var require_ds_variables = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/decision-log/index.js
+// figma-intelligence-layer/dist/tools/phase5-governance/decision-log/index.js
 var require_decision_log2 = __commonJS({
-  "dist/tools/phase5-governance/decision-log/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/decision-log/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.decisionLogToolHandler = decisionLogToolHandler;
@@ -90175,9 +90199,9 @@ var require_decision_log2 = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/design-decision-log/index.js
+// figma-intelligence-layer/dist/tools/phase5-governance/design-decision-log/index.js
 var require_design_decision_log = __commonJS({
-  "dist/tools/phase5-governance/design-decision-log/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/design-decision-log/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.designDecisionLogHandler = designDecisionLogHandler;
@@ -90629,9 +90653,9 @@ var require_design_decision_log = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/component-spec-sheet/renderer.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec-sheet/renderer.js
 var require_renderer = __commonJS({
-  "dist/tools/phase5-governance/component-spec-sheet/renderer.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec-sheet/renderer.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildSpecSheetScript = buildSpecSheetScript;
@@ -91261,9 +91285,9 @@ ${spacerJS(16)}
   }
 });
 
-// dist/tools/phase5-governance/component-spec-sheet/index.js
+// figma-intelligence-layer/dist/tools/phase5-governance/component-spec-sheet/index.js
 var require_component_spec_sheet = __commonJS({
-  "dist/tools/phase5-governance/component-spec-sheet/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/component-spec-sheet/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.componentSpecSheetHandler = componentSpecSheetHandler;
@@ -91393,9 +91417,9 @@ var require_component_spec_sheet = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/apg-doc/index.js
+// figma-intelligence-layer/dist/tools/phase5-governance/apg-doc/index.js
 var require_apg_doc = __commonJS({
-  "dist/tools/phase5-governance/apg-doc/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/apg-doc/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.guessPattern = guessPattern;
@@ -92353,9 +92377,9 @@ var require_apg_doc = __commonJS({
   }
 });
 
-// dist/shared/token-naming.js
+// figma-intelligence-layer/dist/shared/token-naming.js
 var require_token_naming = __commonJS({
-  "dist/shared/token-naming.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/token-naming.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.generateTokenName = void 0;
@@ -92643,9 +92667,9 @@ var require_token_naming = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/token-naming/index.js
+// figma-intelligence-layer/dist/tools/phase5-governance/token-naming/index.js
 var require_token_naming2 = __commonJS({
-  "dist/tools/phase5-governance/token-naming/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/token-naming/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.tokenNamingHandler = tokenNamingHandler;
@@ -92727,9 +92751,9 @@ var require_token_naming2 = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/token-migrate/index.js
+// figma-intelligence-layer/dist/tools/phase5-governance/token-migrate/index.js
 var require_token_migrate = __commonJS({
-  "dist/tools/phase5-governance/token-migrate/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/token-migrate/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.translateCanonicalName = translateCanonicalName;
@@ -93038,9 +93062,9 @@ var require_token_migrate = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/token-analytics/index.js
+// figma-intelligence-layer/dist/tools/phase5-governance/token-analytics/index.js
 var require_token_analytics = __commonJS({
-  "dist/tools/phase5-governance/token-analytics/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/token-analytics/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.tokenAnalyticsHandler = tokenAnalyticsHandler;
@@ -93457,9 +93481,9 @@ var require_token_analytics = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/token-docs/index.js
+// figma-intelligence-layer/dist/tools/phase5-governance/token-docs/index.js
 var require_token_docs = __commonJS({
-  "dist/tools/phase5-governance/token-docs/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/token-docs/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.tokenDocsHandler = tokenDocsHandler;
@@ -93976,9 +94000,9 @@ function copyToken(name) {
   }
 });
 
-// dist/tools/phase5-governance/taxonomy-docs/renderers/markdown.js
+// figma-intelligence-layer/dist/tools/phase5-governance/taxonomy-docs/renderers/markdown.js
 var require_markdown2 = __commonJS({
-  "dist/tools/phase5-governance/taxonomy-docs/renderers/markdown.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/taxonomy-docs/renderers/markdown.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.renderMarkdown = renderMarkdown;
@@ -94114,9 +94138,9 @@ var require_markdown2 = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/taxonomy-docs/renderers/json.js
+// figma-intelligence-layer/dist/tools/phase5-governance/taxonomy-docs/renderers/json.js
 var require_json3 = __commonJS({
-  "dist/tools/phase5-governance/taxonomy-docs/renderers/json.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/taxonomy-docs/renderers/json.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.renderJson = renderJson;
@@ -94135,9 +94159,9 @@ var require_json3 = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/taxonomy-docs/renderers/figma-page.js
+// figma-intelligence-layer/dist/tools/phase5-governance/taxonomy-docs/renderers/figma-page.js
 var require_figma_page = __commonJS({
-  "dist/tools/phase5-governance/taxonomy-docs/renderers/figma-page.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/taxonomy-docs/renderers/figma-page.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getAutoSyncPageName = getAutoSyncPageName;
@@ -94335,9 +94359,9 @@ var require_figma_page = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/taxonomy-docs/renderers/naming-guide.js
+// figma-intelligence-layer/dist/tools/phase5-governance/taxonomy-docs/renderers/naming-guide.js
 var require_naming_guide = __commonJS({
-  "dist/tools/phase5-governance/taxonomy-docs/renderers/naming-guide.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/taxonomy-docs/renderers/naming-guide.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.renderNamingGuide = renderNamingGuide;
@@ -94658,9 +94682,9 @@ var require_naming_guide = __commonJS({
   }
 });
 
-// dist/tools/phase5-governance/taxonomy-docs/index.js
+// figma-intelligence-layer/dist/tools/phase5-governance/taxonomy-docs/index.js
 var require_taxonomy_docs = __commonJS({
-  "dist/tools/phase5-governance/taxonomy-docs/index.js"(exports2) {
+  "figma-intelligence-layer/dist/tools/phase5-governance/taxonomy-docs/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.taxonomyDocsHandler = taxonomyDocsHandler;
@@ -94890,9 +94914,9 @@ var require_taxonomy_docs = __commonJS({
   }
 });
 
-// dist/shared/dtcg-validator.js
+// figma-intelligence-layer/dist/shared/dtcg-validator.js
 var require_dtcg_validator = __commonJS({
-  "dist/shared/dtcg-validator.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/dtcg-validator.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.DTCG_TOKEN_TYPES = void 0;
@@ -95351,9 +95375,9 @@ var require_dtcg_validator = __commonJS({
   }
 });
 
-// dist/shared/color-operations.js
+// figma-intelligence-layer/dist/shared/color-operations.js
 var require_color_operations = __commonJS({
-  "dist/shared/color-operations.js"(exports2) {
+  "figma-intelligence-layer/dist/shared/color-operations.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.hexToRgb = hexToRgb;
@@ -95725,7 +95749,7 @@ var require_color_operations = __commonJS({
   }
 });
 
-// dist/index.js
+// figma-intelligence-layer/dist/index.js
 var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
   if (k2 === void 0) k2 = k;
   var desc = Object.getOwnPropertyDescriptor(m, k);
