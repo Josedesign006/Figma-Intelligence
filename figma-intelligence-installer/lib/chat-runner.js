@@ -117,8 +117,16 @@ function checkClaudeHttpSupport() {
 // Kick off version check immediately (non-blocking)
 checkClaudeHttpSupport();
 
+function readPortFile() {
+  try {
+    const p = readFileSync(join(homedir(), ".figma-intelligence", "relay.port"), "utf8").trim();
+    const n = parseInt(p, 10);
+    return (n > 0 && n < 65536) ? n : null;
+  } catch { return null; }
+}
+
 function writeMcpConfig(bridgePort, forceLocal) {
-  const port = String(bridgePort || process.env.BRIDGE_PORT || "9001");
+  const port = String(bridgePort || process.env.FIGMA_BRIDGE_PORT || process.env.BRIDGE_PORT || readPortFile() || "9001");
   const cloudConfig = loadCloudConfig();
 
   let config;

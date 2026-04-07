@@ -7,7 +7,14 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
-const PORT = parseInt(process.argv[2] || process.env.BRIDGE_PORT || "9001", 10);
+function readPortFile() {
+  try {
+    const p = fs.readFileSync(path.join(os.homedir(), ".figma-intelligence", "relay.port"), "utf8").trim();
+    const n = parseInt(p, 10);
+    return (n > 0 && n < 65536) ? n : null;
+  } catch { return null; }
+}
+const PORT = parseInt(process.argv[2] || process.env.FIGMA_BRIDGE_PORT || process.env.BRIDGE_PORT || readPortFile() || "9001", 10);
 const BUILD_PATH = path.join(ROOT_DIR, "figma-intelligence-layer", "dist", "index.js");
 const CLAUDE_SETTINGS_PATH = path.join(os.homedir(), ".claude", "settings.json");
 

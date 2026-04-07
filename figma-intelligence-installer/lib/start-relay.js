@@ -13,6 +13,16 @@ const { homedir, platform } = require("os");
 const CONFIG_DIR = join(homedir(), ".figma-intelligence");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 const PID_PATH = join(CONFIG_DIR, "relay.pid");
+const PORT_FILE = join(CONFIG_DIR, "relay.port");
+
+function getActivePort() {
+  try {
+    if (existsSync(PORT_FILE)) {
+      return parseInt(readFileSync(PORT_FILE, "utf8").trim(), 10) || 9001;
+    }
+  } catch {}
+  return 9001;
+}
 
 function loadConfig() {
   if (!existsSync(CONFIG_PATH)) {
@@ -48,14 +58,21 @@ function killAllRelays() {
     }
   } catch {}
 
-  // 2. Kill by process name (catches orphans)
+  // 2. Kill by process name (pgrep + filter so we never kill ourselves)
   try {
-    execSync("pkill -9 -f 'bridge-relay' 2>/dev/null || true", { stdio: "ignore", timeout: 5000 });
+    const raw = execSync("pgrep -f 'bridge-relay' 2>/dev/null || true", { encoding: "utf8", timeout: 5000 }).trim();
+    if (raw) {
+      const pids = raw.split("\n").filter(p => p && parseInt(p) !== process.pid);
+      for (const pid of pids) {
+        try { process.kill(parseInt(pid, 10), "SIGKILL"); } catch {}
+      }
+    }
   } catch {}
 
-  // 3. Kill by port (catches anything else holding 9001)
+  // 3. Kill by port (read actual port from relay.port file, fallback to 9001)
   try {
-    const result = execSync("lsof -ti:9001 2>/dev/null", { encoding: "utf8", timeout: 5000 }).trim();
+    const activePort = getActivePort();
+    const result = execSync(`lsof -ti:${activePort} 2>/dev/null`, { encoding: "utf8", timeout: 5000 }).trim();
     if (result) {
       const pids = result.split("\n").filter(Boolean);
       for (const pid of pids) {
@@ -121,7 +138,7 @@ async function startRelay({ forceRestart } = {}) {
   }
 
   console.log(`  Relay started (PID ${child.pid})`);
-  console.log(`  Local relay: ws://localhost:9001`);
+  console.log(`  Local relay: ws://localhost:${getActivePort()}`);
 }
 
 async function stopRelay() {

@@ -16,7 +16,7 @@
 const { WebSocketServer } = require("ws");
 const http = require("http");
 const { spawn } = require("child_process");
-const { readFileSync, writeFileSync, appendFileSync, existsSync } = require("fs");
+const { readFileSync, writeFileSync, appendFileSync, existsSync, openSync, closeSync, unlinkSync } = require("fs");
 const { homedir } = require("os");
 const { join, resolve } = require("path");
 const { runClaude, resetSession, isClaudeAvailable, getClaudeAuthInfo, writeMcpConfig } = require("./chat-runner");
@@ -924,7 +924,7 @@ function rgbToHex(r, g, b) {
 }
 
 // P3: Port fallback — try PORT, then PORT+1 through PORT+9
-const BASE_PORT = parseInt(process.argv[2] || process.env.BRIDGE_PORT || "9001", 10);
+const BASE_PORT = parseInt(process.argv[2] || process.env.FIGMA_BRIDGE_PORT || process.env.BRIDGE_PORT || "9001", 10);
 let PORT = BASE_PORT;
 // MCP server path: prefer local dev build, then installed bundle
 const MCP_SERVER_DEV_PATH = resolve(__dirname, "../figma-intelligence-layer/dist/index.js");
@@ -1351,6 +1351,10 @@ function createServerWithFallback(basePort, maxRetries = 9) {
 
       const wss = new WebSocketServer({ server });
 
+      // Prevent unhandled 'error' on WSS — ws may re-emit the server's
+      // EADDRINUSE.  The real retry logic lives on the HTTP server handler below.
+      wss.on("error", () => {});
+
       server.listen(port, "0.0.0.0", () => {
         PORT = port;
         httpServer = server;
@@ -1361,6 +1365,7 @@ function createServerWithFallback(basePort, maxRetries = 9) {
         if (err.code === "EADDRINUSE" && attempt < maxRetries) {
           attempt++;
           console.log(`  ⚠ Port ${port} in use, trying ${port + 1}…`);
+          try { wss.close(); } catch {}
           tryPort(port + 1);
         } else {
           reject(err);
@@ -1525,8 +1530,16 @@ function killStaleRelay(port) {
     const { execSync } = require("child_process");
     const plat = require("os").platform();
     if (plat === "win32") return;
-    // Kill by process name first (catches all relay instances)
-    try { execSync("pkill -9 -f 'bridge-relay' 2>/dev/null || true", { stdio: "ignore", timeout: 5000 }); } catch {}
+    // Kill by process name (pgrep + filter so we never kill ourselves)
+    try {
+      const raw = execSync("pgrep -f 'bridge-relay' 2>/dev/null || true", { encoding: "utf8", timeout: 5000 }).trim();
+      if (raw) {
+        const pids = raw.split("\n").filter(p => p && parseInt(p) !== process.pid);
+        for (const pid of pids) {
+          try { process.kill(parseInt(pid), "SIGKILL"); } catch {}
+        }
+      }
+    } catch {}
     // Also kill by port (catches anything else holding the port)
     try {
       const result = execSync(`lsof -ti:${port} 2>/dev/null`, { encoding: "utf8", timeout: 5000 }).trim();
@@ -1542,8 +1555,48 @@ function killStaleRelay(port) {
   } catch {}
 }
 
+// ── Lock file — prevent concurrent relay starts ─────────────────────────────
+const LOCK_FILE = join(homedir(), ".figma-intelligence", "relay.lock");
+
+function acquireLock() {
+  try {
+    const lockDir = join(homedir(), ".figma-intelligence");
+    if (!existsSync(lockDir)) mkdirSync(lockDir, { recursive: true });
+    // O_EXCL: atomic create-or-fail
+    const fd = openSync(LOCK_FILE, "wx");
+    writeFileSync(fd, String(process.pid));
+    closeSync(fd);
+    return true;
+  } catch (err) {
+    if (err.code === "EEXIST") {
+      // Check if the holder is still alive
+      try {
+        const holderPid = parseInt(readFileSync(LOCK_FILE, "utf8").trim(), 10);
+        if (holderPid && holderPid !== process.pid) {
+          process.kill(holderPid, 0); // throws if dead
+          return false; // holder is alive
+        }
+      } catch {}
+      // Stale lock — reclaim
+      writeFileSync(LOCK_FILE, String(process.pid));
+      return true;
+    }
+    return true; // on any other error, proceed anyway
+  }
+}
+
+function releaseLock() { try { unlinkSync(LOCK_FILE); } catch {} }
+process.on("exit", releaseLock);
+process.on("SIGINT", () => { releaseLock(); process.exit(0); });
+process.on("SIGTERM", () => { releaseLock(); process.exit(0); });
+
 // ── WebSocket Server ─────────────────────────────────────────────────────────
 (async () => {
+  if (!acquireLock()) {
+    console.log("Another relay instance is already starting. Exiting.");
+    process.exit(0);
+  }
+
   // Auto-kill any previous relay holding the port
   killStaleRelay(BASE_PORT);
 

@@ -14,8 +14,22 @@ import {
 import { BridgeCache } from "./cache.js";
 import { compressResponse, CompressedResponse, CompressionTier } from "./response-compression.js";
 import { enrichDesignSystem, EnrichedDesignSystem, resolveStyles, ResolvedStyle } from "./enrichment-pipeline.js";
+import { existsSync, readFileSync } from "fs";
+import { join } from "path";
+import { homedir } from "os";
 
-const WS_PORT = parseInt(process.env.FIGMA_BRIDGE_PORT || "9001", 10);
+function resolvePort(): number {
+  if (process.env.FIGMA_BRIDGE_PORT) return parseInt(process.env.FIGMA_BRIDGE_PORT, 10);
+  try {
+    const portFile = join(homedir(), ".figma-intelligence", "relay.port");
+    if (existsSync(portFile)) {
+      const p = parseInt(readFileSync(portFile, "utf8").trim(), 10);
+      if (p > 0 && p < 65536) return p;
+    }
+  } catch {}
+  return 9001;
+}
+const WS_PORT = resolvePort();
 const CLOUD_MODE = process.env.CLOUD_MODE === "true";
 const REQUEST_TIMEOUT = parseInt(process.env.FIGMA_REQUEST_TIMEOUT || "30000", 10);
 

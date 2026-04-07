@@ -40,7 +40,24 @@ const ws_1 = __importStar(require("ws"));
 const cache_js_1 = require("./cache.js");
 const response_compression_js_1 = require("./response-compression.js");
 const enrichment_pipeline_js_1 = require("./enrichment-pipeline.js");
-const WS_PORT = parseInt(process.env.FIGMA_BRIDGE_PORT || "9001", 10);
+const fs_1 = require("fs");
+const path_1 = require("path");
+const os_1 = require("os");
+function resolvePort() {
+    if (process.env.FIGMA_BRIDGE_PORT)
+        return parseInt(process.env.FIGMA_BRIDGE_PORT, 10);
+    try {
+        const portFile = (0, path_1.join)((0, os_1.homedir)(), ".figma-intelligence", "relay.port");
+        if ((0, fs_1.existsSync)(portFile)) {
+            const p = parseInt((0, fs_1.readFileSync)(portFile, "utf8").trim(), 10);
+            if (p > 0 && p < 65536)
+                return p;
+        }
+    }
+    catch { }
+    return 9001;
+}
+const WS_PORT = resolvePort();
 const CLOUD_MODE = process.env.CLOUD_MODE === "true";
 const REQUEST_TIMEOUT = parseInt(process.env.FIGMA_REQUEST_TIMEOUT || "30000", 10);
 let relayServer = null;
