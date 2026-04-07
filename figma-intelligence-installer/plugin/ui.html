@@ -2817,6 +2817,15 @@
       if (projectExpand) projectExpand.style.display = "none";
       // Show Claude Sign-In button (same pattern as Stitch)
       if (claudeAuthDiv) claudeAuthDiv.style.display = "block";
+      // If CLI is already authenticated, show "Already signed in" state
+      if (isClaudeLoggedIn) {
+        var cBtn = document.getElementById("claude-signin-btn");
+        var cStatus = document.getElementById("claude-auth-status");
+        if (cBtn) { cBtn.textContent = "Signed in via Claude CLI"; cBtn.style.background = "#6b3a2a"; cBtn.disabled = true; cBtn.style.opacity = "1"; }
+        if (cStatus) { cStatus.style.color = "#4ade80"; cStatus.textContent = "Signed in" + (claudeEmail ? " as " + claudeEmail : ""); }
+        claudeAuthed = true;
+        updateLoginContinue();
+      }
     } else if (id === "gemini" && geminiNeedsApiKey()) {
       apiExpand.style.display = "block";
       bridgeExpand.style.display = "none";
@@ -2864,7 +2873,7 @@
     if (selectedLoginProvider === "stitch") {
       btn.disabled = !stitchGoogleAuthed;
     } else if (selectedLoginProvider === "claude") {
-      btn.disabled = !claudeAuthed;
+      btn.disabled = !(claudeAuthed || isClaudeLoggedIn);
     } else {
       btn.disabled = needsKey && keyVal.length < 8;
     }
@@ -2881,37 +2890,88 @@
     var statusEl = document.getElementById("claude-auth-status");
     var btn = document.getElementById("claude-signin-btn");
 
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      // Auto-reconnect and retry auth once connected
-      if (statusEl) { statusEl.style.color = "#888"; statusEl.textContent = "Connecting to relay..."; }
+    // Case 1: WebSocket is connected — use it directly
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      if (statusEl) { statusEl.style.color = "#888"; statusEl.textContent = "Opening Claude sign-in..."; }
       if (btn) { btn.disabled = true; btn.style.opacity = "0.6"; }
-      forceReconnect();
-
-      var retries = 0;
-      var retryInterval = setInterval(function() {
-        retries++;
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          clearInterval(retryInterval);
-          if (statusEl) { statusEl.style.color = "#888"; statusEl.textContent = "Opening Claude sign-in..."; }
-          ws.send(JSON.stringify({ type: "claude-auth" }));
-          _startClaudeAuthTimeout(statusEl, btn);
-        } else if (retries > 10) {
-          clearInterval(retryInterval);
-          if (statusEl) {
-            statusEl.style.color = "#f87171";
-            statusEl.innerHTML = 'Could not connect to relay. <a href="#" onclick="startClaudeAuth();return false" style="color:#da7756;text-decoration:underline">Retry</a>' +
-              '<br><span style="font-size:11px;opacity:0.6;margin-top:2px;display:inline-block">Run: npx figma-intelligence@latest start</span>';
-          }
-          if (btn) { btn.disabled = false; btn.style.opacity = "1"; }
-        }
-      }, 1000);
+      ws.send(JSON.stringify({ type: "claude-auth" }));
+      _startClaudeAuthTimeout(statusEl, btn);
       return;
     }
 
-    if (statusEl) { statusEl.style.color = "#888"; statusEl.textContent = "Opening Claude sign-in..."; }
+    // Case 2: HTTP fallback is available — use fetch to trigger auth
+    if (httpFallbackPort) {
+      if (statusEl) { statusEl.style.color = "#888"; statusEl.textContent = "Opening Claude sign-in..."; }
+      if (btn) { btn.disabled = true; btn.style.opacity = "0.6"; }
+      _startClaudeAuthTimeout(statusEl, btn);
+      fetch("http://127.0.0.1:" + httpFallbackPort + "/auth/claude", { method: "POST" })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data && data.ok) {
+            if (data.status === "success") {
+              claudeAuthed = true;
+              isClaudeLoggedIn = true;
+              if (window._claudeAuthTimeout) { clearTimeout(window._claudeAuthTimeout); window._claudeAuthTimeout = null; }
+              if (statusEl) { statusEl.style.color = "#4ade80"; statusEl.textContent = "Signed in"; }
+              if (btn) { btn.disabled = false; btn.style.opacity = "1"; }
+              updateStatus();
+            }
+            // For "polling" status, the HTTP poll will pick up the result
+          } else {
+            if (statusEl) {
+              statusEl.style.color = "#f87171";
+              statusEl.innerHTML = (data && data.error ? data.error : "Auth failed") +
+                ' <a href="#" onclick="startClaudeAuth();return false" style="color:#da7756;text-decoration:underline">Try again</a>';
+            }
+            if (btn) { btn.disabled = false; btn.style.opacity = "1"; }
+          }
+        })
+        .catch(function(err) {
+          if (statusEl) {
+            statusEl.style.color = "#f87171";
+            statusEl.innerHTML = 'Could not reach relay. <a href="#" onclick="startClaudeAuth();return false" style="color:#da7756;text-decoration:underline">Retry</a>';
+          }
+          if (btn) { btn.disabled = false; btn.style.opacity = "1"; }
+        });
+      return;
+    }
+
+    // Case 3: Nothing connected — try reconnecting, then try HTTP fallback
+    if (statusEl) { statusEl.style.color = "#888"; statusEl.textContent = "Connecting to relay..."; }
     if (btn) { btn.disabled = true; btn.style.opacity = "0.6"; }
-    ws.send(JSON.stringify({ type: "claude-auth" }));
-    _startClaudeAuthTimeout(statusEl, btn);
+    forceReconnect();
+
+    var retries = 0;
+    var retryInterval = setInterval(function() {
+      retries++;
+      // Check WebSocket first
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        clearInterval(retryInterval);
+        if (statusEl) { statusEl.style.color = "#888"; statusEl.textContent = "Opening Claude sign-in..."; }
+        ws.send(JSON.stringify({ type: "claude-auth" }));
+        _startClaudeAuthTimeout(statusEl, btn);
+        return;
+      }
+      // Check HTTP fallback
+      if (httpFallbackPort) {
+        clearInterval(retryInterval);
+        startClaudeAuth(); // re-enter, will hit Case 2
+        return;
+      }
+      // After 5s of WebSocket retries, try HTTP health check directly
+      if (retries === 5) {
+        _tryHttpFallback();
+      }
+      if (retries > 12) {
+        clearInterval(retryInterval);
+        if (statusEl) {
+          statusEl.style.color = "#f87171";
+          statusEl.innerHTML = 'Could not connect to relay. <a href="#" onclick="startClaudeAuth();return false" style="color:#da7756;text-decoration:underline">Retry</a>' +
+            '<br><span style="font-size:11px;opacity:0.6;margin-top:2px;display:inline-block">Run: npx figma-intelligence@latest start</span>';
+        }
+        if (btn) { btn.disabled = false; btn.style.opacity = "1"; }
+      }
+    }, 1000);
   }
 
   function _startClaudeAuthTimeout(statusEl, btn) {
@@ -3041,9 +3101,17 @@
         showLoginScreen();
       }
     } else {
-      // First run — show login screen, default select Claude
+      // First run — select Claude as default but defer login screen
+      // to give bridge-status time to arrive with CLI auth info.
+      // If user is already logged in via Claude CLI, we auto-skip entirely.
       selectLoginProvider("claude");
-      showLoginScreen();
+      window._loginScreenDeferred = true;
+      window._loginDeferTimer = setTimeout(function() {
+        if (window._loginScreenDeferred) {
+          window._loginScreenDeferred = false;
+          showLoginScreen();
+        }
+      }, 3000);
     }
     syncModelBadge();
     updateModeTabsVisibility();
@@ -4137,7 +4205,9 @@
   }
 
   function _tryPort(port) {
-    var socket = new WebSocket("ws://localhost:" + port + "/plugin");
+    // Use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues
+    // (ws server listens on IPv4 0.0.0.0 but localhost may resolve to ::1)
+    var socket = new WebSocket("ws://127.0.0.1:" + port + "/plugin");
     var _timedOut = false;
     var _timeout = setTimeout(function() {
       _timedOut = true;
@@ -4179,7 +4249,7 @@
       _onScanFailed();
       return;
     }
-    var socket = new WebSocket("ws://localhost:" + startPort + "/plugin");
+    var socket = new WebSocket("ws://127.0.0.1:" + startPort + "/plugin");
     var _timedOut = false;
     var _timeout = setTimeout(function() {
       _timedOut = true;
@@ -4211,13 +4281,136 @@
   function _onScanFailed() {
     ws = null;
     isPluginConnected = false;
-    updateStatus();
+    // Before giving up, try HTTP health check — WebSocket may be blocked but HTTP might work
+    if (!httpFallbackPort) {
+      _tryHttpFallback();
+    } else {
+      updateStatus();
+    }
     if (!reconnectTimer) {
       reconnectTimer = setTimeout(function() {
         reconnectTimer = null;
         connect();
       }, 2000);
     }
+  }
+
+  /* ── HTTP Fallback: when WebSocket is blocked, use fetch() ────────── */
+  var httpFallbackPort = null;
+  var httpPollTimer = null;
+
+  function _tryHttpFallback() {
+    var port = RELAY_BASE_PORT;
+    function tryNext() {
+      if (port > RELAY_MAX_PORT) {
+        updateStatus();
+        return;
+      }
+      fetch("http://127.0.0.1:" + port + "/health")
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data && data.ok) {
+            httpFallbackPort = port;
+            connectedPort = port;
+            isPluginConnected = true;
+            console.log("[FI] HTTP fallback connected on port " + port);
+            updateStatus();
+            // Start polling for messages
+            _startHttpPoll();
+            // Fetch initial status
+            _httpFetchStatus();
+          } else {
+            port++;
+            tryNext();
+          }
+        })
+        .catch(function() {
+          port++;
+          tryNext();
+        });
+    }
+    tryNext();
+  }
+
+  function _startHttpPoll() {
+    if (httpPollTimer) return;
+    httpPollTimer = setInterval(function() {
+      if (!httpFallbackPort) { clearInterval(httpPollTimer); httpPollTimer = null; return; }
+      fetch("http://127.0.0.1:" + httpFallbackPort + "/poll")
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data && data.messages) {
+            data.messages.forEach(function(msg) {
+              _handleHttpMessage(msg);
+            });
+          }
+        })
+        .catch(function() {
+          // Relay went away — reset
+          httpFallbackPort = null;
+          isPluginConnected = false;
+          updateStatus();
+          clearInterval(httpPollTimer);
+          httpPollTimer = null;
+        });
+    }, 1500);
+  }
+
+  function _httpFetchStatus() {
+    if (!httpFallbackPort) return;
+    fetch("http://127.0.0.1:" + httpFallbackPort + "/status")
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data) {
+          isMcpConnected = !!data.mcp;
+          if (data.auth) {
+            if (data.auth.loggedIn) {
+              isClaudeLoggedIn = true;
+              claudeAuthed = true;
+            }
+          }
+          updateStatus();
+        }
+      })
+      .catch(function() {});
+  }
+
+  function _handleHttpMessage(msg) {
+    // Handle messages the same way as WebSocket messages
+    if (msg.type === "claude-auth-status") {
+      var statusEl = document.getElementById("claude-auth-status");
+      var btn = document.getElementById("claude-signin-btn");
+      if (window._claudeAuthTimeout) { clearTimeout(window._claudeAuthTimeout); window._claudeAuthTimeout = null; }
+      if (msg.status === "signing-in") {
+        if (statusEl) { statusEl.style.color = "#888"; statusEl.textContent = "Opening browser... Complete sign-in in your browser"; }
+      } else if (msg.status === "success") {
+        claudeAuthed = true;
+        isClaudeLoggedIn = true;
+        if (statusEl) { statusEl.style.color = "#4ade80"; statusEl.textContent = "Signed in" + (msg.email ? " as " + msg.email : ""); }
+        if (btn) { btn.disabled = false; btn.style.opacity = "1"; }
+        updateStatus();
+      } else if (msg.status === "error") {
+        if (statusEl) {
+          statusEl.style.color = "#f87171";
+          statusEl.innerHTML = (msg.error || "Auth failed") + ' <a href="#" onclick="startClaudeAuth();return false" style="color:#da7756;text-decoration:underline">Try again</a>';
+        }
+        if (btn) { btn.disabled = false; btn.style.opacity = "1"; }
+      }
+    }
+    if (msg.type === "relay-status") {
+      isMcpConnected = !!msg.mcpConnected;
+      updateStatus();
+    }
+  }
+
+  // HTTP-based send function (used when WebSocket is unavailable)
+  function httpSend(msg) {
+    if (!httpFallbackPort) return;
+    fetch("http://127.0.0.1:" + httpFallbackPort + "/message", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(msg),
+    }).catch(function() {});
   }
 
   function _onRelayConnected() {
@@ -4319,7 +4512,15 @@
             (selectedLoginProvider === "gemini" && geminiCliLoggedIn) ||
             ((selectedLoginProvider === "stitch") && (msg.hasApiKey || msg.hasStitchOAuth)) ||
             (selectedLoginProvider === "perplexity" && msg.hasApiKey);
-          if (!loginDismissed && canSkipLogin) {
+          if ((!loginDismissed || window._loginScreenDeferred) && canSkipLogin) {
+            // Clear deferred login timer if still pending
+            if (window._loginDeferTimer) { clearTimeout(window._loginDeferTimer); window._loginDeferTimer = null; }
+            window._loginScreenDeferred = false;
+            // Persist provider to localStorage so login screen is skipped on reload
+            try {
+              localStorage.setItem("figma-intelligence-provider", selectedLoginProvider);
+              if (msg.hasApiKey) localStorage.setItem("figma-intelligence-has-key", "1");
+            } catch(e) {}
             hideLoginScreen();
             updateProviderBadge();
             updateModeTabsVisibility();
@@ -4327,6 +4528,15 @@
             if (selectedLoginProvider === "perplexity" && activeMode !== "chat") switchMode("chat");
             if (selectedLoginProvider === "stitch" && input) input.placeholder = "Describe the UI screen to generate...";
             if (selectedLoginProvider === "perplexity" && input) input.placeholder = "Research any topic...";
+            // Send provider-select to relay so it has formal provider config
+            sendProviderToRelay();
+            updateStatus();
+          }
+          // If login was deferred and we can't skip, show login screen now
+          if (window._loginScreenDeferred && !canSkipLogin) {
+            window._loginScreenDeferred = false;
+            if (window._loginDeferTimer) { clearTimeout(window._loginDeferTimer); window._loginDeferTimer = null; }
+            showLoginScreen();
           }
         }
         // Update Claude card description in login screen

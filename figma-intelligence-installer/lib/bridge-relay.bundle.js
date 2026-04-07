@@ -2234,7 +2234,7 @@ var require_websocket = __commonJS({
     "use strict";
     var EventEmitter = require("events");
     var https = require("https");
-    var http = require("http");
+    var http2 = require("http");
     var net = require("net");
     var tls = require("tls");
     var { randomBytes, createHash } = require("crypto");
@@ -2768,7 +2768,7 @@ var require_websocket = __commonJS({
       }
       const defaultPort = isSecure ? 443 : 80;
       const key = randomBytes(16).toString("base64");
-      const request = isSecure ? https.request : http.request;
+      const request = isSecure ? https.request : http2.request;
       const protocolSet = /* @__PURE__ */ new Set();
       let perMessageDeflate;
       opts.createConnection = opts.createConnection || (isSecure ? tlsConnect : netConnect);
@@ -3262,7 +3262,7 @@ var require_websocket_server = __commonJS({
   "figma-bridge-plugin/node_modules/ws/lib/websocket-server.js"(exports2, module2) {
     "use strict";
     var EventEmitter = require("events");
-    var http = require("http");
+    var http2 = require("http");
     var { Duplex } = require("stream");
     var { createHash } = require("crypto");
     var extension = require_extension();
@@ -3337,8 +3337,8 @@ var require_websocket_server = __commonJS({
           );
         }
         if (options.port != null) {
-          this._server = http.createServer((req, res) => {
-            const body = http.STATUS_CODES[426];
+          this._server = http2.createServer((req, res) => {
+            const body = http2.STATUS_CODES[426];
             res.writeHead(426, {
               "Content-Length": body.length,
               "Content-Type": "text/plain"
@@ -3625,7 +3625,7 @@ var require_websocket_server = __commonJS({
       this.destroy();
     }
     function abortHandshake(socket, code, message, headers) {
-      message = message || http.STATUS_CODES[code];
+      message = message || http2.STATUS_CODES[code];
       headers = {
         Connection: "close",
         "Content-Type": "text/html",
@@ -3634,7 +3634,7 @@ var require_websocket_server = __commonJS({
       };
       socket.once("finish", socket.destroy);
       socket.end(
-        `HTTP/1.1 ${code} ${http.STATUS_CODES[code]}\r
+        `HTTP/1.1 ${code} ${http2.STATUS_CODES[code]}\r
 ` + Object.keys(headers).map((h) => `${h}: ${headers[h]}`).join("\r\n") + "\r\n\r\n" + message
       );
     }
@@ -11226,7 +11226,7 @@ var require_html_to_figma = __commonJS({
 // figma-bridge-plugin/stitch-auth.js
 var require_stitch_auth = __commonJS({
   "figma-bridge-plugin/stitch-auth.js"(exports2, module2) {
-    var http = require("http");
+    var http2 = require("http");
     var https = require("https");
     var { URL: URL2, URLSearchParams: URLSearchParams2 } = require("url");
     var { readFileSync: readFileSync2, writeFileSync: writeFileSync2, existsSync: existsSync2, mkdirSync: mkdirSync2 } = require("fs");
@@ -11297,7 +11297,7 @@ var require_stitch_auth = __commonJS({
     }
     function startStitchAuth2() {
       return new Promise((resolve2, reject2) => {
-        const server = http.createServer();
+        const server = http2.createServer();
         server.listen(0, "127.0.0.1", () => {
           const port = server.address().port;
           const redirectUri = `http://localhost:${port}/callback`;
@@ -37788,7 +37788,7 @@ var require_schemes = __commonJS({
       urnComponent.nss = (uuidComponent.uuid || "").toLowerCase();
       return urnComponent;
     }
-    var http = (
+    var http2 = (
       /** @type {SchemeHandler} */
       {
         scheme: "http",
@@ -37801,7 +37801,7 @@ var require_schemes = __commonJS({
       /** @type {SchemeHandler} */
       {
         scheme: "https",
-        domainHost: http.domainHost,
+        domainHost: http2.domainHost,
         parse: httpParse,
         serialize: httpSerialize
       }
@@ -37845,7 +37845,7 @@ var require_schemes = __commonJS({
     var SCHEMES = (
       /** @type {Record<SchemeName, SchemeHandler>} */
       {
-        http,
+        http: http2,
         https,
         ws,
         wss,
@@ -45311,7 +45311,7 @@ var init_src = __esm({
 // figma-bridge-plugin/stitch-runner.js
 var require_stitch_runner = __commonJS({
   "figma-bridge-plugin/stitch-runner.js"(exports2, module2) {
-    var http = require("http");
+    var http2 = require("http");
     var https = require("https");
     var { EventEmitter } = require("events");
     var { readFileSync: readFileSync2, writeFileSync: writeFileSync2, existsSync: existsSync2, mkdirSync: mkdirSync2, appendFileSync: appendFileSync2 } = require("fs");
@@ -45341,7 +45341,7 @@ var require_stitch_runner = __commonJS({
           return;
         }
         if (!existsSync2(PREVIEW_DIR)) mkdirSync2(PREVIEW_DIR, { recursive: true });
-        const server = http.createServer((req, res) => {
+        const server = http2.createServer((req, res) => {
           const url2 = new URL(req.url, `http://localhost`);
           const slug = url2.pathname.slice(1) || "index";
           if (slug === "index") {
@@ -46434,7 +46434,7 @@ React component available for download:
 // figma-bridge-plugin/claude-auth.js
 var require_claude_auth = __commonJS({
   "figma-bridge-plugin/claude-auth.js"(exports2, module2) {
-    var http = require("http");
+    var http2 = require("http");
     var https = require("https");
     var crypto3 = require("crypto");
     var { URL: URL2, URLSearchParams: URLSearchParams2 } = require("url");
@@ -46523,7 +46523,7 @@ var require_claude_auth = __commonJS({
     }
     function startClaudeAuth2() {
       return new Promise((resolve2, reject2) => {
-        const server = http.createServer();
+        const server = http2.createServer();
         server.listen(0, "127.0.0.1", () => {
           const port = server.address().port;
           const redirectUri = `http://localhost:${port}/callback`;
@@ -117888,7 +117888,7 @@ var require_client = __commonJS({
     "use strict";
     var assert2 = require("node:assert");
     var net = require("node:net");
-    var http = require("node:http");
+    var http2 = require("node:http");
     var util2 = require_util4();
     var { ClientStats } = require_stats();
     var { channels } = require_diagnostics();
@@ -117946,7 +117946,7 @@ var require_client = __commonJS({
     var connectH1 = require_client_h1();
     var connectH2 = require_client_h2();
     var kClosedResolve = /* @__PURE__ */ Symbol("kClosedResolve");
-    var getDefaultNodeMaxHeaderSize = http && http.maxHeaderSize && Number.isInteger(http.maxHeaderSize) && http.maxHeaderSize > 0 ? () => http.maxHeaderSize : () => {
+    var getDefaultNodeMaxHeaderSize = http2 && http2.maxHeaderSize && Number.isInteger(http2.maxHeaderSize) && http2.maxHeaderSize > 0 ? () => http2.maxHeaderSize : () => {
       throw new InvalidArgumentError("http module not available or http.maxHeaderSize invalid");
     };
     var noop3 = () => {
@@ -136845,7 +136845,7 @@ var require_readability = __commonJS({
 var require_content_context = __commonJS({
   "figma-bridge-plugin/content-context.js"(exports2, module2) {
     var https = require("https");
-    var http = require("http");
+    var http2 = require("http");
     var fs = require("fs");
     var path = require("path");
     var KNOWLEDGE_HUB_DIR = path.join(__dirname, "knowledge-hub");
@@ -136925,7 +136925,7 @@ var require_content_context = __commonJS({
     function fetchHtml(url2, maxRedirects = 5) {
       return new Promise((resolve2, reject2) => {
         if (maxRedirects <= 0) return reject2(new Error("Too many redirects"));
-        const mod = url2.startsWith("https") ? https : http;
+        const mod = url2.startsWith("https") ? https : http2;
         const req = mod.get(url2, {
           headers: {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -137567,6 +137567,7 @@ var require_parse_figma_link = __commonJS({
 
 // figma-bridge-plugin/bridge-relay.js
 var { WebSocketServer } = require_ws();
+var http = require("http");
 var { spawn } = require("child_process");
 var { readFileSync, writeFileSync, appendFileSync, existsSync } = require("fs");
 var { homedir } = require("os");
@@ -138569,14 +138570,73 @@ function setupHeartbeat(wss) {
   }, HEARTBEAT_INTERVAL_MS);
   wss.on("close", () => clearInterval(interval));
 }
+var httpServer = null;
+var httpPollQueue = [];
+var HTTP_POLL_MAX = 50;
 function createServerWithFallback(basePort, maxRetries = 9) {
   return new Promise((resolve2, reject2) => {
     let attempt = 0;
     function tryPort(port) {
-      const server = new WebSocketServer({ port });
-      server.on("listening", () => {
+      const server = http.createServer((req, res) => {
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+        if (req.method === "OPTIONS") {
+          res.writeHead(204);
+          res.end();
+          return;
+        }
+        const url2 = new URL(req.url, `http://localhost:${port}`);
+        if (url2.pathname === "/health") {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ok: true, port: PORT, ts: Date.now() }));
+          return;
+        }
+        if (url2.pathname === "/auth/claude" && req.method === "POST") {
+          handleHttpClaudeAuth(req, res);
+          return;
+        }
+        if (url2.pathname === "/status") {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({
+            ok: true,
+            relay: true,
+            mcp: hasConnectedMcpSocket(),
+            auth: authInfo,
+            port: PORT
+          }));
+          return;
+        }
+        if (url2.pathname === "/message" && req.method === "POST") {
+          let body = "";
+          req.on("data", (chunk2) => {
+            body += chunk2;
+          });
+          req.on("end", () => {
+            try {
+              const msg = JSON.parse(body);
+              handlePluginMessageHttp(msg, res);
+            } catch (e) {
+              res.writeHead(400, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: "Invalid JSON" }));
+            }
+          });
+          return;
+        }
+        if (url2.pathname === "/poll") {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          const msgs = httpPollQueue.splice(0, httpPollQueue.length);
+          res.end(JSON.stringify({ messages: msgs }));
+          return;
+        }
+        res.writeHead(404);
+        res.end("Not found");
+      });
+      const wss = new WebSocketServer({ server });
+      server.listen(port, "0.0.0.0", () => {
         PORT = port;
-        resolve2(server);
+        httpServer = server;
+        resolve2(wss);
       });
       server.on("error", (err) => {
         if (err.code === "EADDRINUSE" && attempt < maxRetries) {
@@ -138590,6 +138650,55 @@ function createServerWithFallback(basePort, maxRetries = 9) {
     }
     tryPort(basePort);
   });
+}
+async function handleHttpClaudeAuth(req, res) {
+  try {
+    httpPollQueue.push({ type: "claude-auth-status", status: "signing-in" });
+    if (httpPollQueue.length > HTTP_POLL_MAX) httpPollQueue.shift();
+    try {
+      const result2 = await startClaudeAuth();
+      if (result2 && result2.tokenData) {
+        authInfo = { loggedIn: true, email: result2.email || null, provider: "claude" };
+      }
+      httpPollQueue.push({ type: "claude-auth-status", status: "success", email: authInfo.email });
+      if (httpPollQueue.length > HTTP_POLL_MAX) httpPollQueue.shift();
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true, status: "success" }));
+    } catch (directErr) {
+      console.log(`  Direct OAuth failed: ${directErr.message}, trying CLI\u2026`);
+      try {
+        await startClaudeAuthViaCLI();
+        httpPollQueue.push({ type: "claude-auth-status", status: "polling" });
+        if (httpPollQueue.length > HTTP_POLL_MAX) httpPollQueue.shift();
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true, status: "polling" }));
+      } catch (cliErr) {
+        httpPollQueue.push({ type: "claude-auth-status", status: "error", error: cliErr.message });
+        if (httpPollQueue.length > HTTP_POLL_MAX) httpPollQueue.shift();
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: cliErr.message }));
+      }
+    }
+  } catch (err) {
+    res.writeHead(500, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: err.message }));
+  }
+}
+function handlePluginMessageHttp(msg, res) {
+  if (msg.type === "refresh-auth") {
+    refreshAuthState().catch(() => {
+    });
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+  if (msg.type === "plugin-hello") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: true, relay: true, mcp: hasConnectedMcpSocket() }));
+    return;
+  }
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ ok: true }));
 }
 var WebSocketClient = require_ws();
 var CLOUD_CONFIG_PATH = join(homedir(), ".figma-intelligence", "config.json");

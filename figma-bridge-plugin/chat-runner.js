@@ -79,14 +79,48 @@ function loadCloudConfig() {
   return null;
 }
 
-function writeMcpConfig(bridgePort) {
+// ── Claude CLI version check for HTTP MCP support ───���─────────────────────
+// "type": "http" in --mcp-config requires Claude Code ~2.1.x+.
+// Older versions reject it with "Does not adhere to MCP server configuration schema".
+let claudeSupportsHttpMcp = null; // null = not checked yet
+
+function checkClaudeHttpSupport() {
+  if (claudeSupportsHttpMcp !== null) return Promise.resolve(claudeSupportsHttpMcp);
+  return new Promise((resolve) => {
+    const proc = spawn(CLAUDE_BIN, ["--version"], { stdio: "pipe", env: getCleanEnv() });
+    let output = "";
+    const timer = setTimeout(() => { proc.kill(); claudeSupportsHttpMcp = false; resolve(false); }, 5000);
+    proc.stdout?.on("data", (d) => { output += d.toString(); });
+    proc.on("close", () => {
+      clearTimeout(timer);
+      // Parse version: "2.1.92 (Claude Code)" → [2, 1, 92]
+      const match = output.match(/(\d+)\.(\d+)\.(\d+)/);
+      if (match) {
+        const [, major, minor, patch] = match.map(Number);
+        // HTTP MCP support was added around 2.1.x — versions before 2.0 definitely don't have it
+        claudeSupportsHttpMcp = major > 2 || (major === 2 && minor >= 1);
+        console.log(`[chat-runner] Claude CLI v${major}.${minor}.${patch} — HTTP MCP: ${claudeSupportsHttpMcp ? "supported" : "not supported"}`);
+      } else {
+        // Can't parse version — assume supported (latest)
+        claudeSupportsHttpMcp = true;
+      }
+      resolve(claudeSupportsHttpMcp);
+    });
+    proc.on("error", () => { clearTimeout(timer); claudeSupportsHttpMcp = false; resolve(false); });
+  });
+}
+
+// Kick off version check immediately (non-blocking)
+checkClaudeHttpSupport();
+
+function writeMcpConfig(bridgePort, forceLocal) {
   const port = String(bridgePort || process.env.BRIDGE_PORT || "9001");
   const cloudConfig = loadCloudConfig();
 
   let config;
 
-  if (cloudConfig && cloudConfig.cloudUrl && cloudConfig.sessionToken) {
-    // Cloud mode: point Claude CLI to the cloud MCP server via HTTP
+  if (!forceLocal && cloudConfig && cloudConfig.cloudUrl && cloudConfig.sessionToken && claudeSupportsHttpMcp === true) {
+    // Cloud mode (HTTP): Claude CLI 2.1+ supports "type": "http" natively
     config = {
       mcpServers: {
         "figma-intelligence": {
@@ -97,7 +131,27 @@ function writeMcpConfig(bridgePort) {
     };
     mkdirSync(tmpdir(), { recursive: true });
     writeFileSync(MCP_CONFIG_PATH, JSON.stringify(config, null, 2));
-    console.log(`[chat-runner] MCP config written (cloud mode: ${cloudConfig.cloudUrl}/mcp)`);
+    console.log(`[chat-runner] MCP config written (cloud HTTP mode: ${cloudConfig.cloudUrl}/mcp)`);
+  } else if (cloudConfig && cloudConfig.cloudUrl && cloudConfig.sessionToken) {
+    // Cloud mode (stdio proxy): works on ALL Claude CLI versions.
+    // Spawns mcp-stdio-proxy.js which bridges stdio ↔ StreamableHTTP.
+    const proxyScript = resolve(__dirname, "..", "figma-intelligence-installer", "lib", "mcp-stdio-proxy.js");
+    const installerProxyScript = resolve(__dirname, "mcp-stdio-proxy.js");
+    // Check multiple locations: repo layout, installer layout, and same-dir
+    const proxyPath = existsSync(proxyScript) ? proxyScript
+      : existsSync(installerProxyScript) ? installerProxyScript
+      : resolve(__dirname, "..", "lib", "mcp-stdio-proxy.js");
+    config = {
+      mcpServers: {
+        "figma-intelligence": {
+          command: "node",
+          args: [proxyPath, cloudConfig.cloudUrl, cloudConfig.sessionToken],
+        },
+      },
+    };
+    mkdirSync(tmpdir(), { recursive: true });
+    writeFileSync(MCP_CONFIG_PATH, JSON.stringify(config, null, 2));
+    console.log(`[chat-runner] MCP config written (cloud stdio-proxy mode: ${proxyPath})`);
   } else {
     // Local mode fallback: use local stdio MCP server
     const figmaToken = getFigmaToken();
@@ -358,6 +412,19 @@ function runClaude({ message, attachments, conversation, requestId, model, desig
 
     if (code !== 0 && code !== null && fullText === "") {
       const detail = stderrOutput.trim() || `exit code ${code}`;
+
+      // If MCP schema rejected (older Claude CLI), fall back to local stdio and retry
+      if (detail.includes("Invalid MCP configuration") || detail.includes("Does not adhere to MCP server configuration schema")) {
+        console.error(`[chat-runner] Cloud MCP config rejected — falling back to local stdio mode`);
+        claudeSupportsHttpMcp = false;
+        writeMcpConfig(undefined, true);
+        resetSession(sessionMode);
+        // Retry the same message with local config
+        onEvent({ type: "phase_start", id: requestId, phase: "Retrying with local MCP server…" });
+        runClaude({ message, attachments, conversation, requestId, model, designSystemId, mode, frameworkConfig, onEvent });
+        return;
+      }
+
       // If session resume failed, reset and let next message start fresh
       if (detail.includes("session") || detail.includes("resume")) {
         console.error(`[chat-runner] Session resume failed, resetting ${sessionMode} session.`);
