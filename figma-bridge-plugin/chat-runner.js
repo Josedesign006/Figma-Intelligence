@@ -30,8 +30,22 @@ const CLAUDE_SETTINGS_PATH = join(homedir(), ".claude", "settings.json");
 const CLOUD_CONFIG_PATH = join(homedir(), ".figma-intelligence", "config.json");
 
 // Use the absolute claude binary path stored by setup.sh in launchd env.
-// Falls back to "claude" when running interactively (it's on PATH then).
-const CLAUDE_BIN = process.env.CLAUDE_BIN_PATH || "claude";
+// Falls back to probing common install locations (launchd has a limited PATH).
+const CLAUDE_BIN = process.env.CLAUDE_BIN_PATH || findClaudeBin();
+
+function findClaudeBin() {
+  const { existsSync } = require("fs");
+  const candidates = [
+    join(homedir(), ".local", "bin", "claude"),       // npm global / official installer
+    join(homedir(), ".claude", "bin", "claude"),       // alternative install
+    "/usr/local/bin/claude",
+    "/opt/homebrew/bin/claude",
+  ];
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+  return "claude"; // hope it's on PATH
+}
 
 // ── Session Persistence ──────────────────────────────────────────────────────
 // First message uses --session-id <uuid> (creates a new session).

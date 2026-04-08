@@ -81,7 +81,7 @@ import { validateDtcg } from "./shared/dtcg-validator.js";
 // component-doc removed — replaced by component-spec
 
 // ─── Bridge (for direct execute) ────────────────────────────────────────────
-import { ensureRelayServer, getBridge } from "./shared/figma-bridge.js";
+import { ensureRelayServer, getBridge, BridgeError } from "./shared/figma-bridge.js";
 
 // ─── P0: Response compression ───────────────────────────────────────────────
 import { compressResponse } from "./shared/response-compression.js";
@@ -2190,6 +2190,19 @@ export function createMcpServer() {
 
       return { content };
     } catch (error) {
+      // BridgeError provides structured diagnostics with per-layer status
+      if (error instanceof BridgeError) {
+        const diagnostic = JSON.stringify({
+          status: "error",
+          code: error.code,
+          error: error.message,
+          fix: error.fix,
+        }, null, 2);
+        return {
+          content: [{ type: "text", text: diagnostic }],
+          isError: true,
+        };
+      }
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: "text", text: `Error in ${name}: ${message}` }],

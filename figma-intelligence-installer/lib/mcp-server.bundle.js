@@ -37749,8 +37749,11 @@ var require_figma_bridge = __commonJS({
         return result;
       };
     })();
+    var __importDefault = exports2 && exports2.__importDefault || function(mod) {
+      return mod && mod.__esModule ? mod : { "default": mod };
+    };
     Object.defineProperty(exports2, "__esModule", { value: true });
-    exports2.FigmaBridge = void 0;
+    exports2.FigmaBridge = exports2.BridgeError = void 0;
     exports2.ensureRelayServer = ensureRelayServer;
     exports2.getBridge = getBridge;
     var ws_1 = __importStar2(require_ws());
@@ -37760,6 +37763,148 @@ var require_figma_bridge = __commonJS({
     var fs_1 = require("fs");
     var path_1 = require("path");
     var os_1 = require("os");
+    var child_process_1 = require("child_process");
+    var http_1 = __importDefault(require("http"));
+    var BridgeError = class extends Error {
+      code;
+      fix;
+      constructor(code, message, fix) {
+        super(message);
+        this.name = "BridgeError";
+        this.code = code;
+        this.fix = fix;
+      }
+      toToolResult() {
+        return {
+          status: "error",
+          error: this.message,
+          code: this.code,
+          fix: this.fix
+        };
+      }
+    };
+    exports2.BridgeError = BridgeError;
+    var relayBootstrapAttempted = false;
+    var relayBootstrapInProgress = null;
+    function probeRelayHealth(port, timeoutMs = 2e3) {
+      return new Promise((resolve) => {
+        const req = http_1.default.get(`http://localhost:${port}/health`, { timeout: timeoutMs }, (res) => {
+          let data = "";
+          res.on("data", (chunk) => {
+            data += chunk;
+          });
+          res.on("end", () => {
+            try {
+              const parsed = JSON.parse(data);
+              resolve(parsed && parsed.ok === true);
+            } catch {
+              resolve(false);
+            }
+          });
+        });
+        req.on("error", () => resolve(false));
+        req.on("timeout", () => {
+          req.destroy();
+          resolve(false);
+        });
+      });
+    }
+    function scanForRelay(basePort = 9001, maxPort = 9010) {
+      return new Promise(async (resolve) => {
+        for (let port = basePort; port <= maxPort; port++) {
+          if (await probeRelayHealth(port, 1e3)) {
+            resolve(port);
+            return;
+          }
+        }
+        resolve(null);
+      });
+    }
+    function loadInstallerConfig() {
+      try {
+        const configPath = (0, path_1.join)((0, os_1.homedir)(), ".figma-intelligence", "config.json");
+        if ((0, fs_1.existsSync)(configPath)) {
+          const config = JSON.parse((0, fs_1.readFileSync)(configPath, "utf8"));
+          return {
+            FIGMA_INTELLIGENCE_CLOUD_URL: config.cloudUrl || "",
+            FIGMA_INTELLIGENCE_SESSION_TOKEN: config.sessionToken || "",
+            FIGMA_ACCESS_TOKEN: config.figmaAccessToken || ""
+          };
+        }
+      } catch {
+      }
+      return {};
+    }
+    async function bootstrapRelay(port) {
+      if (relayBootstrapAttempted)
+        return false;
+      relayBootstrapAttempted = true;
+      const bundlePaths = [
+        (0, path_1.join)((0, os_1.homedir)(), ".figma-intelligence", "bridge-relay.bundle.js"),
+        // Dev mode fallback (when running from repo)
+        (0, path_1.join)(__dirname, "..", "..", "figma-bridge-plugin", "bridge-relay.js")
+      ];
+      let relayPath = null;
+      for (const p of bundlePaths) {
+        if ((0, fs_1.existsSync)(p)) {
+          relayPath = p;
+          break;
+        }
+      }
+      if (!relayPath) {
+        process.stderr.write("FigmaBridge: No relay bundle found for auto-start\n");
+        return false;
+      }
+      process.stderr.write(`FigmaBridge: Relay not running \u2014 auto-starting from ${relayPath}
+`);
+      const installerEnv = loadInstallerConfig();
+      const child = (0, child_process_1.spawn)(process.execPath, [relayPath], {
+        env: {
+          ...process.env,
+          ...installerEnv,
+          FIGMA_BRIDGE_PORT: String(port)
+        },
+        stdio: "ignore",
+        detached: true
+      });
+      child.unref();
+      for (let i = 0; i < 10; i++) {
+        await new Promise((r) => setTimeout(r, 500));
+        if (await probeRelayHealth(port, 1e3)) {
+          process.stderr.write("FigmaBridge: Relay auto-started successfully\n");
+          return true;
+        }
+      }
+      process.stderr.write("FigmaBridge: Relay auto-start timed out\n");
+      return false;
+    }
+    async function ensureRelayAvailable(port) {
+      if (relayBootstrapInProgress) {
+        const ok = await relayBootstrapInProgress;
+        if (ok)
+          return port;
+      }
+      if (await probeRelayHealth(port, 2e3))
+        return port;
+      const foundPort = await scanForRelay();
+      if (foundPort !== null) {
+        try {
+          const portDir = (0, path_1.join)((0, os_1.homedir)(), ".figma-intelligence");
+          (0, fs_1.writeFileSync)((0, path_1.join)(portDir, "relay.port"), String(foundPort));
+        } catch {
+        }
+        return foundPort;
+      }
+      relayBootstrapInProgress = bootstrapRelay(port);
+      const started = await relayBootstrapInProgress;
+      relayBootstrapInProgress = null;
+      if (started)
+        return port;
+      const finalPort = await scanForRelay();
+      if (finalPort !== null)
+        return finalPort;
+      throw new BridgeError("RELAY_NOT_RUNNING", "The Figma Intelligence relay is not running and auto-start failed.", "Run: npx figma-intelligence start\nOr from the repo: npm start");
+    }
     function resolvePort() {
       try {
         const portFile = (0, path_1.join)((0, os_1.homedir)(), ".figma-intelligence", "relay.port");
@@ -37919,6 +38064,19 @@ var require_figma_bridge = __commonJS({
       if (process.env.FIGMA_BRIDGE_CLIENT_ONLY === "1") {
         process.stderr.write(`Figma bridge connecting as client to ws://localhost:${WS_PORT}
 `);
+        try {
+          const activePort = await ensureRelayAvailable(WS_PORT);
+          if (activePort !== WS_PORT) {
+            process.env.FIGMA_BRIDGE_PORT = String(activePort);
+            process.stderr.write(`Figma bridge: relay found on port ${activePort} (updated)
+`);
+          }
+        } catch (err) {
+          if (err instanceof BridgeError) {
+            process.stderr.write(`Figma bridge: ${err.message}
+`);
+          }
+        }
         return;
       }
       relayStartupPromise = new Promise((resolve, reject) => {
@@ -38109,12 +38267,18 @@ var require_figma_bridge = __commonJS({
         if (this.connectPromise)
           return this.connectPromise;
         await ensureRelayServer();
+        const activePort = process.env.FIGMA_BRIDGE_PORT ? parseInt(process.env.FIGMA_BRIDGE_PORT, 10) : WS_PORT;
         this.connectPromise = new Promise((resolve, reject) => {
-          const socket = new ws_1.default(`ws://localhost:${WS_PORT}`);
+          const socket = new ws_1.default(`ws://localhost:${activePort}`);
           const handleFailure = (err) => {
             this.connected = false;
             this.ws = null;
-            reject(err);
+            const msg = err.message || "";
+            if (msg.includes("ECONNREFUSED") || msg.includes("connect ECONNREFUSED")) {
+              reject(new BridgeError("RELAY_NOT_RUNNING", "Cannot connect to the Figma Intelligence relay \u2014 it is not running.", "Run: npx figma-intelligence start\nOr from the repo: npm start"));
+            } else {
+              reject(new BridgeError("RELAY_UNREACHABLE", `Cannot reach the Figma Intelligence relay: ${msg}`, "Check if port " + activePort + " is available. Run: npx figma-intelligence restart"));
+            }
           };
           socket.on("open", () => {
             this.ws = socket;
@@ -38268,20 +38432,21 @@ var require_figma_bridge = __commonJS({
         if (!this.isConnected()) {
           try {
             await this.connect();
-          } catch {
-            throw new Error("FigmaBridge: not connected and reconnect failed");
+          } catch (err) {
+            if (err instanceof BridgeError)
+              throw err;
+            throw new BridgeError("RELAY_UNREACHABLE", "FigmaBridge: not connected and reconnect failed", "Run: npx figma-intelligence start");
           }
         }
         return new Promise((resolve, reject) => {
           if (!this.isConnected() || !this.ws) {
-            reject(new Error("FigmaBridge: not connected"));
+            reject(new BridgeError("RELAY_UNREACHABLE", "FigmaBridge: not connected", "Run: npx figma-intelligence start"));
             return;
           }
           const id = `req_${Date.now()}_${Math.random().toString(36).slice(2)}`;
           const timeout = setTimeout(() => {
             this.pendingRequests.delete(id);
-            const error = new Error(`FigmaBridge: timeout on method ${method}`);
-            reject(error);
+            reject(new BridgeError("REQUEST_TIMEOUT", `FigmaBridge: timeout on method "${method}" after ${timeoutMs}ms. The relay is up but the Figma plugin may not be responding.`, "Make sure the Figma Intelligence Bridge plugin is running inside Figma Desktop."));
           }, timeoutMs);
           this.pendingRequests.set(id, {
             resolve: (v) => {
@@ -38290,7 +38455,12 @@ var require_figma_bridge = __commonJS({
             },
             reject: (e) => {
               clearTimeout(timeout);
-              reject(e);
+              const msg = e instanceof Error ? e.message : String(e);
+              if (/plugin is not connected|plugin.*not connected/i.test(msg)) {
+                reject(new BridgeError("PLUGIN_NOT_CONNECTED", "The relay is running but the Figma plugin is not connected.", "Open Figma Desktop \u2192 Plugins \u2192 Development \u2192 Figma Intelligence Bridge \u2192 Run the plugin"));
+              } else {
+                reject(e);
+              }
             }
           });
           this.ws.send(JSON.stringify({ id, method, params }));
@@ -58535,13 +58705,6 @@ var require_unsplash_search = __commonJS({
   }
 });
 
-// figma-intelligence-layer/node_modules/playwright/index.js
-var require_playwright = __commonJS({
-  "figma-intelligence-layer/node_modules/playwright/index.js"(exports2, module2) {
-    module2.exports = require("playwright-core");
-  }
-});
-
 // figma-intelligence-layer/dist/tools/phase3-generation/url-to-frame/index.js
 var require_url_to_frame = __commonJS({
   "figma-intelligence-layer/dist/tools/phase3-generation/url-to-frame/index.js"(exports2) {
@@ -58550,7 +58713,7 @@ var require_url_to_frame = __commonJS({
     exports2.urlToFrameHandler = urlToFrameHandler;
     var chromium;
     try {
-      const pw = require_playwright();
+      const pw = require("playwright");
       chromium = pw.chromium;
     } catch {
     }
@@ -97899,6 +98062,18 @@ function createMcpServer() {
       }
       return { content };
     } catch (error) {
+      if (error instanceof figma_bridge_js_1.BridgeError) {
+        const diagnostic = JSON.stringify({
+          status: "error",
+          code: error.code,
+          error: error.message,
+          fix: error.fix
+        }, null, 2);
+        return {
+          content: [{ type: "text", text: diagnostic }],
+          isError: true
+        };
+      }
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: "text", text: `Error in ${name}: ${message}` }],

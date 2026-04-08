@@ -18,7 +18,6 @@ const { createInterface } = require("readline");
 
 const CONFIG_DIR = join(homedir(), ".figma-intelligence");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");
-const BIN_DIR = join(CONFIG_DIR, "bin");
 // Plugin goes in a VISIBLE location so users can easily find it in Figma
 const PLUGIN_DIR = join(homedir(), "Documents", "Figma Intelligence Plugin");
 
@@ -35,18 +34,84 @@ function ask(question) {
   });
 }
 
+function cleanStaleState() {
+  const { execSync } = require("child_process");
+  const { unlinkSync } = require("fs");
+
+  // 1. Stop any running relay processes (old or new)
+  if (platform() !== "win32") {
+    try { execSync("pkill -f 'bridge-relay' 2>/dev/null || true", { stdio: "ignore", timeout: 5000 }); } catch {}
+    // Kill by port range 9001-9010
+    for (let port = 9001; port <= 9010; port++) {
+      try { execSync(`lsof -ti:${port} 2>/dev/null | xargs kill -9 2>/dev/null || true`, { stdio: "ignore", timeout: 3000 }); } catch {}
+    }
+  }
+
+  // 2. Unload old launchd services (both dev-mode and installer-mode plist labels)
+  if (platform() === "darwin") {
+    const plistLabels = [
+      "com.figma-intelligence.bridge-relay",
+      "com.figma.intelligence.bridge-relay",  // dev-mode setup.sh uses this label
+    ];
+    for (const label of plistLabels) {
+      const plistPath = join(homedir(), "Library", "LaunchAgents", `${label}.plist`);
+      try { execSync(`launchctl unload "${plistPath}" 2>/dev/null`, { stdio: "ignore", timeout: 5000 }); } catch {}
+    }
+  }
+
+  // 3. Remove stale PID and port files
+  const staleFiles = [
+    join(CONFIG_DIR, "relay.pid"),
+    join(CONFIG_DIR, "relay.port"),
+    join(CONFIG_DIR, "relay.lock"),
+  ];
+  for (const f of staleFiles) {
+    try { unlinkSync(f); } catch {}
+  }
+
+  // 4. Clear npx cache for figma-intelligence (ensures fresh package)
+  try {
+    const npxCacheDir = join(homedir(), ".npm", "_npx");
+    if (existsSync(npxCacheDir)) {
+      const { readdirSync, rmSync } = require("fs");
+      for (const entry of readdirSync(npxCacheDir)) {
+        const pkgPath = join(npxCacheDir, entry, "node_modules", "figma-intelligence");
+        if (existsSync(pkgPath)) {
+          try { rmSync(join(npxCacheDir, entry), { recursive: true, force: true }); } catch {}
+        }
+      }
+    }
+  } catch {}
+
+  // Brief pause to let ports free up
+  if (platform() !== "win32") {
+    try { execSync("sleep 0.5", { stdio: "ignore" }); } catch {}
+  }
+
+  console.log("  Previous state cleaned.\n");
+}
+
 async function runSetup() {
   console.log("\n  Figma Intelligence — Setup\n");
 
+  // 0. Clean stale state from previous installations
+  console.log("  Cleaning previous installation state…");
+  cleanStaleState();
+
   // 1. Create config directory
   mkdirSync(CONFIG_DIR, { recursive: true });
-  mkdirSync(BIN_DIR, { recursive: true });
+  try { chmodSync(CONFIG_DIR, 0o700); } catch {}
+  // Clean up stale bin/ directory from old binary approach
+  const staleBinDir = join(CONFIG_DIR, "bin");
+  try { const { rmSync } = require("fs"); rmSync(staleBinDir, { recursive: true, force: true }); } catch {}
 
   // 2. Load existing config or create new
   let config = {};
   if (existsSync(CONFIG_PATH)) {
     try {
       config = JSON.parse(readFileSync(CONFIG_PATH, "utf8"));
+      // Clean up stale keys from older versions
+      delete config.binaryPath;
       console.log("  Found existing config, updating…\n");
     } catch {}
   }
@@ -98,7 +163,10 @@ async function runSetup() {
       copyFileSync(src, dest);
     }
   }
-  console.log(`  Relay installed to: ${CONFIG_DIR}`);
+  // Write version stamp so `start` can detect stale bundles
+  const CURRENT_VERSION = require("../package.json").version;
+  writeFileSync(join(CONFIG_DIR, "installed-version"), CURRENT_VERSION);
+  console.log(`  Relay v${CURRENT_VERSION} installed to: ${CONFIG_DIR}`);
 
   // 7. Install Figma plugin files
   console.log("\n  Installing Figma plugin…");
@@ -195,21 +263,32 @@ async function runSetup() {
 
   // 8. Save config
   writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+  chmodSync(CONFIG_PATH, 0o600);
   console.log(`\n  Config saved to: ${CONFIG_PATH}`);
 
   // 9. Register MCP server in AI tool configs
   console.log("\n  Registering MCP server with AI tools…\n");
   registerMcpServer(config);
 
-  // 10. Auto-start the relay (always force restart to use fresh bundle)
-  console.log("\n  Starting relay…");
-  try {
-    const { startRelay } = require("./start-relay");
-    await startRelay({ forceRestart: true });
-  } catch (err) {
-    console.log(`  Could not auto-start relay: ${err.message}`);
-    console.log("  You can start it manually: npx figma-intelligence@latest start\n");
+  // 10. Install launchd service (macOS) for durable relay supervision
+  if (platform() === "darwin") {
+    console.log("\n  Installing relay as a background service…");
+    installLaunchdService(config);
+  } else {
+    // Non-macOS: use detached spawn (relay auto-start from MCP server provides backup)
+    console.log("\n  Starting relay…");
+    try {
+      const { startRelay } = require("./start-relay");
+      await startRelay({ forceRestart: true });
+    } catch (err) {
+      console.log(`  Could not auto-start relay: ${err.message}`);
+      console.log("  You can start it manually: npx figma-intelligence@latest start\n");
+    }
   }
+
+  // 11. Verify the full chain
+  console.log("\n  Verifying installation…");
+  await verifyInstallation(config);
 
   console.log("\n  ✓ Setup complete!\n");
   console.log("  ┌──────────────────────────────────────────────────────────────┐");
@@ -219,6 +298,9 @@ async function runSetup() {
   console.log("  │  2. Plugins → Development → Import plugin from manifest     │");
   console.log("  │  3. Go to Documents → Figma Intelligence Plugin folder      │");
   console.log("  │  4. Select manifest.json                                    │");
+  console.log("  │                                                             │");
+  console.log("  │  IMPORTANT: The plugin MUST be running inside Figma Desktop │");
+  console.log("  │  before any MCP tools can work.                             │");
   console.log("  │                                                             │");
   console.log("  │  If you already imported it, RE-IMPORT to get the update.   │");
   console.log("  └──────────────────────────────────────────────────────────────┘");
@@ -383,6 +465,137 @@ function registerVSCode(config, mcpUrl) {
   } catch (err) {
     console.log(`    VS Code: skipped (${err.message})`);
   }
+}
+
+// ── Launchd Service (macOS) ────────────────────────────────────────────────
+
+function installLaunchdService(config) {
+  const { execSync } = require("child_process");
+  const PLIST_LABEL = "com.figma-intelligence.bridge-relay";
+  const PLIST_DIR = join(homedir(), "Library", "LaunchAgents");
+  const PLIST_PATH = join(PLIST_DIR, `${PLIST_LABEL}.plist`);
+  const NODE_PATH = process.execPath;
+  const RELAY_PATH = join(CONFIG_DIR, "bridge-relay.bundle.js");
+  const LOG_PATH = join(CONFIG_DIR, "relay.log");
+
+  if (!existsSync(RELAY_PATH)) {
+    console.log("  Relay bundle not found — skipping launchd service");
+    return;
+  }
+
+  try {
+    mkdirSync(PLIST_DIR, { recursive: true });
+
+    // Stop existing service
+    try { execSync(`launchctl unload "${PLIST_PATH}" 2>/dev/null`, { stdio: "ignore", timeout: 5000 }); } catch {}
+    // Kill stale relay processes
+    try { execSync("pkill -f 'bridge-relay' 2>/dev/null", { stdio: "ignore", timeout: 5000 }); } catch {}
+    // Brief pause to let ports free up
+    try { execSync("sleep 0.5", { stdio: "ignore" }); } catch {}
+
+    const plistContent = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${PLIST_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${NODE_PATH}</string>
+        <string>${RELAY_PATH}</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>${CONFIG_DIR}</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>${homedir()}</string>
+        <key>PATH</key>
+        <string>${homedir()}/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>FIGMA_INTELLIGENCE_CLOUD_URL</key>
+        <string>${config.cloudUrl || ""}</string>
+        <key>FIGMA_INTELLIGENCE_SESSION_TOKEN</key>
+        <string>${config.sessionToken || ""}</string>
+        <key>FIGMA_ACCESS_TOKEN</key>
+        <string>${config.figmaAccessToken || ""}</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>${LOG_PATH}</string>
+    <key>StandardErrorPath</key>
+    <string>${LOG_PATH}</string>
+</dict>
+</plist>`;
+
+    writeFileSync(PLIST_PATH, plistContent);
+    chmodSync(PLIST_PATH, 0o600);
+    execSync(`launchctl load "${PLIST_PATH}"`, { stdio: "ignore", timeout: 10000 });
+
+    // Wait briefly and check if it started
+    try { execSync("sleep 2", { stdio: "ignore" }); } catch {}
+    const listOutput = execSync(`launchctl list 2>/dev/null | grep "${PLIST_LABEL}" || true`, {
+      encoding: "utf8", timeout: 5000
+    }).trim();
+    const pid = listOutput ? listOutput.split(/\s+/)[0] : "-";
+
+    if (pid && pid !== "-" && pid !== "0") {
+      console.log(`  Relay service running (PID: ${pid})`);
+      console.log(`  Auto-starts on login and restarts on crash (launchd KeepAlive)`);
+      console.log(`  Logs: ${LOG_PATH}`);
+    } else {
+      console.log("  Launchd service registered but relay may still be starting…");
+      console.log(`  Logs: ${LOG_PATH}`);
+    }
+  } catch (err) {
+    console.log(`  Could not install launchd service: ${err.message}`);
+    console.log("  Falling back to manual start…");
+    // Fall back to detached spawn
+    try {
+      const { startRelay } = require("./start-relay");
+      startRelay({ forceRestart: true }).catch(() => {});
+    } catch {}
+  }
+}
+
+// ── Post-setup verification ──────────────────────────────────────────────────
+
+async function verifyInstallation(config) {
+  const http = require("http");
+
+  // Check bundles
+  const relayBundle = join(CONFIG_DIR, "bridge-relay.bundle.js");
+  const mcpBundle = join(CONFIG_DIR, "mcp-server.bundle.js");
+  console.log(`  Relay bundle:   ${existsSync(relayBundle) ? "present" : "MISSING"}`);
+  console.log(`  MCP bundle:     ${existsSync(mcpBundle) ? "present" : "MISSING"}`);
+
+  // Check plugin files
+  const pluginManifest = join(PLUGIN_DIR, "manifest.json");
+  console.log(`  Plugin files:   ${existsSync(pluginManifest) ? "present" : "MISSING"}`);
+
+  // Check relay health
+  try {
+    const health = await new Promise((resolve, reject) => {
+      const portFile = join(CONFIG_DIR, "relay.port");
+      const port = existsSync(portFile) ? parseInt(readFileSync(portFile, "utf8").trim(), 10) || 9001 : 9001;
+      const req = http.get(`http://localhost:${port}/health`, { timeout: 3000 }, (res) => {
+        let data = "";
+        res.on("data", (c) => { data += c; });
+        res.on("end", () => { try { resolve(JSON.parse(data)); } catch { reject(new Error("bad json")); } });
+      });
+      req.on("error", reject);
+      req.on("timeout", () => { req.destroy(); reject(new Error("timeout")); });
+    });
+    console.log(`  Relay health:   ${health.ok ? "healthy on port " + health.port : "unhealthy"}`);
+  } catch {
+    console.log("  Relay health:   not reachable (may still be starting)");
+  }
+
+  // Explicit plugin-required message
+  console.log("\n  Note: The Figma Intelligence Bridge plugin must be running");
+  console.log("  inside Figma Desktop before MCP tools can execute.");
 }
 
 module.exports = { runSetup };

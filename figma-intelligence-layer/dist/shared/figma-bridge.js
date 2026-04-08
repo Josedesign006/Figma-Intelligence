@@ -32,8 +32,11 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FigmaBridge = void 0;
+exports.FigmaBridge = exports.BridgeError = void 0;
 exports.ensureRelayServer = ensureRelayServer;
 exports.getBridge = getBridge;
 const ws_1 = __importStar(require("ws"));
@@ -43,9 +46,156 @@ const enrichment_pipeline_js_1 = require("./enrichment-pipeline.js");
 const fs_1 = require("fs");
 const path_1 = require("path");
 const os_1 = require("os");
+const child_process_1 = require("child_process");
+const http_1 = __importDefault(require("http"));
+class BridgeError extends Error {
+    code;
+    fix;
+    constructor(code, message, fix) {
+        super(message);
+        this.name = "BridgeError";
+        this.code = code;
+        this.fix = fix;
+    }
+    toToolResult() {
+        return {
+            status: "error",
+            error: this.message,
+            code: this.code,
+            fix: this.fix,
+        };
+    }
+}
+exports.BridgeError = BridgeError;
+// ─── Relay Bootstrap ────────────────────────────────────────────────────────
+// On-demand relay auto-start when FIGMA_BRIDGE_CLIENT_ONLY=1 and relay is down.
+let relayBootstrapAttempted = false;
+let relayBootstrapInProgress = null;
+function probeRelayHealth(port, timeoutMs = 2000) {
+    return new Promise((resolve) => {
+        const req = http_1.default.get(`http://localhost:${port}/health`, { timeout: timeoutMs }, (res) => {
+            let data = "";
+            res.on("data", (chunk) => { data += chunk; });
+            res.on("end", () => {
+                try {
+                    const parsed = JSON.parse(data);
+                    resolve(parsed && parsed.ok === true);
+                }
+                catch {
+                    resolve(false);
+                }
+            });
+        });
+        req.on("error", () => resolve(false));
+        req.on("timeout", () => { req.destroy(); resolve(false); });
+    });
+}
+function scanForRelay(basePort = 9001, maxPort = 9010) {
+    return new Promise(async (resolve) => {
+        for (let port = basePort; port <= maxPort; port++) {
+            if (await probeRelayHealth(port, 1000)) {
+                resolve(port);
+                return;
+            }
+        }
+        resolve(null);
+    });
+}
+function loadInstallerConfig() {
+    try {
+        const configPath = (0, path_1.join)((0, os_1.homedir)(), ".figma-intelligence", "config.json");
+        if ((0, fs_1.existsSync)(configPath)) {
+            const config = JSON.parse((0, fs_1.readFileSync)(configPath, "utf8"));
+            return {
+                FIGMA_INTELLIGENCE_CLOUD_URL: config.cloudUrl || "",
+                FIGMA_INTELLIGENCE_SESSION_TOKEN: config.sessionToken || "",
+                FIGMA_ACCESS_TOKEN: config.figmaAccessToken || "",
+            };
+        }
+    }
+    catch { }
+    return {};
+}
+async function bootstrapRelay(port) {
+    if (relayBootstrapAttempted)
+        return false;
+    relayBootstrapAttempted = true;
+    // Check for installed relay bundle
+    const bundlePaths = [
+        (0, path_1.join)((0, os_1.homedir)(), ".figma-intelligence", "bridge-relay.bundle.js"),
+        // Dev mode fallback (when running from repo)
+        (0, path_1.join)(__dirname, "..", "..", "figma-bridge-plugin", "bridge-relay.js"),
+    ];
+    let relayPath = null;
+    for (const p of bundlePaths) {
+        if ((0, fs_1.existsSync)(p)) {
+            relayPath = p;
+            break;
+        }
+    }
+    if (!relayPath) {
+        process.stderr.write("FigmaBridge: No relay bundle found for auto-start\n");
+        return false;
+    }
+    process.stderr.write(`FigmaBridge: Relay not running — auto-starting from ${relayPath}\n`);
+    const installerEnv = loadInstallerConfig();
+    const child = (0, child_process_1.spawn)(process.execPath, [relayPath], {
+        env: {
+            ...process.env,
+            ...installerEnv,
+            FIGMA_BRIDGE_PORT: String(port),
+        },
+        stdio: "ignore",
+        detached: true,
+    });
+    child.unref();
+    // Wait up to 5s for relay to come up
+    for (let i = 0; i < 10; i++) {
+        await new Promise((r) => setTimeout(r, 500));
+        if (await probeRelayHealth(port, 1000)) {
+            process.stderr.write("FigmaBridge: Relay auto-started successfully\n");
+            return true;
+        }
+    }
+    process.stderr.write("FigmaBridge: Relay auto-start timed out\n");
+    return false;
+}
+async function ensureRelayAvailable(port) {
+    // Prevent concurrent bootstrap attempts
+    if (relayBootstrapInProgress) {
+        const ok = await relayBootstrapInProgress;
+        if (ok)
+            return port;
+    }
+    // 1. Check if relay is already running on configured port
+    if (await probeRelayHealth(port, 2000))
+        return port;
+    // 2. Scan fallback ports 9001-9010
+    const foundPort = await scanForRelay();
+    if (foundPort !== null) {
+        // Update port file with discovered port
+        try {
+            const portDir = (0, path_1.join)((0, os_1.homedir)(), ".figma-intelligence");
+            (0, fs_1.writeFileSync)((0, path_1.join)(portDir, "relay.port"), String(foundPort));
+        }
+        catch { }
+        return foundPort;
+    }
+    // 3. No relay found — attempt bootstrap
+    relayBootstrapInProgress = bootstrapRelay(port);
+    const started = await relayBootstrapInProgress;
+    relayBootstrapInProgress = null;
+    if (started)
+        return port;
+    // 4. One more scan after bootstrap attempt (relay may have chosen a different port)
+    const finalPort = await scanForRelay();
+    if (finalPort !== null)
+        return finalPort;
+    throw new BridgeError("RELAY_NOT_RUNNING", "The Figma Intelligence relay is not running and auto-start failed.", "Run: npx figma-intelligence start\nOr from the repo: npm start");
+}
 function resolvePort() {
-    if (process.env.FIGMA_BRIDGE_PORT)
-        return parseInt(process.env.FIGMA_BRIDGE_PORT, 10);
+    // 1. relay.port file is the source of truth — it reflects the ACTUAL running port
+    //    (the relay writes this after port fallback, so it's always correct)
     try {
         const portFile = (0, path_1.join)((0, os_1.homedir)(), ".figma-intelligence", "relay.port");
         if ((0, fs_1.existsSync)(portFile)) {
@@ -55,6 +205,10 @@ function resolvePort() {
         }
     }
     catch { }
+    // 2. Env var override (set explicitly by bridge-relay for its child MCP server)
+    if (process.env.FIGMA_BRIDGE_PORT)
+        return parseInt(process.env.FIGMA_BRIDGE_PORT, 10);
+    // 3. Default
     return 9001;
 }
 const WS_PORT = resolvePort();
@@ -210,9 +364,25 @@ async function ensureRelayServer() {
     if (relayStartupPromise)
         return relayStartupPromise;
     // When started by bridge-relay (FIGMA_BRIDGE_CLIENT_ONLY=1), skip creating
-    // our own server — just connect as a client to the existing relay.
+    // our own server — try to connect as a client, auto-starting relay if needed.
     if (process.env.FIGMA_BRIDGE_CLIENT_ONLY === "1") {
         process.stderr.write(`Figma bridge connecting as client to ws://localhost:${WS_PORT}\n`);
+        try {
+            const activePort = await ensureRelayAvailable(WS_PORT);
+            if (activePort !== WS_PORT) {
+                // Port changed — update the module-level constant via closure
+                // (WS_PORT is const, but FigmaBridge.connect() reads it at call time)
+                process.env.FIGMA_BRIDGE_PORT = String(activePort);
+                process.stderr.write(`Figma bridge: relay found on port ${activePort} (updated)\n`);
+            }
+        }
+        catch (err) {
+            if (err instanceof BridgeError) {
+                process.stderr.write(`Figma bridge: ${err.message}\n`);
+                // Don't throw here — let FigmaBridge.connect() handle the error
+                // so tool calls get the structured error response
+            }
+        }
         return;
     }
     relayStartupPromise = new Promise((resolve, reject) => {
@@ -413,12 +583,23 @@ class FigmaBridge {
         if (this.connectPromise)
             return this.connectPromise;
         await ensureRelayServer();
+        // Resolve the active port (may have been updated by ensureRelayServer bootstrap)
+        const activePort = process.env.FIGMA_BRIDGE_PORT
+            ? parseInt(process.env.FIGMA_BRIDGE_PORT, 10)
+            : WS_PORT;
         this.connectPromise = new Promise((resolve, reject) => {
-            const socket = new ws_1.default(`ws://localhost:${WS_PORT}`);
+            const socket = new ws_1.default(`ws://localhost:${activePort}`);
             const handleFailure = (err) => {
                 this.connected = false;
                 this.ws = null;
-                reject(err);
+                // Classify the error for better diagnostics
+                const msg = err.message || "";
+                if (msg.includes("ECONNREFUSED") || msg.includes("connect ECONNREFUSED")) {
+                    reject(new BridgeError("RELAY_NOT_RUNNING", "Cannot connect to the Figma Intelligence relay — it is not running.", "Run: npx figma-intelligence start\nOr from the repo: npm start"));
+                }
+                else {
+                    reject(new BridgeError("RELAY_UNREACHABLE", `Cannot reach the Figma Intelligence relay: ${msg}`, "Check if port " + activePort + " is available. Run: npx figma-intelligence restart"));
+                }
             };
             socket.on("open", () => {
                 this.ws = socket;
@@ -584,27 +765,35 @@ class FigmaBridge {
             try {
                 await this.connect();
             }
-            catch {
-                throw new Error("FigmaBridge: not connected and reconnect failed");
+            catch (err) {
+                if (err instanceof BridgeError)
+                    throw err;
+                throw new BridgeError("RELAY_UNREACHABLE", "FigmaBridge: not connected and reconnect failed", "Run: npx figma-intelligence start");
             }
         }
         return new Promise((resolve, reject) => {
             if (!this.isConnected() || !this.ws) {
-                reject(new Error("FigmaBridge: not connected"));
+                reject(new BridgeError("RELAY_UNREACHABLE", "FigmaBridge: not connected", "Run: npx figma-intelligence start"));
                 return;
             }
             const id = `req_${Date.now()}_${Math.random().toString(36).slice(2)}`;
             const timeout = setTimeout(() => {
                 this.pendingRequests.delete(id);
-                const error = new Error(`FigmaBridge: timeout on method ${method}`);
-                // Don't invalidateConnection — the WebSocket to the relay is likely fine;
-                // only this individual request timed out (plugin slow / not connected).
-                // Actual connection loss is detected by the socket "close" event.
-                reject(error);
+                reject(new BridgeError("REQUEST_TIMEOUT", `FigmaBridge: timeout on method "${method}" after ${timeoutMs}ms. The relay is up but the Figma plugin may not be responding.`, "Make sure the Figma Intelligence Bridge plugin is running inside Figma Desktop."));
             }, timeoutMs);
             this.pendingRequests.set(id, {
                 resolve: (v) => { clearTimeout(timeout); resolve(v); },
-                reject: (e) => { clearTimeout(timeout); reject(e); },
+                reject: (e) => {
+                    clearTimeout(timeout);
+                    // Classify relay-forwarded errors
+                    const msg = e instanceof Error ? e.message : String(e);
+                    if (/plugin is not connected|plugin.*not connected/i.test(msg)) {
+                        reject(new BridgeError("PLUGIN_NOT_CONNECTED", "The relay is running but the Figma plugin is not connected.", "Open Figma Desktop → Plugins → Development → Figma Intelligence Bridge → Run the plugin"));
+                    }
+                    else {
+                        reject(e);
+                    }
+                },
             });
             this.ws.send(JSON.stringify({ id, method, params }));
         });

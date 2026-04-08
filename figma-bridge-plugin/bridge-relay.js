@@ -967,41 +967,22 @@ function readMcpEnv() {
   return {};
 }
 
-let _mcpProc = null;
-function startPersistentMcpServer() {
-  if (!existsSync(MCP_SERVER_PATH)) {
-    console.log("⚠  MCP server not built — run setup.sh");
-    return;
-  }
-  const savedEnv = readMcpEnv();
-  _mcpProc = spawn("node", [MCP_SERVER_PATH], {
-    stdio: ["ignore", "pipe", "pipe"],
-    env: {
-      ...process.env,
-      ...savedEnv,
-      FIGMA_BRIDGE_PORT: String(PORT),
-      FIGMA_BRIDGE_CLIENT_ONLY: "1", // Skip creating own relay server, just connect as client
-      ENABLE_DECISION_LOG: "true",
-    },
-  });
-  _mcpProc.stderr.on("data", (d) => {
-    const t = d.toString().trim();
-    if (t) console.log("[mcp]", t);
-  });
-  _mcpProc.on("close", (code) => {
-    _mcpProc = null;
-    if (code !== 0 && code !== null) {
-      console.log("⚠  MCP server exited — restarting in 3s…");
-      setTimeout(startPersistentMcpServer, 3000);
-    }
-  });
-  _mcpProc.on("error", () => {
-    _mcpProc = null;
-    setTimeout(startPersistentMcpServer, 3000);
-  });
-}
+// NOTE: startPersistentMcpServer() was removed.
+// Previously, the relay spawned a child MCP server process with stdio: ["ignore", ...]
+// to make the plugin UI show "MCP connected". This was broken because:
+// 1. The MCP server uses StdioServerTransport which reads from stdin — with stdin
+//    as "ignore", the transport hangs forever
+// 2. The child connected as a fake MCP socket, making hasConnectedMcpSocket() return
+//    true even when no real MCP client exists, falsifying the plugin UI status
+//
+// Real MCP connections now come from external processes (Claude Code, Codex, etc.)
+// that spawn the MCP server via their MCP config. The relay accurately reports
+// connection state based on actual clients.
 
 let pluginSocket = null;
+let pluginFileName = null;       // Track connected plugin's file name
+let lastPluginSeenAt = null;     // Timestamp of last plugin connection
+const relayStartedAt = Date.now();
 const mcpSockets = new Set();
 const vscodeSockets = new Set();          // VS Code chat extension clients
 const pendingRequests = new Map();
@@ -1307,15 +1288,20 @@ function createServerWithFallback(basePort, maxRetries = 9) {
           return;
         }
 
-        // HTTP fallback: get current auth/relay status
+        // Per-layer status — single source of truth for CLI, MCP server, and plugin UI
         if (url.pathname === "/status") {
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({
             ok: true,
             relay: true,
-            mcp: hasConnectedMcpSocket(),
-            auth: authInfo,
             port: PORT,
+            uptime: Math.round((Date.now() - relayStartedAt) / 1000),
+            pluginConnected: !!(pluginSocket && pluginSocket.readyState === 1),
+            pluginFileName: pluginFileName,
+            mcpClientCount: Array.from(mcpSockets).filter(s => s.readyState === 1).length,
+            vscodeClientCount: Array.from(vscodeSockets).filter(s => s.readyState === 1).length,
+            lastPluginSeenAt: lastPluginSeenAt,
+            auth: authInfo,
           }));
           return;
         }
@@ -1639,9 +1625,8 @@ prewarmHub().then((count) => {
   if (count > 0) console.log(`   📚 Knowledge hub pre-warmed: ${count} chunked source(s) cached`);
 }).catch(() => {});
 
-// Start the MCP server as a persistent child process so the plugin
-// always shows "Connected" — not just during active chat requests.
-startPersistentMcpServer();
+// MCP connections come from external AI tools (Claude Code, Codex, etc.)
+// The relay reports accurate connection state based on real clients.
 
 wss.on("connection", (ws, req) => {
   const path = req.url || "/";
@@ -1673,6 +1658,7 @@ wss.on("connection", (ws, req) => {
       console.log("  ↺ Plugin reconnected within grace period");
     }
     pluginSocket = ws;
+    lastPluginSeenAt = Date.now();
     console.log("✅ Figma plugin connected");
     // Flush any requests that were queued during the grace period
     if (pluginGraceQueue.length > 0) {
@@ -2722,45 +2708,68 @@ wss.on("connection", (ws, req) => {
 
       // Plugin hello
       if (msg.type === "plugin-hello") {
+        pluginFileName = msg.fileName || null;
+        lastPluginSeenAt = Date.now();
         console.log(`  Plugin identified: ${msg.fileName || "unknown"}`);
         return;
       }
 
-      // Claude OAuth — direct HTTP OAuth primary, CLI fallback
+      // Claude OAuth — check existing CLI auth first, then CLI login, then direct OAuth
       if (msg.type === "claude-auth") {
         (async () => {
           try {
             sendToPlugin({ type: "claude-auth-status", status: "signing-in" });
 
-            // Primary: direct HTTP OAuth with PKCE (opens browser, handles callback)
+            // 1. Check if already logged in via CLI (user may have run `claude login` in terminal)
+            const cliAvailable = await isClaudeAvailable();
+            if (cliAvailable) {
+              const existing = await getClaudeAuthInfo();
+              if (existing.loggedIn) {
+                console.log(`  Claude: already authenticated as ${existing.email || "unknown"}`);
+                authInfo = { loggedIn: true, email: existing.email };
+                sendToPlugin({ type: "claude-auth-status", status: "success", email: authInfo.email });
+                sendRelayStatus(pluginSocket, hasConnectedMcpSocket());
+                return;
+              }
+            }
+
+            // 2. Try CLI-based OAuth (spawns `claude auth login`)
+            if (cliAvailable) {
+              try {
+                console.log("  Claude: starting CLI auth flow...");
+                await startClaudeAuthViaCLI();
+                // Poll for auth completion (CLI handles token storage)
+                let pollCount = 0;
+                const pollInterval = setInterval(async () => {
+                  pollCount++;
+                  if (pollCount > 40) { clearInterval(pollInterval); return; } // 2 min max
+                  await refreshAuthState({ force: true });
+                  if (authInfo.loggedIn) {
+                    clearInterval(pollInterval);
+                    console.log(`  Claude: authenticated as ${authInfo.email || "unknown"}`);
+                    sendToPlugin({ type: "claude-auth-status", status: "success", email: authInfo.email });
+                  }
+                }, 3000);
+                return;
+              } catch (cliErr) {
+                console.warn("  Claude: CLI auth failed, trying direct OAuth:", cliErr.message);
+              }
+            }
+
+            // 3. Fallback: direct HTTP OAuth with PKCE (opens browser, handles callback)
             try {
               console.log("  Claude: starting direct OAuth flow...");
               const result = await startClaudeAuth();
-              // Token is persisted by startClaudeAuth; update in-memory auth state
               authInfo = { loggedIn: true, email: result.email || null };
               console.log(`  Claude: authenticated via direct OAuth`);
               sendToPlugin({ type: "claude-auth-status", status: "success", email: authInfo.email });
               sendRelayStatus(pluginSocket, hasConnectedMcpSocket());
               return;
             } catch (directErr) {
-              console.warn("  Claude: direct OAuth failed, trying CLI fallback:", directErr.message);
+              console.warn("  Claude: direct OAuth also failed:", directErr.message);
             }
 
-            // Fallback: CLI-based OAuth (spawns `claude auth login`)
-            console.log("  Claude: trying CLI fallback...");
-            await startClaudeAuthViaCLI();
-            // Poll for auth completion (CLI handles token storage)
-            let pollCount = 0;
-            const pollInterval = setInterval(async () => {
-              pollCount++;
-              if (pollCount > 40) { clearInterval(pollInterval); return; } // 2 min max
-              await refreshAuthState({ force: true });
-              if (authInfo.loggedIn) {
-                clearInterval(pollInterval);
-                console.log(`  Claude: authenticated as ${authInfo.email || "unknown"}`);
-                sendToPlugin({ type: "claude-auth-status", status: "success", email: authInfo.email });
-              }
-            }, 3000);
+            sendToPlugin({ type: "claude-auth-status", status: "error", error: "Could not sign in. Run 'claude login' in a terminal, then try again." });
           } catch (err) {
             console.error("  Claude auth failed:", err.message);
             sendToPlugin({ type: "claude-auth-status", status: "error", error: "Could not open Claude sign-in. Please try again." });

@@ -94,8 +94,16 @@ function postForm(url, params) {
       let data = "";
       res.on("data", (chunk) => { data += chunk; });
       res.on("end", () => {
+        if (res.statusCode >= 300 && res.statusCode < 400) {
+          reject(new Error(`Token endpoint redirected (${res.statusCode}) — client_id may not be registered`));
+          return;
+        }
+        if (!data || !data.trim()) {
+          reject(new Error(`Token endpoint returned empty response (HTTP ${res.statusCode})`));
+          return;
+        }
         try { resolve(JSON.parse(data)); }
-        catch { reject(new Error(`Token exchange failed: ${data}`)); }
+        catch { reject(new Error(`Token exchange failed (HTTP ${res.statusCode}): ${data.slice(0, 200)}`)); }
       });
     });
     req.on("error", reject);

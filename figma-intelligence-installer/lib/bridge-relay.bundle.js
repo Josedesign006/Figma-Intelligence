@@ -4227,7 +4227,22 @@ var require_chat_runner = __commonJS({
     var MCP_CONFIG_PATH = join2(tmpdir(), "figma-intelligence-chat-mcp.json");
     var CLAUDE_SETTINGS_PATH = join2(homedir2(), ".claude", "settings.json");
     var CLOUD_CONFIG_PATH2 = join2(homedir2(), ".figma-intelligence", "config.json");
-    var CLAUDE_BIN = process.env.CLAUDE_BIN_PATH || "claude";
+    var CLAUDE_BIN = process.env.CLAUDE_BIN_PATH || findClaudeBin();
+    function findClaudeBin() {
+      const { existsSync: existsSync3 } = require("fs");
+      const candidates = [
+        join2(homedir2(), ".local", "bin", "claude"),
+        // npm global / official installer
+        join2(homedir2(), ".claude", "bin", "claude"),
+        // alternative install
+        "/usr/local/bin/claude",
+        "/opt/homebrew/bin/claude"
+      ];
+      for (const c of candidates) {
+        if (existsSync3(c)) return c;
+      }
+      return "claude";
+    }
     var activeSessionIds = { code: null, chat: null, dual: null };
     function resetSession2(mode) {
       if (mode) {
@@ -46539,10 +46554,18 @@ var require_claude_auth = __commonJS({
             data += chunk2;
           });
           res.on("end", () => {
+            if (res.statusCode >= 300 && res.statusCode < 400) {
+              reject2(new Error(`Token endpoint redirected (${res.statusCode}) \u2014 client_id may not be registered`));
+              return;
+            }
+            if (!data || !data.trim()) {
+              reject2(new Error(`Token endpoint returned empty response (HTTP ${res.statusCode})`));
+              return;
+            }
             try {
               resolve2(JSON.parse(data));
             } catch {
-              reject2(new Error(`Token exchange failed: ${data}`));
+              reject2(new Error(`Token exchange failed (HTTP ${res.statusCode}): ${data.slice(0, 200)}`));
             }
           });
         });
@@ -138329,62 +138352,10 @@ var DEFAULT_CODEX_APP_BIN = "/Applications/Codex.app/Contents/Resources/codex";
 if (!process.env.CODEX_BIN_PATH && existsSync(DEFAULT_CODEX_APP_BIN)) {
   process.env.CODEX_BIN_PATH = DEFAULT_CODEX_APP_BIN;
 }
-function readMcpEnv() {
-  try {
-    const settingsPath = join(homedir(), ".claude", "settings.json");
-    if (existsSync(settingsPath)) {
-      const s = JSON.parse(readFileSync(settingsPath, "utf8"));
-      const figmaEnv = s?.mcpServers?.["figma-intelligence-layer"]?.env || {};
-      const bridgeEnv = s?.mcpServers?.["design-bridge"]?.env || {};
-      return {
-        // Merge figma-intelligence-layer env (has UNSPLASH, GEMINI, ANTHROPIC keys etc.)
-        ...figmaEnv,
-        // Pull Stitch/Unsplash/Pexels from design-bridge as a fallback
-        ...bridgeEnv.UNSPLASH_ACCESS_KEY && !figmaEnv.UNSPLASH_ACCESS_KEY ? { UNSPLASH_ACCESS_KEY: bridgeEnv.UNSPLASH_ACCESS_KEY } : {},
-        ...bridgeEnv.PEXELS_API_KEY && !figmaEnv.PEXELS_API_KEY ? { PEXELS_API_KEY: bridgeEnv.PEXELS_API_KEY } : {},
-        ...bridgeEnv.STITCH_API_KEY && !figmaEnv.STITCH_API_KEY ? { STITCH_API_KEY: bridgeEnv.STITCH_API_KEY } : {},
-        ...bridgeEnv.GOOGLE_CLOUD_PROJECT && !figmaEnv.GOOGLE_CLOUD_PROJECT ? { GOOGLE_CLOUD_PROJECT: bridgeEnv.GOOGLE_CLOUD_PROJECT } : {}
-      };
-    }
-  } catch {
-  }
-  return {};
-}
-var _mcpProc = null;
-function startPersistentMcpServer() {
-  if (!existsSync(MCP_SERVER_PATH)) {
-    console.log("\u26A0  MCP server not built \u2014 run setup.sh");
-    return;
-  }
-  const savedEnv = readMcpEnv();
-  _mcpProc = spawn("node", [MCP_SERVER_PATH], {
-    stdio: ["ignore", "pipe", "pipe"],
-    env: {
-      ...process.env,
-      ...savedEnv,
-      FIGMA_BRIDGE_PORT: String(PORT),
-      FIGMA_BRIDGE_CLIENT_ONLY: "1",
-      // Skip creating own relay server, just connect as client
-      ENABLE_DECISION_LOG: "true"
-    }
-  });
-  _mcpProc.stderr.on("data", (d) => {
-    const t = d.toString().trim();
-    if (t) console.log("[mcp]", t);
-  });
-  _mcpProc.on("close", (code) => {
-    _mcpProc = null;
-    if (code !== 0 && code !== null) {
-      console.log("\u26A0  MCP server exited \u2014 restarting in 3s\u2026");
-      setTimeout(startPersistentMcpServer, 3e3);
-    }
-  });
-  _mcpProc.on("error", () => {
-    _mcpProc = null;
-    setTimeout(startPersistentMcpServer, 3e3);
-  });
-}
 var pluginSocket = null;
+var pluginFileName = null;
+var lastPluginSeenAt = null;
+var relayStartedAt = Date.now();
 var mcpSockets = /* @__PURE__ */ new Set();
 var vscodeSockets = /* @__PURE__ */ new Set();
 var pendingRequests = /* @__PURE__ */ new Map();
@@ -138642,9 +138613,14 @@ function createServerWithFallback(basePort, maxRetries = 9) {
           res.end(JSON.stringify({
             ok: true,
             relay: true,
-            mcp: hasConnectedMcpSocket(),
-            auth: authInfo,
-            port: PORT
+            port: PORT,
+            uptime: Math.round((Date.now() - relayStartedAt) / 1e3),
+            pluginConnected: !!(pluginSocket && pluginSocket.readyState === 1),
+            pluginFileName,
+            mcpClientCount: Array.from(mcpSockets).filter((s) => s.readyState === 1).length,
+            vscodeClientCount: Array.from(vscodeSockets).filter((s) => s.readyState === 1).length,
+            lastPluginSeenAt,
+            auth: authInfo
           }));
           return;
         }
@@ -138936,7 +138912,6 @@ process.on("SIGTERM", () => {
     if (count > 0) console.log(`   \u{1F4DA} Knowledge hub pre-warmed: ${count} chunked source(s) cached`);
   }).catch(() => {
   });
-  startPersistentMcpServer();
   wss.on("connection", (ws, req) => {
     const path = req.url || "/";
     const isPlugin = path.includes("/plugin");
@@ -138965,6 +138940,7 @@ process.on("SIGTERM", () => {
         console.log("  \u21BA Plugin reconnected within grace period");
       }
       pluginSocket = ws;
+      lastPluginSeenAt = Date.now();
       console.log("\u2705 Figma plugin connected");
       if (pluginGraceQueue.length > 0) {
         console.log(`  \u21BA Flushing ${pluginGraceQueue.length} queued request(s) to plugin`);
@@ -139969,6 +139945,8 @@ The user selected: create ${matched} spec for this component.`;
           return;
         }
         if (msg.type === "plugin-hello") {
+          pluginFileName = msg.fileName || null;
+          lastPluginSeenAt = Date.now();
           console.log(`  Plugin identified: ${msg.fileName || "unknown"}`);
           return;
         }
@@ -139976,6 +139954,40 @@ The user selected: create ${matched} spec for this component.`;
           (async () => {
             try {
               sendToPlugin({ type: "claude-auth-status", status: "signing-in" });
+              const cliAvailable = await isClaudeAvailable();
+              if (cliAvailable) {
+                const existing = await getClaudeAuthInfo();
+                if (existing.loggedIn) {
+                  console.log(`  Claude: already authenticated as ${existing.email || "unknown"}`);
+                  authInfo = { loggedIn: true, email: existing.email };
+                  sendToPlugin({ type: "claude-auth-status", status: "success", email: authInfo.email });
+                  sendRelayStatus(pluginSocket, hasConnectedMcpSocket());
+                  return;
+                }
+              }
+              if (cliAvailable) {
+                try {
+                  console.log("  Claude: starting CLI auth flow...");
+                  await startClaudeAuthViaCLI();
+                  let pollCount = 0;
+                  const pollInterval = setInterval(async () => {
+                    pollCount++;
+                    if (pollCount > 40) {
+                      clearInterval(pollInterval);
+                      return;
+                    }
+                    await refreshAuthState({ force: true });
+                    if (authInfo.loggedIn) {
+                      clearInterval(pollInterval);
+                      console.log(`  Claude: authenticated as ${authInfo.email || "unknown"}`);
+                      sendToPlugin({ type: "claude-auth-status", status: "success", email: authInfo.email });
+                    }
+                  }, 3e3);
+                  return;
+                } catch (cliErr) {
+                  console.warn("  Claude: CLI auth failed, trying direct OAuth:", cliErr.message);
+                }
+              }
               try {
                 console.log("  Claude: starting direct OAuth flow...");
                 const result2 = await startClaudeAuth();
@@ -139985,24 +139997,9 @@ The user selected: create ${matched} spec for this component.`;
                 sendRelayStatus(pluginSocket, hasConnectedMcpSocket());
                 return;
               } catch (directErr) {
-                console.warn("  Claude: direct OAuth failed, trying CLI fallback:", directErr.message);
+                console.warn("  Claude: direct OAuth also failed:", directErr.message);
               }
-              console.log("  Claude: trying CLI fallback...");
-              await startClaudeAuthViaCLI();
-              let pollCount = 0;
-              const pollInterval = setInterval(async () => {
-                pollCount++;
-                if (pollCount > 40) {
-                  clearInterval(pollInterval);
-                  return;
-                }
-                await refreshAuthState({ force: true });
-                if (authInfo.loggedIn) {
-                  clearInterval(pollInterval);
-                  console.log(`  Claude: authenticated as ${authInfo.email || "unknown"}`);
-                  sendToPlugin({ type: "claude-auth-status", status: "success", email: authInfo.email });
-                }
-              }, 3e3);
+              sendToPlugin({ type: "claude-auth-status", status: "error", error: "Could not sign in. Run 'claude login' in a terminal, then try again." });
             } catch (err) {
               console.error("  Claude auth failed:", err.message);
               sendToPlugin({ type: "claude-auth-status", status: "error", error: "Could not open Claude sign-in. Please try again." });

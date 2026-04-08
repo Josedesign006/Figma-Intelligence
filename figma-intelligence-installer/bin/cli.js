@@ -45,6 +45,19 @@ function autoUpdate() {
     if (latest && latest !== CURRENT_VERSION) {
       console.log(`  Update available: ${CURRENT_VERSION} → ${latest}`);
       console.log("  Downloading latest version…\n");
+      // Clear npx cache to ensure fresh download
+      try {
+        const npxCacheDir = join(homedir(), ".npm", "_npx");
+        if (existsSync(npxCacheDir)) {
+          const { readdirSync, rmSync } = require("fs");
+          for (const entry of readdirSync(npxCacheDir)) {
+            const pkgPath = join(npxCacheDir, entry, "node_modules", "figma-intelligence");
+            if (existsSync(pkgPath)) {
+              try { rmSync(join(npxCacheDir, entry), { recursive: true, force: true }); } catch {}
+            }
+          }
+        }
+      } catch {}
       execSync(`npx figma-intelligence@latest ${command}`, {
         stdio: "inherit",
         timeout: 120000,

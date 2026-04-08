@@ -14,6 +14,18 @@ const CONFIG_DIR = join(homedir(), ".figma-intelligence");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 const PID_PATH = join(CONFIG_DIR, "relay.pid");
 const PORT_FILE = join(CONFIG_DIR, "relay.port");
+const VERSION_FILE = join(CONFIG_DIR, "installed-version");
+const CURRENT_VERSION = require("../package.json").version;
+
+function installedVersionIsStale() {
+  try {
+    if (existsSync(VERSION_FILE)) {
+      const installed = readFileSync(VERSION_FILE, "utf8").trim();
+      return installed !== CURRENT_VERSION;
+    }
+  } catch {}
+  return true; // No version file = stale
+}
 
 function getActivePort() {
   try {
@@ -85,8 +97,60 @@ function killAllRelays() {
   try { execSync("sleep 0.5", { stdio: "ignore" }); } catch {}
 }
 
+const PLIST_LABEL = "com.figma-intelligence.bridge-relay";
+const PLIST_PATH = join(homedir(), "Library", "LaunchAgents", `${PLIST_LABEL}.plist`);
+
+function hasLaunchdService() {
+  return platform() === "darwin" && existsSync(PLIST_PATH);
+}
+
 async function startRelay({ forceRestart } = {}) {
   const config = loadConfig();
+
+  // If installed bundles are stale (different version), force-copy fresh ones
+  if (installedVersionIsStale()) {
+    console.log(`  Installed bundles are stale — updating to v${CURRENT_VERSION}…`);
+    const { copyFileSync, mkdirSync } = require("fs");
+    mkdirSync(CONFIG_DIR, { recursive: true });
+    const filesToUpdate = ["bridge-relay.bundle.js", "mcp-server.bundle.js", "mcp-stdio-proxy.js"];
+    for (const file of filesToUpdate) {
+      const src = join(__dirname, file);
+      const dest = join(CONFIG_DIR, file);
+      if (existsSync(src)) {
+        try { copyFileSync(src, dest); } catch {}
+      }
+    }
+    try { writeFileSync(VERSION_FILE, CURRENT_VERSION); } catch {}
+    forceRestart = true; // Force restart with new bundles
+  }
+
+  // On macOS with launchd service installed, use launchctl
+  if (hasLaunchdService()) {
+    if (forceRestart) {
+      try { execSync(`launchctl unload "${PLIST_PATH}" 2>/dev/null`, { stdio: "ignore", timeout: 5000 }); } catch {}
+      killAllRelays();
+      try { execSync(`launchctl load "${PLIST_PATH}"`, { stdio: "ignore", timeout: 10000 }); } catch {}
+    } else {
+      // Check if already running via launchctl
+      try {
+        const listOutput = execSync(`launchctl list 2>/dev/null | grep "${PLIST_LABEL}" || true`, {
+          encoding: "utf8", timeout: 5000
+        }).trim();
+        const pid = listOutput ? listOutput.split(/\s+/)[0] : "-";
+        if (pid && pid !== "-" && pid !== "0") {
+          console.log(`  Relay already running via launchd (PID ${pid})`);
+          return;
+        }
+      } catch {}
+      try { execSync(`launchctl load "${PLIST_PATH}"`, { stdio: "ignore", timeout: 10000 }); } catch {}
+    }
+
+    // Wait and verify
+    await new Promise((r) => setTimeout(r, 2000));
+    console.log(`  Relay started via launchd`);
+    console.log(`  Local relay: ws://localhost:${getActivePort()}`);
+    return;
+  }
 
   // Check if already running with current version
   if (!forceRestart && existsSync(PID_PATH)) {
@@ -142,6 +206,10 @@ async function startRelay({ forceRestart } = {}) {
 }
 
 async function stopRelay() {
+  // Stop launchd service if it exists
+  if (hasLaunchdService()) {
+    try { execSync(`launchctl unload "${PLIST_PATH}" 2>/dev/null`, { stdio: "ignore", timeout: 5000 }); } catch {}
+  }
   killAllRelays();
   console.log("  Relay stopped.");
 }
